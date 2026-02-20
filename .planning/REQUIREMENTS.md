@@ -102,37 +102,37 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DISC-01 | Phase 1 | Pending |
-| DISC-02 | Phase 1 | Pending |
-| SLEEP-01 | Phase 2 | Pending |
-| SLEEP-02 | Phase 2 | Pending |
-| WAKE-01 | Phase 2 | Pending |
-| WAKE-02 | Phase 2 | Pending |
-| SCH-01 | Phase 2 | Pending |
-| SCH-02 | Phase 3 | Pending |
-| SCH-03 | Phase 3 | Pending |
-| SCH-04 | Phase 3 | Pending |
-| SCH-05 | Phase 3 | Pending |
-| SCH-06 | Phase 3 | Pending |
-| SCH-07 | Phase 3 | Pending |
-| SCH-08 | Phase 3 | Pending |
-| REC-01 | Phase 4 | Pending |
-| REC-02 | Phase 4 | Pending |
-| REC-03 | Phase 4 | Pending |
-| REC-04 | Phase 4 | Pending |
-| REC-05 | Phase 4 | Pending |
-| REC-06 | Phase 4 | Pending |
-| ACT-01 | Phase 4 | Pending |
-| ACT-02 | Phase 4 | Pending |
-| ACT-03 | Phase 4 | Pending |
-| ACT-04 | Phase 4 | Pending |
-| AUDIT-01 | Phase 2 | Pending |
-| AUDIT-02 | Phase 2 | Pending |
-| AUDIT-03 | Phase 2 | Pending |
-| AWS-01 | Phase 1 | Pending |
-| AWS-02 | Phase 1 | Pending |
-| GCP-01 | Phase 1 | Pending |
-| GCP-02 | Phase 1 | Pending |
+| DISC-01 | Phase 1: Multi-Cloud Discovery | Pending |
+| DISC-02 | Phase 1: Multi-Cloud Discovery | Pending |
+| AWS-01 | Phase 1: Multi-Cloud Discovery | Pending |
+| AWS-02 | Phase 1: Multi-Cloud Discovery | Pending |
+| GCP-01 | Phase 1: Multi-Cloud Discovery | Pending |
+| GCP-02 | Phase 1: Multi-Cloud Discovery | Pending |
+| SLEEP-01 | Phase 2: Manual Control & Audit | Pending |
+| SLEEP-02 | Phase 2: Manual Control & Audit | Pending |
+| WAKE-01 | Phase 2: Manual Control & Audit | Pending |
+| WAKE-02 | Phase 2: Manual Control & Audit | Pending |
+| AUDIT-01 | Phase 2: Manual Control & Audit | Pending |
+| AUDIT-02 | Phase 2: Manual Control & Audit | Pending |
+| AUDIT-03 | Phase 2: Manual Control & Audit | Pending |
+| SCH-01 | Phase 3: Basic Scheduling | Pending |
+| SCH-02 | Phase 4: Advanced Schedule Filtering | Pending |
+| SCH-03 | Phase 4: Advanced Schedule Filtering | Pending |
+| SCH-04 | Phase 4: Advanced Schedule Filtering | Pending |
+| SCH-05 | Phase 4: Advanced Schedule Filtering | Pending |
+| SCH-06 | Phase 4: Advanced Schedule Filtering | Pending |
+| SCH-07 | Phase 4: Advanced Schedule Filtering | Pending |
+| SCH-08 | Phase 4: Advanced Schedule Filtering | Pending |
+| ACT-01 | Phase 5: Activity Analysis | Pending |
+| ACT-02 | Phase 5: Activity Analysis | Pending |
+| ACT-03 | Phase 5: Activity Analysis | Pending |
+| ACT-04 | Phase 5: Activity Analysis | Pending |
+| REC-01 | Phase 6: Intelligent Recommendations | Pending |
+| REC-02 | Phase 6: Intelligent Recommendations | Pending |
+| REC-03 | Phase 6: Intelligent Recommendations | Pending |
+| REC-04 | Phase 6: Intelligent Recommendations | Pending |
+| REC-05 | Phase 6: Intelligent Recommendations | Pending |
+| REC-06 | Phase 6: Intelligent Recommendations | Pending |
 
 **Coverage:**
 - v1 requirements: 26 total
