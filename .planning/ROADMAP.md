@@ -33,9 +33,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 6 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Instance persistence and connection status tracking
-- [ ] 01-02-PLAN.md — Multi-account provider registration and GCP credentials
-- [ ] 01-03-PLAN.md — Sortable/filterable instances table with account column
+- [x] 01-01-PLAN.md — Instance persistence and connection status tracking
+- [x] 01-02-PLAN.md — Multi-account provider registration and GCP credentials
+- [x] 01-03-PLAN.md — Sortable/filterable instances table with account column
 - [ ] 01-04-PLAN.md — Connection status chips, skeleton loading, toasts
 - [ ] 01-05-PLAN.md — Clickable dashboard stats and add account CTAs
 - [ ] 01-06-PLAN.md — End-to-end verification checkpoint
@@ -119,7 +119,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Multi-Cloud Discovery | 0/6 | Planned | - |
+| 1. Multi-Cloud Discovery | 3/6 | In progress | 2026-02-21 |
 | 2. Manual Control & Audit | 0/? | Not started | - |
 | 3. Basic Scheduling | 0/? | Not started | - |
 | 4. Advanced Schedule Filtering | 0/? | Not started | - |
