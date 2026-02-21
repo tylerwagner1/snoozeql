@@ -67,10 +67,14 @@ Plans:
   3. All sleep/wake operations are logged with timestamps
   4. User can view operation history/audit log showing all past operations
   5. User can create/update schedules and see those changes in the audit log
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — EventStore and Events API endpoint (Wave 1)
+- [ ] 02-02-PLAN.md — ConfirmDialog component with Headless UI (Wave 1)
+- [ ] 02-03-PLAN.md — Bulk stop/start API endpoints with audit logging (Wave 2)
+- [ ] 02-04-PLAN.md — Multi-select and bulk actions in InstancesPage (Wave 2)
+- [ ] 02-05-PLAN.md — AuditLogPage, navigation, and verification (Wave 3)
 
 ### Phase 3: Basic Scheduling
 **Goal**: Users can create time-based sleep/wake schedules
@@ -137,7 +141,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Multi-Cloud Discovery | 6/6 | Complete | 2026-02-21 ✅ |
-| 2. Manual Control & Audit | 0/? | Not started | - |
+| 2. Manual Control & Audit | 0/5 | Planned | - |
 | 3. Basic Scheduling | 0/? | Not started | - |
 | 4. Advanced Schedule Filtering | 0/? | Not started | - |
 | 5. Activity Analysis | 0/? | Not started | - |
