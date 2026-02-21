@@ -10,24 +10,24 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 1 of 6 (Multi-Cloud Discovery)
-Plan: 1 of 6 in current phase
+Plan: 2 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-21 — Completed 01-01-PLAN.md
+Last activity: 2026-02-21 — Completed 01-02-PLAN.md
 
-Progress: [█████░░░░░] 17%
+Progress: [██████░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 15 min
-- Total execution time: 0.25 hours
+- Total plans completed: 2
+- Average duration: ~15 min
+- Total execution time: 0.5 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 1/6 | 1 | 15 min |
+| 1 | 2/6 | 2 | ~15 min |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -46,6 +46,10 @@ Recent decisions affecting current work:
 - [01-01]: Connection status values: "connected" (success), "syncing" (running), "failed" (error), "unknown" (default)
 - [01-01]: Discovery service automatically updates account status to "syncing" before discovery and "connected"/"failed" after
 
+- [01-02]: Provider key format now includes account ID: fmt.Sprintf("aws_%s_%s", account.ID, region) and fmt.Sprintf("gcp_%s", account.ID)
+- [01-02]: GCP provider now accepts serviceAccountJSON parameter using option.WithCredentialsJSON()
+- [01-02]: Registry now has Unregister method for dynamic provider re-registration support
+
 - [Init]: Use existing Go/React/PostgreSQL stack (leverage working foundation)
 - [Init]: Single-user POC scope (no RBAC complexity)
 - [Init]: Regex-based schedule assignment (user-requested flexible filtering)
@@ -62,12 +66,13 @@ From research (address in Phase 1):
 - Read replicas cannot be stopped: flag in discovery (deferred to Phase 2)
 - Storage charges continue: clear UI messaging (deferred to Phase 2)
 
-New from Plan 01-01:
-- Connection status tracking now ready for UI display
-- Instance persistence layer complete, ready for backend integration
+New from Plan 01-02:
+- Multi-account provider registry now uses account-aware keys preventing collisions
+- GCP provider supports service account JSON credentials
+- Registry supports dynamic unregistration for future dynamic updates
 
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 01-01-PLAN.md
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
