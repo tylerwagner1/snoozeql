@@ -69,6 +69,14 @@ export interface Event {
   created_at: string
 }
 
+export interface BulkOperationResponse {
+  success: string[]
+  failed: Array<{
+    instance_id: string
+    error: string
+  }>
+}
+
 export interface Stats {
   total_instances: number
   running_instances: number
@@ -137,6 +145,10 @@ const api = {
   getInstance: (id: string) => api.get<Instance>(`/instances/${id}`),
   startInstance: (id: string) => api.post<void>(`/instances/${id}/start`),
   stopInstance: (id: string) => api.post<void>(`/instances/${id}/stop`),
+  bulkStopInstances: (instanceIds: string[]) =>
+    api.post<BulkOperationResponse>('/instances/bulk-stop', { instance_ids: instanceIds }),
+  bulkStartInstances: (instanceIds: string[]) =>
+    api.post<BulkOperationResponse>('/instances/bulk-start', { instance_ids: instanceIds }),
 
   // Schedules
   getSchedules: () => api.get<Schedule[]>('/schedules'),
