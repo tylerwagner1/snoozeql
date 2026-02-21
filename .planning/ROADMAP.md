@@ -69,7 +69,7 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — EventStore and Events API endpoint (Wave 1)
+- [x] 02-01-PLAN.md — EventStore and Events API endpoint (Wave 1)
 - [ ] 02-02-PLAN.md — ConfirmDialog component with Headless UI (Wave 1)
 - [ ] 02-03-PLAN.md — Bulk stop/start API endpoints with audit logging (Wave 2)
 - [ ] 02-04-PLAN.md — Multi-select and bulk actions in InstancesPage (Wave 3)
