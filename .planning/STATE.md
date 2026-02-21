@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 1 - Multi-Cloud Discovery
+**Current focus:** Phase 2 - Manual Control & Audit (planning complete, ready for execution)
 
 ## Current Position
 
-Phase: 1 of 6 (Multi-Cloud Discovery)
-Plan: 6 of 6 in current phase
-Status: Phase complete
-Last activity: 2026-02-21 — Completed 01-06-PLAN.md (Phase 1 verification)
+Phase: 2 of 6 (Manual Control & Audit)
+Plan: 0 of 5 in current phase
+Status: Plans verified, ready for execution
+Last activity: 2026-02-21 — Phase 2 planning complete, all plans verified
 
 Progress: [██████████] 100%
 
@@ -28,6 +28,7 @@ Progress: [██████████] 100%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 6/6 | 6 | ~16 min |
+| 2 | 0/5 | 0 | - |
 
 **Recent Trend:**
 - Last 6 plans: 6 complete
@@ -113,10 +114,20 @@ New from Plan 01-06:
 Last session: 2026-02-21
 Stopped at: Completed 01-06-PLAN.md (Phase 1 complete - checkpoint: human-verify)
 Resume file: None
-Phase 1 Complete: All 6 plans verified. Ready for Phase 2.
+Phase 1 Complete: All 6 plans verified. Phase 2 plans created and verified.
 
 **Next Phase Readiness:**
 - Phase 1 complete pending human verification
+- Phase 2 plans created (02-01 through 02-05) and verified
 - Database migration 002_connection_status.sql applied
 - All frontend components verified for end-to-end flow
 - Instance persistence working with connection status tracking
+
+**Phase 2 Plans:**
+- 02-01: EventStore and Events API endpoint
+- 02-02: ConfirmDialog component with Headless UI
+- 02-03: Bulk stop/start API endpoints with audit logging
+- 02-04: Multi-select and bulk actions in InstancesPage
+- 02-05: AuditLogPage, navigation, and human verification checkpoint
+
+**Ready for:** /gsd-execute-phase 2

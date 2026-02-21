@@ -60,21 +60,20 @@ Plans:
 ### Phase 2: Manual Control & Audit
 **Goal**: Users can manually sleep/wake instances with confirmation and see operation history
 **Depends on**: Phase 1 ✅ (Phase 1 completed 2026-02-21)
-**Requirements**: SLEEP-01, SLEEP-02, WAKE-01, WAKE-02, AUDIT-01, AUDIT-02, AUDIT-03
+**Requirements**: SLEEP-01, SLEEP-02, WAKE-01, WAKE-02, AUDIT-01, AUDIT-03
 **Success Criteria** (what must be TRUE):
   1. User can select one or multiple instances and trigger sleep with confirmation dialog
   2. User can select one or multiple instances and trigger wake with confirmation dialog
   3. All sleep/wake operations are logged with timestamps
   4. User can view operation history/audit log showing all past operations
-  5. User can create/update schedules and see those changes in the audit log
 **Plans**: 5 plans
 
 Plans:
 - [ ] 02-01-PLAN.md — EventStore and Events API endpoint (Wave 1)
 - [ ] 02-02-PLAN.md — ConfirmDialog component with Headless UI (Wave 1)
 - [ ] 02-03-PLAN.md — Bulk stop/start API endpoints with audit logging (Wave 2)
-- [ ] 02-04-PLAN.md — Multi-select and bulk actions in InstancesPage (Wave 2)
-- [ ] 02-05-PLAN.md — AuditLogPage, navigation, and verification (Wave 3)
+- [ ] 02-04-PLAN.md — Multi-select and bulk actions in InstancesPage (Wave 3)
+- [ ] 02-05-PLAN.md — AuditLogPage, navigation, and verification (Wave 4)
 
 ### Phase 3: Basic Scheduling
 **Goal**: Users can create time-based sleep/wake schedules
