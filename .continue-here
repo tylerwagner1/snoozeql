@@ -1,0 +1,76 @@
+## CHECKPOINT REACHED
+
+**Type:** human-verify
+**Plan:** 01-06
+**Progress:** 2/3 tasks complete (Task 3 is the checkpoint)
+
+### Completed Tasks
+
+| Task | Name | Commit | Files |
+|------|------|--------|-------|
+| 1 | Update /stats endpoint with real instance counts | f304581 | cmd/server/main.go (Plan 01-05) |
+| 2 | Run database migrations for connection status | - | deployments/docker/migrations/002_connection_status.sql |
+
+### Current Task
+
+**Task 3:** End-to-end verification checkpoint
+**Status:** awaiting verification
+**Blocked by:** Human verification required
+
+### Checkpoint Details
+
+**What was built:**
+Complete Phase 1 multi-cloud discovery flow:
+- AWS and GCP provider registration with account-specific keys
+- Instance persistence to database with sync on discovery
+- Connection status tracking per cloud account
+- Sortable, filterable instances table with account column
+- Connection status chips on cloud accounts page
+- Skeleton loading and toast notifications
+- Clickable dashboard stats with URL-based filtering
+- Prominent CTAs for adding accounts
+
+**How to verify:**
+
+1. Start the server: `go run cmd/server/main.go` or use `docker-compose up app`
+2. Start the frontend: `cd web && npm run dev` or use `docker-compose up frontend`
+3. Open http://localhost:5173 (or http://localhost:3001 if using docker) in browser
+
+**Test the following flows:**
+
+**A. Add Cloud Account:**
+1. Navigate to Cloud Accounts page
+2. Click "Connect Account"
+3. Add an AWS account with valid credentials
+4. Verify account appears with "syncing" then "connected" status
+
+**B. View Instances:**
+1. Navigate to Instances page
+2. Verify instances from your AWS account appear
+3. Test sorting: click Name header, verify sort
+4. Test filtering: select "Running Only", verify filter
+5. Verify Account column shows account name
+
+**C. Dashboard Navigation:**
+1. Navigate to Dashboard
+2. Verify Running/Sleeping counts match instances
+3. Click Running Databases card
+4. Verify navigation to /instances?status=running
+5. Verify instances are pre-filtered
+
+**D. Error Handling:**
+1. Try adding invalid credentials
+2. Verify toast notification appears
+3. Verify account shows "failed" status with error
+
+**Expected outcomes:**
+- Connection status chips show "connected" for valid accounts
+- Instances table is sortable and filterable
+- Dashboard stats cards are clickable and navigate correctly
+- Toast notifications appear for errors
+
+Report any issues found or type "approved" to confirm Phase 1 is complete.
+
+### Awaiting
+
+Type "approved" to confirm Phase 1 is complete, or describe any issues that need fixing.
