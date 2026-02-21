@@ -20,6 +20,7 @@ import (
 	"snoozeql/internal/models"
 	"snoozeql/internal/provider"
 	awsprovider "snoozeql/internal/provider/aws"
+	gcpprovider "snoozeql/internal/provider/gcp"
 	"snoozeql/internal/store"
 
 	"github.com/go-chi/chi/v5"
@@ -81,50 +82,70 @@ func main() {
 		log.Printf("✓ Loaded %d cloud accounts from database", len(cloudAccounts))
 
 		for _, account := range cloudAccounts {
-			if account.Provider != "aws" {
+			if account.Provider == "aws" {
+				var accessKey, secretKey string
+				if cred, ok := account.Credentials["aws_access_key_id"]; ok {
+					if str, ok := cred.(string); ok {
+						accessKey = str
+						log.Printf("DEBUG: Found access_key_id: %s", str[:10]+"...")
+					}
+				}
+				if cred, ok := account.Credentials["aws_secret_access_key"]; ok {
+					if str, ok := cred.(string); ok {
+						secretKey = str
+						log.Printf("DEBUG: Found secret_access_key: %s", str[:10]+"...")
+					}
+				}
+
+				if accessKey == "" || secretKey == "" {
+					log.Printf("Warning: Skipping AWS account %s - missing credentials", account.Name)
+					continue
+				}
+
+				regions := account.Regions
+				if len(regions) == 0 {
+					regions = []string{"us-east-1"}
+				}
+
+				for _, region := range regions {
+					awsProvider, err := awsprovider.NewRDSProvider(region, "", []string{}, accessKey, secretKey)
+					if err == nil {
+						providerKey := fmt.Sprintf("aws_%s_%s", account.ID, region)
+						providerRegistry.Register(providerKey, awsProvider)
+						log.Printf("✓ Registered AWS provider for account: %s (region: %s, key: %s)", account.Name, region, providerKey)
+					} else {
+						log.Printf("Warning: Failed to register AWS provider for %s in region %s: %v", account.Name, region, err)
+					}
+				}
+			} else if account.Provider == "gcp" {
+				var projectID, serviceAccountKey string
+				if cred, ok := account.Credentials["gcp_project_id"]; ok {
+					if str, ok := cred.(string); ok {
+						projectID = str
+					}
+				}
+				if cred, ok := account.Credentials["gcp_service_account_key"]; ok {
+					if str, ok := cred.(string); ok {
+						serviceAccountKey = str
+					}
+				}
+
+				if projectID == "" {
+					log.Printf("Warning: Skipping GCP account %s - missing project ID", account.Name)
+					continue
+				}
+
+				gcpProvider, err := gcpprovider.NewCloudSQLProvider(projectID, "", []string{}, serviceAccountKey)
+				if err != nil {
+					log.Printf("Warning: Failed to create GCP provider for %s: %v", account.Name, err)
+					continue
+				}
+
+				providerKey := fmt.Sprintf("gcp_%s", account.ID)
+				providerRegistry.Register(providerKey, gcpProvider)
+				log.Printf("✓ Registered GCP provider for account: %s (project: %s, key: %s)", account.Name, projectID, providerKey)
+			} else {
 				log.Printf("Skipping %s provider (not supported yet): %s", account.Provider, account.Name)
-				continue
-			}
-
-			// Extract AWS credentials from the JSONB
-			var accessKey, secretKey string
-			if cred, ok := account.Credentials["aws_access_key_id"]; ok {
-				if str, ok := cred.(string); ok {
-					accessKey = str
-					log.Printf("DEBUG: Found access_key_id: %s", str[:10]+"...")
-				} else {
-					log.Printf("DEBUG: access_key_id is not a string, type: %T", cred)
-				}
-			}
-			if cred, ok := account.Credentials["aws_secret_access_key"]; ok {
-				if str, ok := cred.(string); ok {
-					secretKey = str
-					log.Printf("DEBUG: Found secret_access_key: %s", str[:10]+"...")
-				} else {
-					log.Printf("DEBUG: secret_access_key is not a string, type: %T", cred)
-				}
-			}
-
-			if accessKey == "" || secretKey == "" {
-				log.Printf("Warning: Skipping account %s - missing credentials", account.Name)
-				continue
-			}
-
-			// Create a provider for each region the account has access to
-			regions := account.Regions
-			if len(regions) == 0 {
-				regions = []string{"us-east-1"} // default
-			}
-
-			for _, region := range regions {
-				awsProvider, err := awsprovider.NewRDSProvider(region, "", []string{}, accessKey, secretKey)
-				if err == nil {
-					providerKey := fmt.Sprintf("aws_%s_%s", account.ID, region)
-					providerRegistry.Register(providerKey, awsProvider)
-					log.Printf("✓ Registered AWS provider for account: %s (region: %s, key: %s)", account.Name, region, providerKey)
-				} else {
-					log.Printf("Warning: Failed to register AWS provider for %s in region %s: %v", account.Name, region, err)
-				}
 			}
 		}
 	}
