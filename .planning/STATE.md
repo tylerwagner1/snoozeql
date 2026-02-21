@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 2 of 6 (Manual Control & Audit)
-Plan: 1 of 5 in current phase
+Plan: 3 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-21 — Completed 02-01-PLAN.md (EventStore and Events API)
+Last activity: 2026-02-21 — Completed 02-03-PLAN.md (Bulk stop/start API endpoints)
 
-Progress: [███████░░░] 50%
+Progress: [██████████░░] 80%
 
 ## Performance Metrics
 
@@ -28,15 +28,15 @@ Progress: [███████░░░] 50%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 6/6 | 6 | ~16 min |
-| 2 | 1/5 | 1 | ~15 min |
+| 2 | 3/5 | 6 | ~15 min |
 
 **Recent Trend:**
-- Last 7 plans: 7 complete
+- Last 9 plans: 9 complete
 - Trend: Stable
 - Phase 1 complete: 2026-02-21
-- Phase 2 in progress: 02-01 complete
+- Phase 2 in progress: 02-01 and 02-03 complete
 
-*Updated after plan 02-01 completion*
+*Updated after plan 02-03 completion*
 
 ## Accumulated Context
 
@@ -44,6 +44,10 @@ Progress: [███████░░░] 50%
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+- [02-03]: Uses instance.ID (UUID) for event logging
+- [02-03]: Uses instance.ProviderID for cloud API calls
+- [02-03]: Continues processing other instances if one fails (partial success handling)
 
 - [02-01]: Add EventStore after InstanceStore for consistent code organization
 - [02-01]: Use limit/offset pagination for events endpoint (50 rows default, 100 max)
@@ -119,24 +123,30 @@ New from Plan 02-01:
 - GET /api/v1/events endpoint with pagination
 - Event interface and API client functions
 
+New from Plan 02-03:
+- POST /api/v1/instances/bulk-stop endpoint with state validation
+- POST /api/v1/instances/bulk-start endpoint with state validation
+- BulkOperationRequest/Response types for multi-instance operations
+- Event creation for each successful bulk operation (sleep/wake)
+
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 02-01-PLAN.md (EventStore and Events API endpoint)
+Stopped at: Completed 02-03-PLAN.md (Bulk stop/start API endpoints)
 Resume file: None
-Phase 2 in progress: Plan 02-01 complete, 4 remaining plans
+Phase 2 in progress: Plans 02-01 and 02-03 complete, 3 remaining plans
 
 **Next Phase Readiness:**
-- Phase 2 in progress (1/5 plans complete)
-- EventStore foundation ready for future plans
-- Events API ready to be used by audit logging features
-- Ready for plan 02-02 (ConfirmDialog component)
+- Phase 2 in progress (3/5 plans complete)
+- Bulk operations foundation ready for frontend integration
+- Audit logging complete for bulk operations
+- Ready for plan 02-04 (Multi-select and bulk actions in InstancesPage)
 
 **Phase 2 Plans:**
 - 02-01: EventStore and Events API endpoint - COMPLETE
-- 02-02: ConfirmDialog component with Headless UI
-- 02-03: Bulk stop/start API endpoints with audit logging
+- 02-02: ConfirmDialog component with Headless UI - COMPLETE
+- 02-03: Bulk stop/start API endpoints with audit logging - COMPLETE
 - 02-04: Multi-select and bulk actions in InstancesPage
 - 02-05: AuditLogPage, navigation, and human verification checkpoint
 
-**Ready for:** plan 02-02
+**Ready for:** plan 02-04
