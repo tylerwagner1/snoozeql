@@ -58,6 +58,17 @@ export interface CloudAccount {
   created_at: string
 }
 
+export interface Event {
+  id: string
+  instance_id: string
+  event_type: string
+  triggered_by: string
+  previous_status: string
+  new_status: string
+  metadata?: Record<string, unknown>
+  created_at: string
+}
+
 export interface Stats {
   total_instances: number
   running_instances: number
@@ -147,6 +158,16 @@ const api = {
   getCloudAccounts: () => api.get<CloudAccount[]>('/cloud-accounts'),
   createCloudAccount: (data: { name: string; provider: string; regions?: string[]; credentials: { [key: string]: string } }) => api.post<CloudAccount>('/cloud-accounts', data),
   deleteCloudAccount: (id: string) => api.del(`/cloud-accounts/${id}`),
+
+  // Events/Audit Log
+  getEvents: (limit?: number, offset?: number) => {
+    const params = new URLSearchParams()
+    if (limit) params.set('limit', limit.toString())
+    if (offset) params.set('offset', offset.toString())
+    const query = params.toString()
+    return api.get<Event[]>(`/events${query ? `?${query}` : ''}`)
+  },
+  getEventsByInstance: (instanceId: string) => api.get<Event[]>(`/instances/${instanceId}/events`),
 }
 
 export default api
