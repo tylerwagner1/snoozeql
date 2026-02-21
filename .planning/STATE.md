@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 2 of 6 (Manual Control & Audit)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-21 — Completed 02-03-PLAN.md (Bulk stop/start API endpoints)
+Last activity: 2026-02-21 — Completed 02-04-PLAN.md (Multi-select and bulk actions in InstancesPage)
 
-Progress: [██████████░░] 80%
+Progress: [█████████████░] 90%
 
 ## Performance Metrics
 
@@ -28,15 +28,15 @@ Progress: [██████████░░] 80%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 6/6 | 6 | ~16 min |
-| 2 | 3/5 | 6 | ~15 min |
+| 2 | 4/5 | 8 | ~15 min |
 
 **Recent Trend:**
-- Last 9 plans: 9 complete
+- Last 10 plans: 10 complete
 - Trend: Stable
 - Phase 1 complete: 2026-02-21
-- Phase 2 in progress: 02-01 and 02-03 complete
+- Phase 2 in progress: 02-01, 02-03, 02-04 complete
 
-*Updated after plan 02-03 completion*
+*Updated after plan 02-04 completion*
 
 ## Accumulated Context
 
@@ -129,24 +129,32 @@ New from Plan 02-03:
 - BulkOperationRequest/Response types for multi-instance operations
 - Event creation for each successful bulk operation (sleep/wake)
 
+New from Plan 02-04:
+- Multi-select table with checkbox column in InstancesPage
+- Bulk action buttons showing count of actionable instances
+- Confirmation dialogs for bulk sleep/wake operations
+- Toast notifications for operation success/failure
+- Optimistic UI updates for bulk operations
+- Partial success handling for bulk operations
+
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 02-03-PLAN.md (Bulk stop/start API endpoints)
+Stopped at: Completed 02-04-PLAN.md (Multi-select and bulk actions in InstancesPage)
 Resume file: None
-Phase 2 in progress: Plans 02-01 and 02-03 complete, 3 remaining plans
+Phase 2 in progress: Plans 02-01, 02-03, 02-04 complete, 2 remaining plans
 
 **Next Phase Readiness:**
-- Phase 2 in progress (3/5 plans complete)
-- Bulk operations foundation ready for frontend integration
-- Audit logging complete for bulk operations
-- Ready for plan 02-04 (Multi-select and bulk actions in InstancesPage)
+- Phase 2 in progress (4/5 plans complete)
+- Bulk operations complete
+- Multi-select UI complete
+- Ready for plan 02-05 (AuditLogPage + checkpoint)
 
 **Phase 2 Plans:**
 - 02-01: EventStore and Events API endpoint - COMPLETE
 - 02-02: ConfirmDialog component with Headless UI - COMPLETE
 - 02-03: Bulk stop/start API endpoints with audit logging - COMPLETE
-- 02-04: Multi-select and bulk actions in InstancesPage
+- 02-04: Multi-select and bulk actions in InstancesPage - COMPLETE
 - 02-05: AuditLogPage, navigation, and human verification checkpoint
 
-**Ready for:** plan 02-04
+**Ready for:** plan 02-05
