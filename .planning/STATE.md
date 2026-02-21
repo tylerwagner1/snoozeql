@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 1 of 6 (Multi-Cloud Discovery)
-Plan: 3 of 6 in current phase
+Plan: 5 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-21 — Completed 01-03-PLAN.md
+Last activity: 2026-02-21 — Completed 01-05-PLAN.md
 
-Progress: [███████░░░] 50%
+Progress: [██████████] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: ~20 min
-- Total execution time: 1.0 hours
+- Total plans completed: 5
+- Average duration: ~18 min
+- Total execution time: 1.5 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 3/6 | 2 | ~20 min |
+| 1 | 5/6 | 5 | ~18 min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: N/A
+- Last 5 plans: 5 complete
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -52,6 +52,14 @@ Recent decisions affecting current work:
 
 - [01-03]: Filter state uses URL params for better user experience (filters persist on refresh)
 - [01-03]: Status filter supports multiple value mappings: 'running' maps to ['available', 'running', 'starting']
+
+- [01-05]: Dashboard stats cards are clickable with useNavigate for routing
+- [01-05]: Running Databases card navigates to /instances?status=running
+- [01-05]: Sleeping Databases card navigates to /instances?status=stopped
+- [01-05]: Pending Actions card navigates to /recommendations
+- [01-05]: Stats endpoint returns real counts from database (running/stopped mapping)
+- [01-05]: CTAs shown when no accounts exist ("Get Started") and quick actions when accounts exist
+- [01-05]: InstancesPage uses useSearchParams for URL-based filter state
 
 - [Init]: Use existing Go/React/PostgreSQL stack (leverage working foundation)
 - [Init]: Single-user POC scope (no RBAC complexity)
@@ -78,8 +86,13 @@ New from Plan 01-03:
 - Filter state synced with URL parameters for filter persistence
 - Instance type enhanced with optional account_name field
 
+New from Plan 01-05:
+- Dashboard stats cards now clickable with useNavigate
+- Stats endpoint returns real counts from database
+- CTAs for cloud accounts implemented
+
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 01-03-PLAN.md
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
