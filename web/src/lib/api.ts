@@ -3,6 +3,7 @@ const API_BASE_URL = 'http://localhost:8080/api/v1'
 export interface Instance {
   id: string
   cloud_account_id: string
+  account_name?: string
   provider: string
   provider_id: string
   name: string
