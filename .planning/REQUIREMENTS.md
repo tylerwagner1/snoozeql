@@ -9,8 +9,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Instance Discovery
 
-- [ ] **DISC-01**: User can view all database instances from multiple AWS and GCP accounts
-- [ ] **DISC-02**: User can see instance status (running/stopped/pending) for each database
+- [x] **DISC-01**: User can view all database instances from multiple AWS and GCP accounts
+- [x] **DISC-02**: User can see instance status (running/stopped/pending) for each database
 
 ### Manual Control
 
@@ -54,10 +54,22 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Multi-Cloud Support
 
-- [ ] **AWS-01**: System supports multiple AWS accounts/connections
-- [ ] **AWS-02**: System uses AWS SDK v2 for RDS operations
-- [ ] **GCP-01**: System supports multiple GCP projects/connections
-- [ ] **GCP-02**: System uses Google Cloud API for Cloud SQL operations
+- [x] **AWS-01**: System supports multiple AWS accounts/connections
+- [x] **AWS-02**: System uses AWS SDK v2 for RDS operations
+- [x] **GCP-01**: System supports multiple GCP projects/connections
+- [x] **GCP-02**: System uses Google Cloud API for Cloud SQL operations
+
+### Phase 1 Requirements Status
+
+**Completed:** 2026-02-21
+
+| Requirement | Status |
+|-------------|--------|
+| DISC-01, DISC-02 | ✅ Complete | Instance discovery with AWS/GCP support |
+| AWS-01, AWS-02 | ✅ Complete | AWS multi-account support, SDK v2 |
+| GCP-01, GCP-02 | ✅ Complete | GCP multi-project support, Cloud API |
+
+**Summary:** All Phase 1 v1 requirements complete. Phase 2 (Manual Control & Audit) ready to start.
 
 ## v2 Requirements
 

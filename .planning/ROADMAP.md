@@ -12,7 +12,7 @@ This roadmap delivers a database sleep scheduling system that minimizes cloud co
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Multi-Cloud Discovery** - Connect to AWS/GCP and display all database instances
+- [x] **Phase 1: Multi-Cloud Discovery** - Connect to AWS/GCP and display all database instances ✅ Complete (2026-02-21)
 - [ ] **Phase 2: Manual Control & Audit** - Sleep/wake instances with confirmation and operation logging
 - [ ] **Phase 3: Basic Scheduling** - Create time-based sleep/wake schedules
 - [ ] **Phase 4: Advanced Schedule Filtering** - Regex-based instance assignment with preview
@@ -40,9 +40,26 @@ Plans:
 - [x] 01-05-PLAN.md — Clickable dashboard stats and add account CTAs
 - [x] 01-06-PLAN.md — End-to-end verification checkpoint
 
+#### Phase 1 Completion Details
+
+**Completed:** 2026-02-21  
+**Status:** ✅ Complete  
+**Verification:** see [VERIFICATION.md](./phases/01-multi-cloud-discovery/VERIFICATION.md)
+
+**Key Accomplishments:**
+- Instance persistence with database syncing
+- Multi-account provider registration (AWS + GCP)
+- Sortable/filterable instances table with account column
+- Connection status tracking with chips and toasts
+- Clickable dashboard stats with URL-based filtering
+- CTAs for adding cloud accounts
+- Complete end-to-end verification
+
+---
+
 ### Phase 2: Manual Control & Audit
 **Goal**: Users can manually sleep/wake instances with confirmation and see operation history
-**Depends on**: Phase 1
+**Depends on**: Phase 1 ✅ (Phase 1 completed 2026-02-21)
 **Requirements**: SLEEP-01, SLEEP-02, WAKE-01, WAKE-02, AUDIT-01, AUDIT-02, AUDIT-03
 **Success Criteria** (what must be TRUE):
   1. User can select one or multiple instances and trigger sleep with confirmation dialog
@@ -119,7 +136,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Multi-Cloud Discovery | 6/6 | Complete | 2026-02-21 |
+| 1. Multi-Cloud Discovery | 6/6 | Complete | 2026-02-21 ✅ |
 | 2. Manual Control & Audit | 0/? | Not started | - |
 | 3. Basic Scheduling | 0/? | Not started | - |
 | 4. Advanced Schedule Filtering | 0/? | Not started | - |
