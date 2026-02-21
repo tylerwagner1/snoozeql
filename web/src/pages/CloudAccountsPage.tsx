@@ -60,40 +60,40 @@ const CloudAccountsPage = () => {
     </div>
   )
 
-      const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setLoading(true)
-        setError('')
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
 
-        try {
-          const credentials: { [key: string]: string } = {}
-          
-          if (form.provider === 'aws') {
-            credentials.aws_access_key_id = form.accessKeyId
-            credentials.aws_secret_access_key = form.secretAccessKey
-            credentials.region = form.regions.split(',')[0].trim()
-          } else {
-            credentials.gcp_project_id = form.gcpProjectId
-            credentials.gcp_service_account_key = form.gcpServiceKey
-          }
-
-          await api.createCloudAccount({
-            name: form.name,
-            provider: form.provider,
-            regions: form.regions.split(',').map(r => r.trim()),
-            credentials,
-          })
-
-          setIsModalOpen(false)
-          setForm({ name: '', provider: 'aws', accessKeyId: '', secretAccessKey: '', gcpProjectId: '', gcpServiceKey: '', regions: 'us-east-1,us-west-2' })
-          setError('')
-          loadAccounts()
-        } catch (err) {
-          setError('Failed to create cloud account')
-        } finally {
-          setLoading(false)
-        }
+    try {
+      const credentials: { [key: string]: string } = {}
+      
+      if (form.provider === 'aws') {
+        credentials.aws_access_key_id = form.accessKeyId
+        credentials.aws_secret_access_key = form.secretAccessKey
+        credentials.region = form.regions.split(',')[0].trim()
+      } else {
+        credentials.gcp_project_id = form.gcpProjectId
+        credentials.gcp_service_account_key = form.gcpServiceKey
       }
+
+      await api.createCloudAccount({
+        name: form.name,
+        provider: form.provider,
+        regions: form.regions.split(',').map(r => r.trim()),
+        credentials,
+      })
+
+      setIsModalOpen(false)
+      setForm({ name: '', provider: 'aws', accessKeyId: '', secretAccessKey: '', gcpProjectId: '', gcpServiceKey: '', regions: 'us-east-1,us-west-2' })
+      setError('')
+      loadAccounts()
+    } catch (err) {
+      setError('Failed to create cloud account')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to disconnect this account?')) return
