@@ -36,6 +36,23 @@ var (
 	eventStore       *store.EventStore
 )
 
+// BulkOperationRequest represents a request to start/stop multiple instances
+type BulkOperationRequest struct {
+	InstanceIDs []string `json:"instance_ids"`
+}
+
+// BulkOperationResponse represents the result of a bulk operation
+type BulkOperationResponse struct {
+	Success []string         `json:"success"`
+	Failed  []OperationError `json:"failed"`
+}
+
+// OperationError represents a failed operation
+type OperationError struct {
+	InstanceID string `json:"instance_id"`
+	Error      string `json:"error"`
+}
+
 func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
@@ -374,6 +391,165 @@ func main() {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(fmt.Sprintf(`{"success":true,"instance_id":"%s","provider":"%s","status":"stopping"}`, instanceID, providerName)))
+			})
+
+			// Bulk stop instances
+			r.Post("/instances/bulk-stop", func(w http.ResponseWriter, r *http.Request) {
+				var req BulkOperationRequest
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"error":"Invalid request body"}`))
+					return
+				}
+
+				if len(req.InstanceIDs) == 0 {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"error":"No instance IDs provided"}`))
+					return
+				}
+
+				ctx := r.Context()
+				var success []string
+				var failed []OperationError
+
+				for _, instanceID := range req.InstanceIDs {
+					// Get instance from database to find provider and current status
+					instance, err := instanceStore.GetInstanceByProviderID(ctx, "", instanceID)
+					if err != nil {
+						// Try by ID directly
+						instances, listErr := instanceStore.ListInstances(ctx)
+						if listErr != nil {
+							failed = append(failed, OperationError{InstanceID: instanceID, Error: "Instance not found"})
+							continue
+						}
+						var found *models.Instance
+						for i := range instances {
+							if instances[i].ID == instanceID {
+								found = &instances[i]
+								break
+							}
+						}
+						if found == nil {
+							failed = append(failed, OperationError{InstanceID: instanceID, Error: "Instance not found"})
+							continue
+						}
+						instance = found
+					}
+
+					// Check if instance is in a stoppable state
+					if instance.Status != "available" && instance.Status != "running" {
+						failed = append(failed, OperationError{
+							InstanceID: instanceID,
+							Error:      fmt.Sprintf("Instance not in stoppable state (current: %s)", instance.Status),
+						})
+						continue
+					}
+
+					// Stop the instance using provider_id (the actual cloud resource name)
+					if err := discoveryService.StopDatabase(ctx, instance.Provider, instance.ProviderID); err != nil {
+						failed = append(failed, OperationError{InstanceID: instanceID, Error: err.Error()})
+						continue
+					}
+
+					// Log the event
+					event := &models.Event{
+						InstanceID:     instance.ID,
+						EventType:      "sleep",
+						TriggeredBy:    "manual",
+						PreviousStatus: instance.Status,
+						NewStatus:      "stopping",
+					}
+					if err := eventStore.CreateEvent(ctx, event); err != nil {
+						log.Printf("Warning: Failed to log event for instance %s: %v", instanceID, err)
+					}
+
+					success = append(success, instanceID)
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(BulkOperationResponse{Success: success, Failed: failed})
+			})
+
+			// Bulk start instances
+			r.Post("/instances/bulk-start", func(w http.ResponseWriter, r *http.Request) {
+				var req BulkOperationRequest
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"error":"Invalid request body"}`))
+					return
+				}
+
+				if len(req.InstanceIDs) == 0 {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"error":"No instance IDs provided"}`))
+					return
+				}
+
+				ctx := r.Context()
+				var success []string
+				var failed []OperationError
+
+				for _, instanceID := range req.InstanceIDs {
+					// Get instance from database
+					instance, err := instanceStore.GetInstanceByProviderID(ctx, "", instanceID)
+					if err != nil {
+						instances, listErr := instanceStore.ListInstances(ctx)
+						if listErr != nil {
+							failed = append(failed, OperationError{InstanceID: instanceID, Error: "Instance not found"})
+							continue
+						}
+						var found *models.Instance
+						for i := range instances {
+							if instances[i].ID == instanceID {
+								found = &instances[i]
+								break
+							}
+						}
+						if found == nil {
+							failed = append(failed, OperationError{InstanceID: instanceID, Error: "Instance not found"})
+							continue
+						}
+						instance = found
+					}
+
+					// Check if instance is in a startable state
+					if instance.Status != "stopped" {
+						failed = append(failed, OperationError{
+							InstanceID: instanceID,
+							Error:      fmt.Sprintf("Instance not in startable state (current: %s)", instance.Status),
+						})
+						continue
+					}
+
+					// Start the instance
+					if err := discoveryService.StartDatabase(ctx, instance.Provider, instance.ProviderID); err != nil {
+						failed = append(failed, OperationError{InstanceID: instanceID, Error: err.Error()})
+						continue
+					}
+
+					// Log the event
+					event := &models.Event{
+						InstanceID:     instance.ID,
+						EventType:      "wake",
+						TriggeredBy:    "manual",
+						PreviousStatus: instance.Status,
+						NewStatus:      "starting",
+					}
+					if err := eventStore.CreateEvent(ctx, event); err != nil {
+						log.Printf("Warning: Failed to log event for instance %s: %v", instanceID, err)
+					}
+
+					success = append(success, instanceID)
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(BulkOperationResponse{Success: success, Failed: failed})
 			})
 
 			// Schedules (placeholder)
