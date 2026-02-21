@@ -13,9 +13,9 @@
         "verification": "opencode/glm-4.7-free"
       },
       "balanced": {
-        "planning": "opencode/glm-4.7-free",
-        "execution": "opencode/minimax-m2.1-free",
-        "verification": "opencode/glm-4.7-free"
+        "planning": "anthropic/claude-opus-4-5-20251101",
+        "execution": "ai-enabler/qwen3-coder-next-fp8",
+        "verification": "ai-enabler/qwen3-coder-next-fp8"
       },
       "budget": {
         "planning": "opencode/minimax-m2.1-free",
