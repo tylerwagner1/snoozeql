@@ -8,6 +8,7 @@ import InstancesPage from './pages/InstancesPage'
 import InstanceDetailPage from './pages/InstanceDetailPage'
 import SchedulesPage from './pages/SchedulesPage'
 import RecommendationsPage from './pages/RecommendationsPage'
+import AuditLogPage from './pages/AuditLogPage'
 import './index.css'
 
 const root = createRoot(document.getElementById('root')!)
@@ -37,6 +38,7 @@ root.render(
         <Route path="instances/:id" element={<InstanceDetailPage />} />
         <Route path="schedules" element={<SchedulesPage />} />
         <Route path="recommendations" element={<RecommendationsPage />} />
+        <Route path="audit-log" element={<AuditLogPage />} />
       </Route>
     </Routes>
   </BrowserRouter>,
