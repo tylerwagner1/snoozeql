@@ -192,13 +192,52 @@ func main() {
 			r.Get("/stats", func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{
-					"total_instances": 0,
-					"running_instances": 0,
-					"stopped_instances": 0,
-					"savings_7d": 0,
-					"pending_actions": 0
-				}`))
+
+				// Get instance counts from database
+				instances, err := instanceStore.ListInstances(r.Context())
+				if err != nil {
+					log.Printf("ERROR listing instances for stats: %v", err)
+					// Return default response on error
+					w.Write([]byte(`{
+						"total_instances": 0,
+						"running_instances": 0,
+						"stopped_instances": 0,
+						"savings_7d": 0,
+						"pending_actions": 0
+					}`))
+					return
+				}
+
+				runningCount := 0
+				stoppedCount := 0
+				savings7d := 0.0
+				for _, inst := range instances {
+					// Map instance status to running/stopped
+					switch inst.Status {
+					case "available", "running", "starting":
+						runningCount++
+						savings7d += float64(inst.HourlyCostCents) * 24 * 7 / 100
+					case "stopped", "stopping":
+						stoppedCount++
+					}
+				}
+
+				// Get pending recommendations count
+				recommendations, err := instanceStore.ListRecommendationsByStatus(r.Context(), "pending")
+				if err != nil {
+					log.Printf("ERROR listing recommendations: %v", err)
+					recommendations = []map[string]interface{}{}
+				}
+
+				stats := map[string]interface{}{
+					"total_instances":   len(instances),
+					"running_instances": runningCount,
+					"stopped_instances": stoppedCount,
+					"savings_7d":        savings7d,
+					"pending_actions":   len(recommendations),
+				}
+
+				json.NewEncoder(w).Encode(stats)
 			})
 
 			// Instances - returns persisted instances from database
