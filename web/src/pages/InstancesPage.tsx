@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import api from '../lib/api'
 import type { Instance } from '../lib/api'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 const InstancesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -20,6 +22,25 @@ const InstancesPage = () => {
     status: searchParams.get('status') || 'all',
     provider: searchParams.get('provider') || 'all'
   })
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showConfirmDialog, setShowConfirmDialog] = useState<'sleep' | 'wake' | null>(null)
+  const [bulkLoading, setBulkLoading] = useState(false)
+
+  // Selection handlers - toggleSelect and clearSelection don't depend on filteredAndSortedInstances
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const clearSelection = () => {
+    setSelectedIds(new Set())
+  }
 
   const updateFilter = (key: 'status' | 'provider', value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -65,6 +86,61 @@ const InstancesPage = () => {
     }
   }
 
+  // Bulk operation handlers
+  const handleBulkSleep = async () => {
+    setBulkLoading(true)
+    try {
+      const idsToStop = stoppableSelected.map(i => i.id)
+      const result = await api.bulkStopInstances(idsToStop)
+      
+      if (result.success.length > 0) {
+        toast.success(`Stopped ${result.success.length} instance(s)`)
+        // Update local state optimistically
+        setInstances(prev => prev.map(inst => 
+          result.success.includes(inst.id) ? { ...inst, status: 'stopping' } : inst
+        ))
+      }
+      if (result.failed.length > 0) {
+        toast.error(`Failed to stop ${result.failed.length} instance(s)`)
+      }
+      
+      clearSelection()
+      setShowConfirmDialog(null)
+    } catch (err) {
+      toast.error('Failed to stop instances')
+      console.error(err)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkWake = async () => {
+    setBulkLoading(true)
+    try {
+      const idsToStart = startableSelected.map(i => i.id)
+      const result = await api.bulkStartInstances(idsToStart)
+      
+      if (result.success.length > 0) {
+        toast.success(`Started ${result.success.length} instance(s)`)
+        // Update local state optimistically
+        setInstances(prev => prev.map(inst => 
+          result.success.includes(inst.id) ? { ...inst, status: 'starting' } : inst
+        ))
+      }
+      if (result.failed.length > 0) {
+        toast.error(`Failed to start ${result.failed.length} instance(s)`)
+      }
+      
+      clearSelection()
+      setShowConfirmDialog(null)
+    } catch (err) {
+      toast.error('Failed to start instances')
+      console.error(err)
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
   const handleSort = (key: keyof Instance) => {
     setSortConfig(prev => ({
       key,
@@ -102,6 +178,21 @@ const InstancesPage = () => {
     })
   }, [instances, filters, sortConfig])
 
+  // Computed selection values that depend on filteredAndSortedInstances
+  const selectAll = () => {
+    setSelectedIds(new Set(filteredAndSortedInstances.map(i => i.id)))
+  }
+
+  const allSelected = filteredAndSortedInstances.length > 0 && 
+    filteredAndSortedInstances.every(i => selectedIds.has(i.id))
+
+  // Get selected instances for dialog
+  const selectedInstances = instances.filter(i => selectedIds.has(i.id))
+  const stoppableSelected = selectedInstances.filter(i => 
+    i.status === 'available' || i.status === 'running'
+  )
+  const startableSelected = selectedInstances.filter(i => i.status === 'stopped')
+
   if (loading) return <div className="p-8 text-center text-slate-400">Loading instances...</div>
   if (error) return <div className="p-8 text-center text-red-400">{error}</div>
 
@@ -115,6 +206,33 @@ const InstancesPage = () => {
           </p>
         </div>
       </div>
+
+      {/* Bulk action buttons */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700">
+          <span className="text-sm text-slate-400">{selectedIds.size} selected</span>
+          <button
+            onClick={() => setShowConfirmDialog('sleep')}
+            disabled={stoppableSelected.length === 0}
+            className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg transition-all shadow-lg shadow-yellow-500/20"
+          >
+            Sleep Selected ({stoppableSelected.length})
+          </button>
+          <button
+            onClick={() => setShowConfirmDialog('wake')}
+            disabled={startableSelected.length === 0}
+            className="px-3 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg transition-all shadow-lg shadow-green-500/20"
+          >
+            Wake Selected ({startableSelected.length})
+          </button>
+          <button
+            onClick={clearSelection}
+            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium rounded-lg transition-all"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-4 mb-4">
         <select
@@ -144,6 +262,14 @@ const InstancesPage = () => {
         <table className="min-w-full">
           <thead className="bg-slate-900/50">
             <tr>
+              <th className="px-6 py-4 text-left">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => e.target.checked ? selectAll() : clearSelection()}
+                  className="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-800"
+                />
+              </th>
               <th 
                 className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-white"
                 onClick={() => handleSort('name')}
@@ -161,6 +287,14 @@ const InstancesPage = () => {
           <tbody className="bg-slate-800/30 divide-y divide-slate-700">
             {filteredAndSortedInstances.map(instance => (
               <tr key={instance.id} className="hover:bg-slate-700/50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(instance.id)}
+                    onChange={() => toggleSelect(instance.id)}
+                    className="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-800"
+                  />
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-br from-blue-600 to-cyan-700 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
@@ -230,6 +364,29 @@ const InstancesPage = () => {
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        isOpen={showConfirmDialog === 'sleep'}
+        onClose={() => setShowConfirmDialog(null)}
+        onConfirm={handleBulkSleep}
+        title="Confirm Sleep Operation"
+        message={`Are you sure you want to sleep ${stoppableSelected.length} database instance(s)? This will stop them and they won't be accessible until woken.`}
+        confirmText={`Sleep ${stoppableSelected.length} Instance(s)`}
+        confirmVariant="warning"
+        loading={bulkLoading}
+      />
+
+      <ConfirmDialog
+        isOpen={showConfirmDialog === 'wake'}
+        onClose={() => setShowConfirmDialog(null)}
+        onConfirm={handleBulkWake}
+        title="Confirm Wake Operation"
+        message={`Are you sure you want to wake ${startableSelected.length} database instance(s)? This will start them and resume billing.`}
+        confirmText={`Wake ${startableSelected.length} Instance(s)`}
+        confirmVariant="success"
+        loading={bulkLoading}
+      />
     </div>
   )
 }
