@@ -310,23 +310,46 @@ func NewCloudAccountStore(db *Postgres) *CloudAccountStore {
 // GetCloudAccount retrieves a cloud account by ID
 func (s *CloudAccountStore) GetCloudAccount(id string) (*models.CloudAccount, error) {
 	var account models.CloudAccount
+	var connectionStatus, lastError sql.NullString
+	var lastSyncAt sql.NullTime
+
 	err := s.db.db.QueryRowContext(context.Background(), `
-		SELECT id, name, provider, regions, created_at
+		SELECT id, name, provider, regions, connection_status, last_sync_at, last_error, created_at
 		FROM cloud_accounts WHERE id = $1`, id).Scan(
 		&account.ID, &account.Name, &account.Provider, &account.Regions,
-		&account.CreatedAt,
+		&connectionStatus, &lastSyncAt, &lastError, &account.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
+	account.ConnectionStatus = connectionStatus.String
+	if lastSyncAt.Valid {
+		account.LastSyncAt = &lastSyncAt.Time
+	}
+	if lastError.Valid {
+		account.LastError = &lastError.String
+	}
 	return &account, nil
+}
+
+// UpdateConnectionStatus updates a cloud account's connection status
+func (s *CloudAccountStore) UpdateConnectionStatus(ctx context.Context, id string, status string, lastError *string) error {
+	_, err := s.db.db.ExecContext(ctx, `
+		UPDATE cloud_accounts SET
+			connection_status = $1, last_error = $2, last_sync_at = NOW()
+		WHERE id = $3`,
+		status, lastError, id)
+	if err != nil {
+		return fmt.Errorf("failed to update connection status: %w", err)
+	}
+	return nil
 }
 
 // ListCloudAccounts returns all cloud accounts
 func (s *CloudAccountStore) ListCloudAccounts() ([]models.CloudAccount, error) {
 	log.Printf("DEBUG: Listing cloud accounts...")
 	query := `
-		SELECT id, name, provider, regions, credentials, created_at
+		SELECT id, name, provider, regions, credentials, connection_status, last_sync_at, last_error, created_at
 		FROM cloud_accounts ORDER BY created_at DESC`
 
 	rows, err := s.db.db.QueryContext(context.Background(), query)
@@ -342,9 +365,12 @@ func (s *CloudAccountStore) ListCloudAccounts() ([]models.CloudAccount, error) {
 		var account models.CloudAccount
 		var regionsStr string
 		var credentialsJSON []byte
+		var connectionStatus, lastError sql.NullString
+		var lastSyncAt sql.NullTime
+
 		err := rows.Scan(
 			&account.ID, &account.Name, &account.Provider, &regionsStr,
-			&credentialsJSON, &account.CreatedAt,
+			&credentialsJSON, &connectionStatus, &lastSyncAt, &lastError, &account.CreatedAt,
 		)
 		if err != nil {
 			log.Printf("ERROR: Scan failed: %v", err)
@@ -357,7 +383,14 @@ func (s *CloudAccountStore) ListCloudAccounts() ([]models.CloudAccount, error) {
 				account.Credentials = make(map[string]any)
 			}
 		}
-		log.Printf("DEBUG: Account %s: name=%s, provider=%s, regions=%s", account.ID, account.Name, account.Provider, regionsStr)
+		account.ConnectionStatus = connectionStatus.String
+		if lastSyncAt.Valid {
+			account.LastSyncAt = &lastSyncAt.Time
+		}
+		if lastError.Valid {
+			account.LastError = &lastError.String
+		}
+		log.Printf("DEBUG: Account %s: name=%s, provider=%s, regions=%s, status=%s", account.ID, account.Name, account.Provider, regionsStr, account.ConnectionStatus)
 		// Parse PostgreSQL text[] format: {us-east-1,us-west-2}
 		if regionsStr != "" && regionsStr != "{}" {
 			// Remove braces and split by comma
