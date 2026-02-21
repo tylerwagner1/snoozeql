@@ -209,6 +209,82 @@ func (s *InstanceStore) GetInstanceByProviderID(ctx context.Context, provider, p
 	return &instance, nil
 }
 
+// EventStore provides event CRUD operations
+type EventStore struct {
+	db *Postgres
+}
+
+// NewEventStore creates a new event store
+func NewEventStore(db *Postgres) *EventStore {
+	return &EventStore{db: db}
+}
+
+// CreateEvent inserts an event into the database
+func (s *EventStore) CreateEvent(ctx context.Context, event *models.Event) error {
+	query := `
+		INSERT INTO events (instance_id, event_type, triggered_by, previous_status, new_status, metadata)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at`
+	return s.db.QueryRowContext(ctx, query,
+		event.InstanceID, event.EventType, event.TriggeredBy,
+		event.PreviousStatus, event.NewStatus, event.Metadata,
+	).Scan(&event.ID, &event.CreatedAt)
+}
+
+// ListEvents returns events with pagination (most recent first)
+func (s *EventStore) ListEvents(ctx context.Context, limit int, offset int) ([]models.Event, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	query := `
+		SELECT id, instance_id, event_type, triggered_by, previous_status, new_status, metadata, created_at
+		FROM events ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	rows, err := s.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []models.Event
+	for rows.Next() {
+		var e models.Event
+		err := rows.Scan(&e.ID, &e.InstanceID, &e.EventType, &e.TriggeredBy,
+			&e.PreviousStatus, &e.NewStatus, &e.Metadata, &e.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan event: %w", err)
+		}
+		events = append(events, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+	return events, nil
+}
+
+// ListEventsByInstance returns events for a specific instance
+func (s *EventStore) ListEventsByInstance(ctx context.Context, instanceID string) ([]models.Event, error) {
+	query := `
+		SELECT id, instance_id, event_type, triggered_by, previous_status, new_status, metadata, created_at
+		FROM events WHERE instance_id = $1 ORDER BY created_at DESC`
+	rows, err := s.db.Query(ctx, query, instanceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []models.Event
+	for rows.Next() {
+		var e models.Event
+		err := rows.Scan(&e.ID, &e.InstanceID, &e.EventType, &e.TriggeredBy,
+			&e.PreviousStatus, &e.NewStatus, &e.Metadata, &e.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan event: %w", err)
+		}
+		events = append(events, e)
+	}
+	return events, rows.Err()
+}
+
 // RecommendationStore provides recommendation CRUD operations
 type RecommendationStore struct {
 	db *Postgres
