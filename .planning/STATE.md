@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 2 of 6 (Manual Control & Audit)
-Plan: 2 of 5 in current phase
+Plan: 1 of 5 in current phase
 Status: In progress
-Last activity: 2026-02-21 — Completed 02-02-PLAN.md (ConfirmDialog component)
+Last activity: 2026-02-21 — Completed 02-01-PLAN.md (EventStore and Events API)
 
-Progress: [██████░░░░] 40%
+Progress: [███████░░░] 50%
 
 ## Performance Metrics
 
@@ -28,14 +28,15 @@ Progress: [██████░░░░] 40%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 6/6 | 6 | ~16 min |
-| 2 | 1/5 | 6 | ~1 min |
+| 2 | 1/5 | 1 | ~15 min |
 
 **Recent Trend:**
 - Last 7 plans: 7 complete
 - Trend: Stable
 - Phase 1 complete: 2026-02-21
+- Phase 2 in progress: 02-01 complete
 
-*Updated after plan 02-02 completion*
+*Updated after plan 02-01 completion*
 
 ## Accumulated Context
 
@@ -44,10 +45,9 @@ Progress: [██████░░░░] 40%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [02-02]: Use Headless UI 2.x Dialog for accessibility (focus trap, ESC to close, backdrop click)
-- [02-02]: Support three confirm variants: danger (red), warning (yellow), success (green)
-- [02-02]: Include loading state to disable buttons during async bulk operations
-- [02-02]: Use data-[closed] attributes for smooth transitions
+- [02-01]: Add EventStore after InstanceStore for consistent code organization
+- [02-01]: Use limit/offset pagination for events endpoint (50 rows default, 100 max)
+- [02-01]: Store Event metadata as JSONB in PostgreSQL
 
 - [01-01]: Use concrete types instead of interfaces for store injection in DiscoveryService to avoid circular imports
 - [01-01]: Connection status values: "connected" (success), "syncing" (running), "failed" (error), "unknown" (default)
@@ -84,11 +84,11 @@ None yet.
 
 ### Blockers/Concerns
 
-From research (address in Phase 1):
-- AWS 7-day auto-restart: implement re-stop mechanism (deferred to Phase 2)
-- Instance state race conditions: implement proper state machine (deferred to Phase 2)
-- Read replicas cannot be stopped: flag in discovery (deferred to Phase 2)
-- Storage charges continue: clear UI messaging (deferred to Phase 2)
+From research (deferred to Phase 3 for implementation):
+- AWS 7-day auto-restart: implement re-stop mechanism (deferred to Phase 3)
+- Instance state race conditions: implement proper state machine (deferred to Phase 3)
+- Read replicas cannot be stopped: flag in discovery (deferred to Phase 3)
+- Storage charges continue: clear UI messaging (deferred to Phase 3)
 
 New from Plan 01-02:
 - Multi-account provider registry now uses account-aware keys preventing collisions
@@ -114,27 +114,29 @@ New from Plan 01-06:
 - Database migration 002_connection_status.sql applied successfully
 - All components verified for end-to-end flow
 
-New from Plan 02-02:
-- ConfirmDialog component created with all required props
-- Installed @headlessui/react for accessible dialog implementation
+New from Plan 02-01:
+- EventStore with CreateEvent, ListEvents, ListEventsByInstance methods
+- GET /api/v1/events endpoint with pagination
+- Event interface and API client functions
 
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 02-02-PLAN.md (ConfirmDialog component with Headless UI)
+Stopped at: Completed 02-01-PLAN.md (EventStore and Events API endpoint)
 Resume file: None
-Phase 2 in progress: Plan 02-02 complete, 4 remaining plans
+Phase 2 in progress: Plan 02-01 complete, 4 remaining plans
 
 **Next Phase Readiness:**
 - Phase 2 in progress (1/5 plans complete)
-- ConfirmDialog component created and ready for integration
-- Ready for plan 02-03 (Bulk stop/start API endpoints) to use ConfirmDialog
+- EventStore foundation ready for future plans
+- Events API ready to be used by audit logging features
+- Ready for plan 02-02 (ConfirmDialog component)
 
 **Phase 2 Plans:**
-- 02-01: EventStore and Events API endpoint
-- 02-02: ConfirmDialog component with Headless UI - COMPLETE
+- 02-01: EventStore and Events API endpoint - COMPLETE
+- 02-02: ConfirmDialog component with Headless UI
 - 02-03: Bulk stop/start API endpoints with audit logging
 - 02-04: Multi-select and bulk actions in InstancesPage
 - 02-05: AuditLogPage, navigation, and human verification checkpoint
 
-**Ready for:** plan 02-03
+**Ready for:** plan 02-02
