@@ -10,27 +10,27 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 1 of 6 (Multi-Cloud Discovery)
-Plan: 5 of 6 in current phase
+Plan: 4 of 6 in current phase
 Status: In progress
-Last activity: 2026-02-21 — Completed 01-05-PLAN.md
+Last activity: 2026-02-21 — Completed 01-04-PLAN.md
 
-Progress: [██████████] 83%
+Progress: [████████░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 4
 - Average duration: ~18 min
-- Total execution time: 1.5 hours
+- Total execution time: 1.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 5/6 | 5 | ~18 min |
+| 1 | 4/6 | 4 | ~18 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 complete
+- Last 5 plans: 4 complete
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -52,6 +52,12 @@ Recent decisions affecting current work:
 
 - [01-03]: Filter state uses URL params for better user experience (filters persist on refresh)
 - [01-03]: Status filter supports multiple value mappings: 'running' maps to ['available', 'running', 'starting']
+
+- [01-04]: Connection status chips with colors for connected/syncing/failed/unknown states
+- [01-04]: Failed accounts show truncated error message on hover
+- [01-04]: Skeleton loading cards appear during initial data fetch
+- [01-04]: Toast notifications using react-hot-toast replace inline error display
+- [01-04]: Toaster styled to dark theme (background #1e293b, border #334155)
 
 - [01-05]: Dashboard stats cards are clickable with useNavigate for routing
 - [01-05]: Running Databases card navigates to /instances?status=running
@@ -86,6 +92,11 @@ New from Plan 01-03:
 - Filter state synced with URL parameters for filter persistence
 - Instance type enhanced with optional account_name field
 
+New from Plan 01-04:
+- Connection status chips with colors and icons for visual feedback
+- Skeleton loading cards during data fetch for perceived performance
+- Toast notifications using react-hot-toast library
+
 New from Plan 01-05:
 - Dashboard stats cards now clickable with useNavigate
 - Stats endpoint returns real counts from database
@@ -94,5 +105,5 @@ New from Plan 01-05:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 01-05-PLAN.md
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
