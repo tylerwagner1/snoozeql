@@ -51,9 +51,14 @@ func (p *Postgres) Query(ctx context.Context, query string, args ...any) (*sql.R
 	return p.db.QueryContext(ctx, query, args...)
 }
 
+// QueryRowContext executes a query that returns at most one row
+func (p *Postgres) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	return p.db.QueryRowContext(ctx, query, args...)
+}
+
 // QueryRow executes a query that returns at most one row
 func (p *Postgres) QueryRow(ctx context.Context, query string, args ...any) *sql.Row {
-	return p.db.QueryRowContext(ctx, query, args...)
+	return p.QueryRowContext(ctx, query, args...)
 }
 
 // Exec executes a query that doesn't return rows
