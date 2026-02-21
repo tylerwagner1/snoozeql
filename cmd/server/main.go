@@ -26,8 +26,12 @@ import (
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
-// Global discovery service instance
-var discoveryService *discovery.DiscoveryService
+// Global instances
+var (
+	discoveryService *discovery.DiscoveryService
+	instanceStore    *store.InstanceStore
+	accountStore     *store.CloudAccountStore
+)
 
 func main() {
 	log.SetOutput(os.Stdout)
@@ -129,7 +133,11 @@ func main() {
 		log.Printf("Warning: No cloud accounts registered, instances will not be discovered")
 	}
 
-	discoveryService = discovery.NewDiscoveryService(providerRegistry, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
+	// Create store instances for discovery
+	instanceStore = store.NewInstanceStore(db)
+	accountStore = store.NewCloudAccountStore(db)
+
+	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
 
 	// Start discovery in background
 	ctx := context.Background()
@@ -172,13 +180,13 @@ func main() {
 				}`))
 			})
 
-			// Instances (placeholder)
+			// Instances - returns persisted instances from database
 			r.Get("/instances", func(w http.ResponseWriter, r *http.Request) {
-				instances, err := discoveryService.ListAllDatabases(r.Context())
+				instances, err := instanceStore.ListInstances(r.Context())
 				if err != nil {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusInternalServerError)
-					log.Printf("ERROR listing instances: %v", err)
+					log.Printf("ERROR listing instances from database: %v", err)
 					w.Write([]byte(`{"error":"Failed to list instances"}`))
 					return
 				}
@@ -197,32 +205,42 @@ func main() {
 				instanceID := chi.URLParam(r, "id")
 
 				ctx := r.Context()
-				instances, err := discoveryService.ListAllDatabases(ctx)
+				// Try to find instance in database first
+				instance, err := instanceStore.GetInstanceByProviderID(ctx, instanceID, instanceID)
+				var providerName string
 				if err != nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusInternalServerError)
-					log.Printf("ERROR listing instances: %v", err)
-					w.Write([]byte(`{"error":"Failed to list instances"}`))
-					return
-				}
-
-				var foundInstance *models.Instance
-				for i := range instances {
-					if instances[i].ID == instanceID {
-						foundInstance = &instances[i]
-						break
+					// fallback to discovery
+					instances, err := discoveryService.ListAllDatabases(ctx)
+					if err != nil {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusInternalServerError)
+						log.Printf("ERROR listing instances: %v", err)
+						w.Write([]byte(`{"error":"Failed to list instances"}`))
+						return
 					}
+
+					var foundInstance *models.Instance
+					for i := range instances {
+						if instances[i].ID == instanceID {
+							foundInstance = &instances[i]
+							break
+						}
+					}
+
+					if foundInstance == nil {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusNotFound)
+						log.Printf("ERROR: Instance not found: %s", instanceID)
+						w.Write([]byte(fmt.Sprintf(`{"error":"Instance not found: %s"}`, instanceID)))
+						return
+					}
+
+					providerName = foundInstance.Provider
+				} else {
+					// Found in database, use provider from database
+					providerName = instance.Provider
 				}
 
-				if foundInstance == nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusNotFound)
-					log.Printf("ERROR: Instance not found: %s", instanceID)
-					w.Write([]byte(fmt.Sprintf(`{"error":"Instance not found: %s"}`, instanceID)))
-					return
-				}
-
-				providerName := foundInstance.Provider
 				log.Printf("DEBUG: Calling StartDatabase with provider=%s, id=%s", providerName, instanceID)
 				if err := discoveryService.StartDatabase(ctx, providerName, instanceID); err != nil {
 					w.Header().Set("Content-Type", "application/json")
@@ -244,32 +262,42 @@ func main() {
 				log.Printf("DEBUG: Stop endpoint called with instanceID=%s", instanceID)
 
 				ctx := r.Context()
-				instances, err := discoveryService.ListAllDatabases(ctx)
+				// Try to find instance in database first
+				instance, err := instanceStore.GetInstanceByProviderID(ctx, instanceID, instanceID)
+				var providerName string
 				if err != nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusInternalServerError)
-					log.Printf("ERROR listing instances: %v", err)
-					w.Write([]byte(`{"error":"Failed to list instances"}`))
-					return
-				}
-
-				var foundInstance *models.Instance
-				for i := range instances {
-					if instances[i].ID == instanceID {
-						foundInstance = &instances[i]
-						break
+					// fallback to discovery
+					instances, err := discoveryService.ListAllDatabases(ctx)
+					if err != nil {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusInternalServerError)
+						log.Printf("ERROR listing instances: %v", err)
+						w.Write([]byte(`{"error":"Failed to list instances"}`))
+						return
 					}
+
+					var foundInstance *models.Instance
+					for i := range instances {
+						if instances[i].ID == instanceID {
+							foundInstance = &instances[i]
+							break
+						}
+					}
+
+					if foundInstance == nil {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusNotFound)
+						log.Printf("ERROR: Instance not found: %s", instanceID)
+						w.Write([]byte(fmt.Sprintf(`{"error":"Instance not found: %s"}`, instanceID)))
+						return
+					}
+
+					providerName = foundInstance.Provider
+				} else {
+					// Found in database, use provider from database
+					providerName = instance.Provider
 				}
 
-				if foundInstance == nil {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusNotFound)
-					log.Printf("ERROR: Instance not found: %s", instanceID)
-					w.Write([]byte(fmt.Sprintf(`{"error":"Instance not found: %s"}`, instanceID)))
-					return
-				}
-
-				providerName := foundInstance.Provider
 				log.Printf("DEBUG: Calling StopDatabase with provider=%s, id=%s", providerName, instanceID)
 				if err := discoveryService.StopDatabase(ctx, providerName, instanceID); err != nil {
 					w.Header().Set("Content-Type", "application/json")
