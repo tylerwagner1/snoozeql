@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
@@ -32,6 +33,7 @@ var (
 	discoveryService *discovery.DiscoveryService
 	instanceStore    *store.InstanceStore
 	accountStore     *store.CloudAccountStore
+	eventStore       *store.EventStore
 )
 
 func main() {
@@ -157,6 +159,7 @@ func main() {
 	// Create store instances for discovery
 	instanceStore = store.NewInstanceStore(db)
 	accountStore = store.NewCloudAccountStore(db)
+	eventStore = store.NewEventStore(db)
 
 	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
 
@@ -409,6 +412,38 @@ func main() {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(`{"success":true}`))
+			})
+
+			// Events/Audit Log
+			r.Get("/events", func(w http.ResponseWriter, r *http.Request) {
+				ctx := r.Context()
+
+				// Parse optional pagination params
+				limit := 50
+				offset := 0
+				if l := r.URL.Query().Get("limit"); l != "" {
+					if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+						limit = parsed
+					}
+				}
+				if o := r.URL.Query().Get("offset"); o != "" {
+					if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+						offset = parsed
+					}
+				}
+
+				events, err := eventStore.ListEvents(ctx, limit, offset)
+				if err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Printf("ERROR listing events: %v", err)
+					w.Write([]byte(`{"error":"Failed to list events"}`))
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(events)
 			})
 
 			// Test connection endpoint
