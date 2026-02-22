@@ -573,7 +573,7 @@ func main() {
 			})
 
 			// Schedules (using ScheduleHandler with real store)
-			scheduleHandler := handlers.NewScheduleHandler(scheduleStore)
+			scheduleHandler := handlers.NewScheduleHandler(scheduleStore, eventStore)
 			r.Get("/schedules", scheduleHandler.GetAllSchedules)
 			r.Get("/schedules/{id}", func(w http.ResponseWriter, r *http.Request) {
 				id := chi.URLParam(r, "id")

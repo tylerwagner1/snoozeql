@@ -3,6 +3,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -12,17 +13,45 @@ import (
 
 // ScheduleHandler handles schedule-related HTTP requests
 type ScheduleHandler struct {
-	store *store.ScheduleStore
+	scheduleStore *store.ScheduleStore
+	eventStore    *store.EventStore
 }
 
 // NewScheduleHandler creates a new schedule handler
-func NewScheduleHandler(store *store.ScheduleStore) *ScheduleHandler {
-	return &ScheduleHandler{store: store}
+func NewScheduleHandler(scheduleStore *store.ScheduleStore, eventStore *store.EventStore) *ScheduleHandler {
+	return &ScheduleHandler{
+		scheduleStore: scheduleStore,
+		eventStore:    eventStore,
+	}
+}
+
+// CreateEvent logs a schedule operation event
+func (h *ScheduleHandler) CreateEvent(ctx context.Context, eventType, scheduleName, prevStatus, newStatus string) {
+	if h.eventStore == nil {
+		return
+	}
+
+	// Marshal metadata to JSON bytes
+	metadata, _ := json.Marshal(map[string]string{"schedule_name": scheduleName})
+
+	event := &models.Event{
+		InstanceID:     "", // Schedule operations use the schedule ID
+		EventType:      eventType,
+		TriggeredBy:    "manual",
+		PreviousStatus: prevStatus,
+		NewStatus:      newStatus,
+		Metadata:       metadata,
+	}
+
+	// Note: This will be stored in the events table
+	// For schedule-specific events, we could add a schedule_id field to Event model
+	// For now, we log to the events table but without instance association
+	_ = h.eventStore.CreateEvent(ctx, event)
 }
 
 // GetAllSchedules returns all schedules
 func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request) {
-	schedules, err := h.store.ListSchedules()
+	schedules, err := h.scheduleStore.ListSchedules()
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -37,7 +66,7 @@ func (h *ScheduleHandler) GetAllSchedules(w http.ResponseWriter, r *http.Request
 
 // GetSchedule returns a single schedule by ID
 func (h *ScheduleHandler) GetSchedule(w http.ResponseWriter, r *http.Request, id string) {
-	schedule, err := h.store.GetSchedule(id)
+	schedule, err := h.scheduleStore.GetSchedule(id)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -60,12 +89,15 @@ func (h *ScheduleHandler) CreateSchedule(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.store.CreateSchedule(&schedule); err != nil {
+	if err := h.scheduleStore.CreateSchedule(&schedule); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create schedule"})
 		return
 	}
+
+	// Log the event
+	h.CreateEvent(r.Context(), "schedule_create", schedule.Name, "", "created")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -82,15 +114,24 @@ func (h *ScheduleHandler) UpdateSchedule(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	// Get the existing schedule name for logging
+	var existingName string
+	if existing, err := h.scheduleStore.GetSchedule(id); err == nil {
+		existingName = existing.Name
+	}
+
 	// Ensure the ID from the URL is used
 	schedule.ID = id
 
-	if err := h.store.UpdateSchedule(&schedule); err != nil {
+	if err := h.scheduleStore.UpdateSchedule(&schedule); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Schedule not found"})
 		return
 	}
+
+	// Log the event
+	h.CreateEvent(r.Context(), "schedule_update", existingName, "updated", "updated")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -99,25 +140,34 @@ func (h *ScheduleHandler) UpdateSchedule(w http.ResponseWriter, r *http.Request,
 
 // DeleteSchedule deletes a schedule
 func (h *ScheduleHandler) DeleteSchedule(w http.ResponseWriter, r *http.Request, id string) {
-	if err := h.store.DeleteSchedule(id); err != nil {
+	// Get the schedule name for logging
+	var scheduleName string
+	if existing, err := h.scheduleStore.GetSchedule(id); err == nil {
+		scheduleName = existing.Name
+	}
+
+	if err := h.scheduleStore.DeleteSchedule(id); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Schedule not found"})
 		return
 	}
 
+	// Log the event
+	h.CreateEvent(r.Context(), "schedule_delete", scheduleName, "deleted", "deleted")
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // EnableSchedule enables a schedule
 func (h *ScheduleHandler) EnableSchedule(w http.ResponseWriter, r *http.Request, id string) {
-	// Update the schedule to enable it
-	var schedule models.Schedule
-	if existing, err := h.store.GetSchedule(id); err == nil {
-		schedule = *existing
-		schedule.Enabled = true
+	// Get the schedule name for logging
+	var scheduleName string
+	if existing, err := h.scheduleStore.GetSchedule(id); err == nil {
+		scheduleName = existing.Name
+		existing.Enabled = true // Modify the existing pointer directly
 
-		if updateErr := h.store.UpdateSchedule(&schedule); updateErr != nil {
+		if updateErr := h.scheduleStore.UpdateSchedule(existing); updateErr != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Schedule not found"})
@@ -129,6 +179,9 @@ func (h *ScheduleHandler) EnableSchedule(w http.ResponseWriter, r *http.Request,
 		json.NewEncoder(w).Encode(map[string]string{"error": "Schedule not found"})
 		return
 	}
+
+	// Log the event
+	h.CreateEvent(r.Context(), "schedule_enable", scheduleName, "enabled", "enabled")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -137,13 +190,13 @@ func (h *ScheduleHandler) EnableSchedule(w http.ResponseWriter, r *http.Request,
 
 // DisableSchedule disables a schedule
 func (h *ScheduleHandler) DisableSchedule(w http.ResponseWriter, r *http.Request, id string) {
-	// Update the schedule to disable it
-	var schedule models.Schedule
-	if existing, err := h.store.GetSchedule(id); err == nil {
-		schedule = *existing
-		schedule.Enabled = false
+	// Get the schedule name for logging
+	var scheduleName string
+	if existing, err := h.scheduleStore.GetSchedule(id); err == nil {
+		scheduleName = existing.Name
+		existing.Enabled = false // Modify the existing pointer directly
 
-		if updateErr := h.store.UpdateSchedule(&schedule); updateErr != nil {
+		if updateErr := h.scheduleStore.UpdateSchedule(existing); updateErr != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Schedule not found"})
@@ -155,6 +208,9 @@ func (h *ScheduleHandler) DisableSchedule(w http.ResponseWriter, r *http.Request
 		json.NewEncoder(w).Encode(map[string]string{"error": "Schedule not found"})
 		return
 	}
+
+	// Log the event
+	h.CreateEvent(r.Context(), "schedule_disable", scheduleName, "disabled", "disabled")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
