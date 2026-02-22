@@ -98,7 +98,10 @@ const ScheduleEditPage = () => {
         if (i === index) {
           return {
             ...selector,
-            [field]: value
+            name: {
+              ...selector.name,
+              [field]: value
+            }
           }
         }
         return selector
