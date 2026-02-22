@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-snoozeql}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-snoozeql}
+      POSTGRES_DB: ${POSTGRES_DB:-snoozeql}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+      - ./deployments/docker/migrations:/docker-entrypoint-initdb.d/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-snoozeql}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        CACHE_BUST: ${BUILD_TIMESTAMP:-$(date +%s)}
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-snoozeql}:${POSTGRES_PASSWORD:-snoozeql}@postgres:5432/${POSTGRES_DB:-snoozeql}?sslmode=disable
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      PRE_STOP_MINUTES: ${PRE_STOP_MINUTES:-10}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/vendor
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3001}:80"
+    environment:
+      VITE_API_URL: http://app:8080/api/v1
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:

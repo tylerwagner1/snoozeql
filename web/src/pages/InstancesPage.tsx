@@ -53,36 +53,51 @@ const InstancesPage = () => {
     setSearchParams(newParams)
   }
 
-  useEffect(() => {
-    const fetchInstances = async () => {
-      try {
-        const data = await api.getInstances()
-        setInstances(data)
-      } catch (err) {
-        setError('Failed to load instances')
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+  // Fetch instances from API
+  const fetchInstances = async () => {
+    try {
+      const data = await api.getInstances()
+      setInstances(data)
+      setError(null)
+    } catch (err) {
+      setError('Failed to load instances')
+      console.error(err)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchInstances()
+  }, [])
+
+  // Refresh instances every 5 seconds to show real-time status
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchInstances()
+    }, 5000)
+    return () => clearInterval(interval)
   }, [])
 
   const handleStart = async (id: string) => {
     try {
       await api.startInstance(id)
-      setInstances(prev => prev.map(inst => inst.id === id ? { ...inst, status: 'starting' } : inst))
-    } catch (err) {
+      toast.success('Started instance')
+      // Will be updated by 5-second refresh
+    } catch (err: any) {
       console.error('Failed to start instance:', err)
+      toast.error(err.message || 'Failed to start instance')
     }
   }
 
   const handleStop = async (id: string) => {
     try {
       await api.stopInstance(id)
-      setInstances(prev => prev.map(inst => inst.id === id ? { ...inst, status: 'stopping' } : inst))
-    } catch (err) {
+      toast.success('Stopped instance')
+      // Will be updated by 5-second refresh
+    } catch (err: any) {
       console.error('Failed to stop instance:', err)
+      toast.error(err.message || 'Failed to stop instance')
     }
   }
 
@@ -95,10 +110,6 @@ const InstancesPage = () => {
       
       if (result.success.length > 0) {
         toast.success(`Stopped ${result.success.length} instance(s)`)
-        // Update local state optimistically
-        setInstances(prev => prev.map(inst => 
-          result.success.includes(inst.id) ? { ...inst, status: 'stopping' } : inst
-        ))
       }
       if (result.failed.length > 0) {
         toast.error(`Failed to stop ${result.failed.length} instance(s)`)
@@ -106,8 +117,9 @@ const InstancesPage = () => {
       
       clearSelection()
       setShowConfirmDialog(null)
-    } catch (err) {
-      toast.error('Failed to stop instances')
+      // Will be updated by 5-second refresh
+    } catch (err: any) {
+      toast.error(`Failed to stop instances: ${err.message || 'unknown error'}`)
       console.error(err)
     } finally {
       setBulkLoading(false)
@@ -122,10 +134,6 @@ const InstancesPage = () => {
       
       if (result.success.length > 0) {
         toast.success(`Started ${result.success.length} instance(s)`)
-        // Update local state optimistically
-        setInstances(prev => prev.map(inst => 
-          result.success.includes(inst.id) ? { ...inst, status: 'starting' } : inst
-        ))
       }
       if (result.failed.length > 0) {
         toast.error(`Failed to start ${result.failed.length} instance(s)`)
@@ -133,8 +141,9 @@ const InstancesPage = () => {
       
       clearSelection()
       setShowConfirmDialog(null)
-    } catch (err) {
-      toast.error('Failed to start instances')
+      // Will be updated by 5-second refresh
+    } catch (err: any) {
+      toast.error(`Failed to start instances: ${err.message || 'unknown error'}`)
       console.error(err)
     } finally {
       setBulkLoading(false)
@@ -333,14 +342,14 @@ const InstancesPage = () => {
                   <div className="flex justify-end space-x-2">
                     {instance.status === 'stopped' ? (
                       <button
-                        onClick={() => handleStart(instance.id)}
+                        onClick={() => handleStart(instance.name)}
                         className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-medium rounded-lg transition-all shadow-lg shadow-green-500/20"
                       >
                         Start
                       </button>
                     ) : (
                       <button
-                        onClick={() => handleStop(instance.id)}
+                        onClick={() => handleStop(instance.name)}
                         className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-medium rounded-lg transition-all shadow-lg shadow-red-500/20"
                       >
                         Stop

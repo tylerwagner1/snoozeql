@@ -18,15 +18,23 @@ export interface Instance {
   updated_at: string
 }
 
+export interface Selector {
+  name: { pattern: string; type: string }
+  provider?: string
+  region?: { pattern: string; type: string }
+  engine?: { pattern: string; type: string }
+  tags?: Record<string, { pattern: string; type: string }>
+}
+
 export interface Schedule {
   id: string
   name: string
   description: string
-  cron_pattern: string
+  selectors: Selector[]
   timezone: string
-  action: 'start' | 'stop'
+  sleep_cron: string
+  wake_cron: string
   enabled: boolean
-  instances: string[]
   created_at: string
   updated_at: string
 }
@@ -143,8 +151,8 @@ const api = {
   // Instances
   getInstances: () => api.get<Instance[]>('/instances'),
   getInstance: (id: string) => api.get<Instance>(`/instances/${id}`),
-  startInstance: (id: string) => api.post<void>(`/instances/${id}/start`),
-  stopInstance: (id: string) => api.post<void>(`/instances/${id}/stop`),
+  startInstance: (id: string) => api.post<{ success: boolean; instance_id: string; provider: string; status: string }>(`/instances/${id}/start`),
+  stopInstance: (id: string) => api.post<{ success: boolean; instance_id: string; provider: string; status: string }>(`/instances/${id}/stop`),
   bulkStopInstances: (instanceIds: string[]) =>
     api.post<BulkOperationResponse>('/instances/bulk-stop', { instance_ids: instanceIds }),
   bulkStartInstances: (instanceIds: string[]) =>
@@ -169,7 +177,11 @@ const api = {
   // Cloud accounts
   getCloudAccounts: () => api.get<CloudAccount[]>('/cloud-accounts'),
   createCloudAccount: (data: { name: string; provider: string; regions?: string[]; credentials: { [key: string]: string } }) => api.post<CloudAccount>('/cloud-accounts', data),
+  updateCloudAccount: (id: string, data: { name: string; regions?: string[]; credentials: { [key: string]: string } }) => api.put<{ success: boolean }>(`/cloud-accounts/${id}`, data),
   deleteCloudAccount: (id: string) => api.del(`/cloud-accounts/${id}`),
+
+  // Discovery
+  refreshInstances: () => api.post<{ success: boolean; message: string }>('/discovery/refresh'),
 
   // Events/Audit Log
   getEvents: (limit?: number, offset?: number) => {

@@ -1,0 +1,512 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	awssdkconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+
+	"snoozeql/internal/api/middleware"
+	"snoozeql/internal/config"
+	"snoozeql/internal/discovery"
+	"snoozeql/internal/models"
+	"snoozeql/internal/provider"
+	awsprovider "snoozeql/internal/provider/aws"
+	"snoozeql/internal/store"
+
+	"github.com/go-chi/chi/v5"
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+)
+
+// Global instances
+var (
+	discoveryService *discovery.DiscoveryService
+	instanceStore    *store.InstanceStore
+	accountStore     *store.CloudAccountStore
+)
+
+func main() {
+	log.SetOutput(os.Stdout)
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
+
+	fmt.Println("SnoozeQL - Database Sleeper for Dev/Test Environments")
+	fmt.Println("========================================================")
+
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+
+	// Validate configuration
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("failed to validate config: %v", err)
+	}
+
+	// Initialize database
+	db, err := store.NewPostgres(cfg.Database_url)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	// Run migrations
+	migrationDir := "./deployments/docker/migrations"
+	if err := db.Migrate(migrationDir); err != nil {
+		log.Printf("warning: migration check failed: %v", err)
+	}
+
+	log.Printf("✓ Connected to database")
+	log.Printf("✓ AWS_ACCESS_KEY_ID set: %v", cfg.AWS_access_key != "")
+	log.Printf("✓ AWS_SECRET_ACCESS_KEY set: %v", cfg.AWS_secret_key != "")
+	log.Printf("✓ Server will start on http://%s:%s", cfg.Server_host, cfg.Server_port)
+
+	// Initialize provider registry and discovery
+	providerRegistry := provider.NewRegistry()
+
+	// Load cloud accounts from database and register providers
+	storeInstance := store.NewCloudAccountStore(db)
+	cloudAccounts, err := storeInstance.ListCloudAccounts()
+	if err != nil {
+		log.Printf("Warning: Failed to load cloud accounts: %v", err)
+	} else {
+		log.Printf("✓ Loaded %d cloud accounts from database", len(cloudAccounts))
+
+		for _, account := range cloudAccounts {
+			if account.Provider != "aws" {
+				log.Printf("Skipping %s provider (not supported yet): %s", account.Provider, account.Name)
+				continue
+			}
+
+			// Extract AWS credentials from the JSONB
+			var accessKey, secretKey string
+			if cred, ok := account.Credentials["aws_access_key_id"]; ok {
+				if str, ok := cred.(string); ok {
+					accessKey = str
+					log.Printf("DEBUG: Found access_key_id: %s", str[:10]+"...")
+				} else {
+					log.Printf("DEBUG: access_key_id is not a string, type: %T", cred)
+				}
+			}
+			if cred, ok := account.Credentials["aws_secret_access_key"]; ok {
+				if str, ok := cred.(string); ok {
+					secretKey = str
+					log.Printf("DEBUG: Found secret_access_key: %s", str[:10]+"...")
+				} else {
+					log.Printf("DEBUG: secret_access_key is not a string, type: %T", cred)
+				}
+			}
+
+			if accessKey == "" || secretKey == "" {
+				log.Printf("Warning: Skipping account %s - missing credentials", account.Name)
+				continue
+			}
+
+			// Create a provider for each region the account has access to
+			regions := account.Regions
+			if len(regions) == 0 {
+				regions = []string{"us-east-1"} // default
+			}
+
+			for _, region := range regions {
+				awsProvider, err := awsprovider.NewRDSProvider(region, "", []string{}, accessKey, secretKey)
+				if err == nil {
+					providerKey := fmt.Sprintf("aws_%s_%s", account.ID, region)
+					providerRegistry.Register(providerKey, awsProvider)
+					log.Printf("✓ Registered AWS provider for account: %s (region: %s, key: %s)", account.Name, region, providerKey)
+				} else {
+					log.Printf("Warning: Failed to register AWS provider for %s in region %s: %v", account.Name, region, err)
+				}
+			}
+		}
+	}
+
+	if len(providerRegistry.Providers) == 0 {
+		log.Printf("Warning: No cloud accounts registered, instances will not be discovered")
+	}
+
+	// Create store instances for discovery
+	instanceStore = store.NewInstanceStore(db)
+	accountStore = store.NewCloudAccountStore(db)
+
+	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
+
+	// Start discovery in background
+	ctx := context.Background()
+	go discoveryService.RunContinuous(ctx)
+
+	// Initialize router
+	r := chi.NewRouter()
+
+	// Chi middleware
+	r.Use(chiMiddleware.RequestID)
+	r.Use(chiMiddleware.RealIP)
+	r.Use(chiMiddleware.Recoverer)
+	r.Use(chiMiddleware.Logger)
+
+	// Custom middleware
+	r.Use(middleware.NewRequestID)
+	r.Use(middleware.TrackRequestDuration)
+	r.Use(middleware.CORS)
+
+	// API routes
+	r.Route("/api", func(r chi.Router) {
+		r.Use(middleware.APIKeyAuth(cfg))
+		r.Route("/v1", func(r chi.Router) {
+			// Health/Status
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"status":"ok","service":"snoozeql"}`))
+			})
+
+			// Statistics
+			r.Get("/stats", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{
+					"total_instances": 0,
+					"running_instances": 0,
+					"stopped_instances": 0,
+					"savings_7d": 0,
+					"pending_actions": 0
+				}`))
+			})
+
+			// Instances - returns persisted instances from database
+			r.Get("/instances", func(w http.ResponseWriter, r *http.Request) {
+				instances, err := instanceStore.ListInstances(r.Context())
+				if err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Printf("ERROR listing instances from database: %v", err)
+					w.Write([]byte(`{"error":"Failed to list instances"}`))
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(instances)
+			})
+
+			r.Get("/instances/{id}", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`{"error":"Not found"}`))
+			})
+
+			r.Post("/instances/{id}/start", func(w http.ResponseWriter, r *http.Request) {
+				instanceID := chi.URLParam(r, "id")
+
+				ctx := r.Context()
+				// Try to find instance in database first
+				instance, err := instanceStore.GetInstanceByProviderID(ctx, instanceID, instanceID)
+				var providerName string
+				if err != nil {
+					// fallback to discovery
+					instances, err := discoveryService.ListAllDatabases(ctx)
+					if err != nil {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusInternalServerError)
+						log.Printf("ERROR listing instances: %v", err)
+						w.Write([]byte(`{"error":"Failed to list instances"}`))
+						return
+					}
+
+					var foundInstance *models.Instance
+					for i := range instances {
+						if instances[i].ID == instanceID {
+							foundInstance = &instances[i]
+							break
+						}
+					}
+
+					if foundInstance == nil {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusNotFound)
+						log.Printf("ERROR: Instance not found: %s", instanceID)
+						w.Write([]byte(fmt.Sprintf(`{"error":"Instance not found: %s"}`, instanceID)))
+						return
+					}
+
+					providerName = foundInstance.Provider
+				} else {
+					// Found in database, use provider from database
+					providerName = instance.Provider
+				}
+
+				log.Printf("DEBUG: Calling StartDatabase with provider=%s, id=%s", providerName, instanceID)
+				if err := discoveryService.StartDatabase(ctx, providerName, instanceID); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Printf("ERROR starting instance %s: %v", instanceID, err)
+					w.Write([]byte(fmt.Sprintf(`{"error":"Failed to start instance: %v","instance_id":"%s"}`, err, instanceID)))
+					return
+				}
+
+				log.Printf("SUCCESS: StartDatabase call completed for instance %s (provider=%s)", instanceID, providerName)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(fmt.Sprintf(`{"success":true,"instance_id":"%s","provider":"%s","status":"starting"}`, instanceID, providerName)))
+			})
+
+			r.Post("/instances/{id}/stop", func(w http.ResponseWriter, r *http.Request) {
+				instanceID := chi.URLParam(r, "id")
+
+				log.Printf("DEBUG: Stop endpoint called with instanceID=%s", instanceID)
+
+				ctx := r.Context()
+				// Try to find instance in database first
+				instance, err := instanceStore.GetInstanceByProviderID(ctx, instanceID, instanceID)
+				var providerName string
+				if err != nil {
+					// fallback to discovery
+					instances, err := discoveryService.ListAllDatabases(ctx)
+					if err != nil {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusInternalServerError)
+						log.Printf("ERROR listing instances: %v", err)
+						w.Write([]byte(`{"error":"Failed to list instances"}`))
+						return
+					}
+
+					var foundInstance *models.Instance
+					for i := range instances {
+						if instances[i].ID == instanceID {
+							foundInstance = &instances[i]
+							break
+						}
+					}
+
+					if foundInstance == nil {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusNotFound)
+						log.Printf("ERROR: Instance not found: %s", instanceID)
+						w.Write([]byte(fmt.Sprintf(`{"error":"Instance not found: %s"}`, instanceID)))
+						return
+					}
+
+					providerName = foundInstance.Provider
+				} else {
+					// Found in database, use provider from database
+					providerName = instance.Provider
+				}
+
+				log.Printf("DEBUG: Calling StopDatabase with provider=%s, id=%s", providerName, instanceID)
+				if err := discoveryService.StopDatabase(ctx, providerName, instanceID); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Printf("ERROR stopping instance %s: %v", instanceID, err)
+					w.Write([]byte(fmt.Sprintf(`{"error":"Failed to stop instance: %v","instance_id":"%s"}`, err, instanceID)))
+					return
+				}
+
+				log.Printf("SUCCESS: StopDatabase call completed for instance %s (provider=%s)", instanceID, providerName)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(fmt.Sprintf(`{"success":true,"instance_id":"%s","provider":"%s","status":"stopping"}`, instanceID, providerName)))
+			})
+
+			// Schedules (placeholder)
+			r.Get("/schedules", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`[]`))
+			})
+
+			r.Get("/schedules/{id}", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`{"error":"Not found"}`))
+			})
+
+			// Recommendations (placeholder)
+			r.Get("/recommendations", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`[]`))
+			})
+
+			r.Get("/recommendations/{id}", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`{"error":"Not found"}`))
+			})
+
+			r.Post("/recommendations/{id}/apply", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"success":true}`))
+			})
+
+			r.Post("/recommendations/{id}/ignore", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"success":true}`))
+			})
+
+			// Test connection endpoint
+			r.Post("/test-connection", func(w http.ResponseWriter, r *http.Request) {
+				var input struct {
+					Provider string         `json:"provider"`
+					Region   string         `json:"region"`
+					Creds    map[string]any `json:"credentials"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"error":"Invalid request body"}`))
+					return
+				}
+
+				if input.Provider != "aws" {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"error":"Only AWS connections are supported for testing"}`))
+					return
+				}
+
+				awsAccessKey, ok1 := input.Creds["aws_access_key_id"].(string)
+				awsSecretKey, ok2 := input.Creds["aws_secret_access_key"].(string)
+				if !ok1 || !ok2 {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"error":"Missing AWS credentials"}`))
+					return
+				}
+
+				// Create AWS config with provided credentials
+				awsCfg, err := awssdkconfig.LoadDefaultConfig(context.Background(),
+					awssdkconfig.WithRegion(input.Region),
+					awssdkconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(awsAccessKey, awsSecretKey, "")))
+				if err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					w.Write([]byte(`{"error":"Failed to load AWS config"}`))
+					return
+				}
+
+				rdsClient := rds.NewFromConfig(awsCfg)
+
+				// Test connection by listing RDS instances
+				_, err = rdsClient.DescribeDBInstances(context.Background(), &rds.DescribeDBInstancesInput{
+					MaxRecords: awssdk.Int32(20),
+				})
+				if err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusUnauthorized)
+					w.Write([]byte(fmt.Sprintf(`{"error":"Connection failed: %v","details":"%v"}`, err, err)))
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"success":true,"message":"Connection successful"}`))
+			})
+
+			// Cloud accounts
+			r.Get("/cloud-accounts", func(w http.ResponseWriter, r *http.Request) {
+				log.Printf("DEBUG: Listing cloud accounts...")
+				accounts, err := store.NewCloudAccountStore(db).ListCloudAccounts()
+				if err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Printf("ERROR listing cloud accounts: %v", err)
+					w.Write([]byte(`{"error":"Failed to load accounts"}`))
+					return
+				}
+				log.Printf("DEBUG: Found %d cloud accounts", len(accounts))
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				response := make([]map[string]any, len(accounts))
+				for i, a := range accounts {
+					response[i] = map[string]any{
+						"id":         a.ID,
+						"name":       a.Name,
+						"provider":   a.Provider,
+						"regions":    a.Regions,
+						"created_at": a.CreatedAt.Format("2006-01-02T15:04:05Z"),
+					}
+				}
+				json.NewEncoder(w).Encode(response)
+			})
+
+			r.Post("/cloud-accounts", func(w http.ResponseWriter, r *http.Request) {
+				var input struct {
+					Name        string         `json:"name"`
+					Provider    string         `json:"provider"`
+					Regions     []string       `json:"regions"`
+					Credentials map[string]any `json:"credentials"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					log.Printf("ERROR: Invalid request body: %v", err)
+					w.Write([]byte(`{"error":"Invalid request body"}`))
+					return
+				}
+				log.Printf("DEBUG: Creating account: name=%s, provider=%s, regions=%v", input.Name, input.Provider, input.Regions)
+
+				account := &models.CloudAccount{
+					ID:          "",
+					Name:        input.Name,
+					Provider:    input.Provider,
+					Credentials: input.Credentials,
+					Regions:     input.Regions,
+					CreatedAt:   time.Now(),
+				}
+
+				if err := store.NewCloudAccountStore(db).CreateCloudAccount(account); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Printf("ERROR creating cloud account: %v", err)
+					w.Write([]byte(`{"error":"Failed to save account"}`))
+					return
+				}
+
+				log.Printf("SUCCESS: Created account with ID: %s", account.ID)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusCreated)
+				w.Write([]byte(`{"success":true}`))
+			})
+
+			r.Delete("/cloud-accounts/{id}", func(w http.ResponseWriter, r *http.Request) {
+				id := chi.URLParam(r, "id")
+				if err := store.NewCloudAccountStore(db).DeleteCloudAccount(id); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					w.Write([]byte(`{"error":"Failed to delete account"}`))
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"success":true}`))
+			})
+		})
+	})
+
+	// Health check
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	// Start server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = cfg.Server_port
+	}
+
+	addr := fmt.Sprintf("%s:%s", cfg.Server_host, port)
+	log.Printf("starting server on %s", addr)
+
+	if err := http.ListenAndServe(addr, r); err != nil {
+		log.Fatalf("server failed: %v", err)
+	}
+}

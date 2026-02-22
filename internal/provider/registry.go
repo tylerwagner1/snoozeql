@@ -6,6 +6,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"snoozeql/internal/models"
@@ -55,9 +56,24 @@ func (r *Registry) ListAllDatabases(ctx context.Context) ([]models.Instance, err
 			return nil, fmt.Errorf("failed to list databases from %s: %w", providerName, err)
 		}
 
-		// Mark instances with their provider
+		// Extract cloud provider type and account ID from provider name (format: aws_{accountID}_{region})
+		parts := strings.Split(providerName, "_")
+		cloudProvider := ""
+		accountID := ""
+		if len(parts) >= 1 {
+			cloudProvider = parts[0]
+		}
+		if len(parts) >= 2 {
+			accountID = parts[1]
+		}
+
+		// Mark instances with their provider type, full provider name, and original ProviderID
+		// The ProviderID remains the original value (e.g., RDS ARN) - account ID is stored separately
 		for i := range instances {
-			instances[i].Provider = providerName
+			instances[i].Provider = cloudProvider
+			instances[i].ProviderName = providerName
+			instances[i].AccountID = accountID // Store account ID for later mapping
+			fmt.Printf("DEBUG [Registry]: Set Provider=%s, ProviderName=%s, ProviderID=%s, AccountID=%s for instance %s\n", cloudProvider, providerName, instances[i].ProviderID, accountID, instances[i].Name)
 		}
 
 		allInstances = append(allInstances, instances...)

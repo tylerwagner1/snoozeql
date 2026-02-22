@@ -1,0 +1,29 @@
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Force rebuild by touching main.go
+RUN touch cmd/server/main.go && echo "BUILD_HASH=$(date +%s)" > /tmp/hashfile
+
+# Build the application with mod=mod to avoid vendor issues
+RUN cat /tmp/hashfile && go build -mod=mod -v -o /snoozeql ./cmd/server && ls -la /snoozeql && echo "BUILD_DONE"
+
+# Runtime stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates bash
+
+WORKDIR /root/
+
+COPY --from=builder /snoozeql .
+
+EXPOSE 8080
+
+CMD ["./snoozeql"]

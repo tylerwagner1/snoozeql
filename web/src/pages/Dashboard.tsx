@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Activity, Zap, TrendingDown, Clock, Search, Filter, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api, { Instance, CloudAccount } from '../lib/api'
-import type { Recommendation } from '../lib/api'
+import type { Recommendation, Event } from '../lib/api'
 
 const Dashboard = () => {
   const navigate = useNavigate()
@@ -11,20 +11,29 @@ const Dashboard = () => {
   const [instances, setInstances] = useState<Instance[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [cloudAccounts, setCloudAccounts] = useState<CloudAccount[]>([])
+  const [events, setEvents] = useState<Event[]>([])
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [instancesData, recommendationsData, accountsData] = await Promise.all([
+        const [instancesData, recommendationsData, accountsData, eventsData] = await Promise.all([
           api.getInstances(),
           api.getRecommendations(),
-          api.getCloudAccounts()
+          api.getCloudAccounts(),
+          api.getEvents(10, 0)
         ])
-        setInstances(instancesData)
-        setRecommendations(recommendationsData)
-        setCloudAccounts(accountsData)
+        // Handle null responses from API by defaulting to empty arrays
+        setInstances(instancesData || [])
+        setRecommendations(recommendationsData || [])
+        setCloudAccounts(accountsData || [])
+        setEvents(eventsData || [])
       } catch (err) {
         console.error(err)
+        // Default to empty arrays on error
+        setInstances([])
+        setRecommendations([])
+        setCloudAccounts([])
+        setEvents([])
       }
     }
     fetchData()
@@ -244,12 +253,42 @@ const Dashboard = () => {
 
       <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700">
         <h2 className="text-lg font-semibold text-white mb-4">Recent Activity</h2>
-        {instances.length > 0 ? (
+        {events.length > 0 ? (
+          <div className="space-y-4">
+            {events.map((event, i) => (
+              <div key={i} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0 hover:bg-slate-800/50 px-2 rounded transition-colors">
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm text-slate-400 w-20">
+                    {new Date(event.created_at).toLocaleString()}
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-sm text-slate-200 font-medium">
+                      {event.instance_id}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      by {event.triggered_by === 'manual' ? 'User' : event.triggered_by}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className={`text-sm font-medium ${
+                    event.event_type === 'stop' ? 'text-red-400' : 'text-green-400'
+                  }`}>
+                    {event.event_type === 'stop' ? 'Stopped' : 'Started'}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {event.previous_status} → {event.new_status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : instances.length > 0 ? (
           <div className="space-y-4">
             {instances.slice(0, 4).map((instance, i) => (
               <div key={i} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0 hover:bg-slate-800/50 px-2 rounded transition-colors">
                 <div className="flex items-center space-x-3">
-                  <span className="text-sm text-slate-400 w-20">Just now</span>
+                  <span className="text-sm text-slate-400 w-20">No activity yet</span>
                   <span className="text-sm text-slate-200 font-medium">{instance.name} ({instance.engine})</span>
                 </div>
                 <span className="text-sm text-slate-500">${(instance.hourly_cost_cents / 100).toFixed(2)}/hr</span>

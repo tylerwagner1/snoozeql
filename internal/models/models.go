@@ -12,6 +12,7 @@ type CloudAccount struct {
 	ConnectionStatus string         `json:"connection_status,omitempty" db:"connection_status"`
 	LastSyncAt       *time.Time     `json:"last_sync_at,omitempty" db:"last_sync_at"`
 	LastError        *string        `json:"last_error,omitempty" db:"last_error"`
+	DeletedAt        *time.Time     `json:"deleted_at,omitempty" db:"deleted_at"`
 	CreatedAt        time.Time      `json:"created_at" db:"created_at"`
 }
 
@@ -19,7 +20,9 @@ type CloudAccount struct {
 type Instance struct {
 	ID              string            `json:"id" db:"id"`
 	CloudAccountID  string            `json:"cloud_account_id" db:"cloud_account_id"`
-	Provider        string            `json:"provider" db:"provider"`
+	AccountID       string            `json:"account_id" db:"account_id"`       // AWS account ID from provider (not stored in DB, used for mapping)
+	Provider        string            `json:"provider" db:"provider"`           // Cloud provider type: "aws" or "gcp"
+	ProviderName    string            `json:"provider_name" db:"provider_name"` // Full provider identifier: "aws_{accountID}_{region}"
 	ProviderID      string            `json:"provider_id" db:"provider_id"`
 	Name            string            `json:"name" db:"name"`
 	Region          string            `json:"region" db:"region"`

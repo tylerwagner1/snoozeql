@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
 	"snoozeql/internal/models"
@@ -102,39 +103,48 @@ func NewInstanceStore(db *Postgres) *InstanceStore {
 }
 
 // UpsertInstance inserts or updates an instance in the database
+// Uses ON CONFLICT on (provider, provider_id) which matches the unique constraint
+// This ensures the same RDS instance can't be duplicated even when discovered from different accounts
 func (s *InstanceStore) UpsertInstance(ctx context.Context, instance *models.Instance) error {
 	tagsJSON, err := json.Marshal(instance.Tags)
 	if err != nil {
 		return fmt.Errorf("failed to marshal tags: %w", err)
 	}
 
+	// Use ON CONFLICT on (provider, provider_id) to handle duplicates
+	// When a conflict occurs (same provider/provider_id but different cloud_account_id),
+	// update the cloud_account_id to the new value
 	query := `
 		INSERT INTO instances (
-			cloud_account_id, provider, provider_id, name, region,
+			cloud_account_id, provider, provider_name, provider_id, name, region,
 			instance_type, engine, status, managed, tags, hourly_cost_cents
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		ON CONFLICT (provider, provider_id) DO UPDATE SET
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		ON CONFLICT (provider, provider_id, cloud_account_id) DO UPDATE SET
 			name = EXCLUDED.name,
+			provider_name = EXCLUDED.provider_name,
+			provider_id = EXCLUDED.provider_id,
 			status = EXCLUDED.status,
 			tags = EXCLUDED.tags,
 			hourly_cost_cents = EXCLUDED.hourly_cost_cents,
 			updated_at = NOW()
 		RETURNING id`
-
 	return s.db.QueryRowContext(ctx, query,
-		instance.CloudAccountID, instance.Provider, instance.ProviderID,
+		instance.CloudAccountID, instance.Provider, instance.ProviderName, instance.ProviderID,
 		instance.Name, instance.Region, instance.InstanceType, instance.Engine,
 		instance.Status, instance.Managed, tagsJSON, instance.HourlyCostCents,
 	).Scan(&instance.ID)
 }
 
-// ListInstances returns all instances from the database
+// ListInstances returns all instances from the database (only from active accounts)
 func (s *InstanceStore) ListInstances(ctx context.Context) ([]models.Instance, error) {
 	query := `
-		SELECT id, cloud_account_id, provider, provider_id, name, region,
-			instance_type, engine, status, managed, tags, hourly_cost_cents,
-			created_at, updated_at
-		FROM instances ORDER BY created_at DESC`
+		SELECT i.id, i.cloud_account_id, i.provider, i.provider_name, i.provider_id, i.name, i.region,
+			i.instance_type, i.engine, i.status, i.managed, i.tags, i.hourly_cost_cents,
+			i.created_at, i.updated_at
+		FROM instances i
+		JOIN cloud_accounts ca ON i.cloud_account_id = ca.id
+		WHERE ca.deleted_at IS NULL
+		ORDER BY i.created_at DESC`
 
 	rows, err := s.db.db.QueryContext(ctx, query)
 	if err != nil {
@@ -146,16 +156,21 @@ func (s *InstanceStore) ListInstances(ctx context.Context) ([]models.Instance, e
 	for rows.Next() {
 		var instance models.Instance
 		var tagsJSON []byte
+		var providerName sql.NullString
 
 		err := rows.Scan(
 			&instance.ID, &instance.CloudAccountID, &instance.Provider,
-			&instance.ProviderID, &instance.Name, &instance.Region,
+			&providerName, &instance.ProviderID, &instance.Name, &instance.Region,
 			&instance.InstanceType, &instance.Engine, &instance.Status,
 			&instance.Managed, &tagsJSON, &instance.HourlyCostCents,
 			&instance.CreatedAt, &instance.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan instance: %w", err)
+		}
+
+		if providerName.Valid {
+			instance.ProviderName = providerName.String
 		}
 
 		// Parse tags JSONB
@@ -177,18 +192,53 @@ func (s *InstanceStore) ListInstances(ctx context.Context) ([]models.Instance, e
 	return instances, nil
 }
 
-// GetInstanceByProviderID returns an instance by provider and provider ID
+// GetInstanceByProviderID returns an instance by provider and provider ID (only from active accounts)
 func (s *InstanceStore) GetInstanceByProviderID(ctx context.Context, provider, providerID string) (*models.Instance, error) {
 	var instance models.Instance
 	var tagsJSON []byte
 
-	err := s.db.db.QueryRowContext(ctx, `
-		SELECT id, cloud_account_id, provider, provider_id, name, region,
-			instance_type, engine, status, managed, tags, hourly_cost_cents,
-			created_at, updated_at
-		FROM instances WHERE provider = $1 AND provider_id = $2`, provider, providerID).Scan(
+	// Determine lookup type based on input
+	// If providerID is a UUID, look up by id; otherwise look up by provider_id
+	// Provider ID can be either: UUID (for single instance lookup) or provider_id string (for provider+ID lookup)
+	var query string
+	var args []any
+
+	// Check if the input is a UUID (36 chars) or a provider_id
+	if len(providerID) == 36 && strings.Contains(providerID, "-") {
+		// This looks like a UUID, look up by id
+		query = `
+			SELECT i.id, i.cloud_account_id, i.provider, i.provider_name, i.provider_id, i.name, i.region,
+				i.instance_type, i.engine, i.status, i.managed, i.tags, i.hourly_cost_cents,
+				i.created_at, i.updated_at
+			FROM instances i
+			JOIN cloud_accounts ca ON i.cloud_account_id = ca.id
+			WHERE i.id = $1 AND ca.deleted_at IS NULL`
+		args = []any{providerID}
+	} else if provider == "" {
+		// No provider specified, match any provider; look up by provider_id
+		query = `
+			SELECT i.id, i.cloud_account_id, i.provider, i.provider_name, i.provider_id, i.name, i.region,
+				i.instance_type, i.engine, i.status, i.managed, i.tags, i.hourly_cost_cents,
+				i.created_at, i.updated_at
+			FROM instances i
+			JOIN cloud_accounts ca ON i.cloud_account_id = ca.id
+			WHERE i.provider_id = $1 AND ca.deleted_at IS NULL`
+		args = []any{providerID}
+	} else {
+		// Both provider and provider_id specified
+		query = `
+			SELECT i.id, i.cloud_account_id, i.provider, i.provider_name, i.provider_id, i.name, i.region,
+				i.instance_type, i.engine, i.status, i.managed, i.tags, i.hourly_cost_cents,
+				i.created_at, i.updated_at
+			FROM instances i
+			JOIN cloud_accounts ca ON i.cloud_account_id = ca.id
+			WHERE i.provider = $1 AND i.provider_id = $2 AND ca.deleted_at IS NULL`
+		args = []any{provider, providerID}
+	}
+
+	err := s.db.db.QueryRowContext(ctx, query, args...).Scan(
 		&instance.ID, &instance.CloudAccountID, &instance.Provider,
-		&instance.ProviderID, &instance.Name, &instance.Region,
+		&instance.ProviderName, &instance.ProviderID, &instance.Name, &instance.Region,
 		&instance.InstanceType, &instance.Engine, &instance.Status,
 		&instance.Managed, &tagsJSON, &instance.HourlyCostCents,
 		&instance.CreatedAt, &instance.UpdatedAt,
@@ -245,7 +295,7 @@ func (s *EventStore) ListEvents(ctx context.Context, limit int, offset int) ([]m
 	}
 	defer rows.Close()
 
-	var events []models.Event
+	events := []models.Event{} // Initialize as empty slice, not nil
 	for rows.Next() {
 		var e models.Event
 		err := rows.Scan(&e.ID, &e.InstanceID, &e.EventType, &e.TriggeredBy,
@@ -272,7 +322,7 @@ func (s *EventStore) ListEventsByInstance(ctx context.Context, instanceID string
 	}
 	defer rows.Close()
 
-	var events []models.Event
+	events := []models.Event{} // Initialize as empty slice, not nil
 	for rows.Next() {
 		var e models.Event
 		err := rows.Scan(&e.ID, &e.InstanceID, &e.EventType, &e.TriggeredBy,
@@ -459,13 +509,14 @@ func NewCloudAccountStore(db *Postgres) *CloudAccountStore {
 // GetCloudAccount retrieves a cloud account by ID
 func (s *CloudAccountStore) GetCloudAccount(id string) (*models.CloudAccount, error) {
 	var account models.CloudAccount
+	var regionsStr string
 	var connectionStatus, lastError sql.NullString
 	var lastSyncAt sql.NullTime
 
 	err := s.db.db.QueryRowContext(context.Background(), `
 		SELECT id, name, provider, regions, connection_status, last_sync_at, last_error, created_at
 		FROM cloud_accounts WHERE id = $1`, id).Scan(
-		&account.ID, &account.Name, &account.Provider, &account.Regions,
+		&account.ID, &account.Name, &account.Provider, &regionsStr,
 		&connectionStatus, &lastSyncAt, &lastError, &account.CreatedAt,
 	)
 	if err != nil {
@@ -477,6 +528,14 @@ func (s *CloudAccountStore) GetCloudAccount(id string) (*models.CloudAccount, er
 	}
 	if lastError.Valid {
 		account.LastError = &lastError.String
+	}
+	// Parse PostgreSQL text[] format: {us-east-1,us-west-2}
+	if regionsStr != "" && regionsStr != "{}" {
+		regionsStr = strings.TrimPrefix(regionsStr, "{")
+		regionsStr = strings.TrimSuffix(regionsStr, "}")
+		if regionsStr != "" {
+			account.Regions = strings.Split(regionsStr, ",")
+		}
 	}
 	return &account, nil
 }
@@ -498,8 +557,10 @@ func (s *CloudAccountStore) UpdateConnectionStatus(ctx context.Context, id strin
 func (s *CloudAccountStore) ListCloudAccounts() ([]models.CloudAccount, error) {
 	log.Printf("DEBUG: Listing cloud accounts...")
 	query := `
-		SELECT id, name, provider, regions, credentials, connection_status, last_sync_at, last_error, created_at
-		FROM cloud_accounts ORDER BY created_at DESC`
+		SELECT id, name, provider, regions, credentials, connection_status, last_sync_at, last_error, deleted_at, created_at
+		FROM cloud_accounts
+		WHERE deleted_at IS NULL
+		ORDER BY created_at DESC`
 
 	rows, err := s.db.db.QueryContext(context.Background(), query)
 	if err != nil {
@@ -516,10 +577,11 @@ func (s *CloudAccountStore) ListCloudAccounts() ([]models.CloudAccount, error) {
 		var credentialsJSON []byte
 		var connectionStatus, lastError sql.NullString
 		var lastSyncAt sql.NullTime
+		var deletedAt sql.NullTime
 
 		err := rows.Scan(
 			&account.ID, &account.Name, &account.Provider, &regionsStr,
-			&credentialsJSON, &connectionStatus, &lastSyncAt, &lastError, &account.CreatedAt,
+			&credentialsJSON, &connectionStatus, &lastSyncAt, &lastError, &deletedAt, &account.CreatedAt,
 		)
 		if err != nil {
 			log.Printf("ERROR: Scan failed: %v", err)
@@ -538,6 +600,9 @@ func (s *CloudAccountStore) ListCloudAccounts() ([]models.CloudAccount, error) {
 		}
 		if lastError.Valid {
 			account.LastError = &lastError.String
+		}
+		if deletedAt.Valid {
+			account.DeletedAt = &deletedAt.Time
 		}
 		log.Printf("DEBUG: Account %s: name=%s, provider=%s, regions=%s, status=%s", account.ID, account.Name, account.Provider, regionsStr, account.ConnectionStatus)
 		// Parse PostgreSQL text[] format: {us-east-1,us-west-2}
@@ -574,16 +639,256 @@ func (s *CloudAccountStore) CreateCloudAccount(account *models.CloudAccount) err
 
 // UpdateCloudAccount updates an existing cloud account
 func (s *CloudAccountStore) UpdateCloudAccount(account *models.CloudAccount) error {
-	_, err := s.db.db.ExecContext(context.Background(), `
+	credentialsJSON, err := json.Marshal(account.Credentials)
+	if err != nil {
+		return fmt.Errorf("failed to marshal credentials: %w", err)
+	}
+	_, err = s.db.db.ExecContext(context.Background(), `
 		UPDATE cloud_accounts SET
-			name = $1, regions = $2
-		WHERE id = $3`,
-		account.Name, account.Regions, account.ID)
+			name = $1, regions = $2, credentials = $3, connection_status = 'unknown'
+		WHERE id = $4`,
+		account.Name, account.Regions, credentialsJSON, account.ID)
 	return err
 }
 
-// DeleteCloudAccount deletes a cloud account
+// DeleteCloudAccount deletes a cloud account (soft delete)
 func (s *CloudAccountStore) DeleteCloudAccount(id string) error {
+	_, err := s.db.db.ExecContext(context.Background(), "UPDATE cloud_accounts SET deleted_at = NOW() WHERE id = $1", id)
+	return err
+}
+
+// HardDeleteCloudAccount permanently deletes a cloud account
+func (s *CloudAccountStore) HardDeleteCloudAccount(id string) error {
 	_, err := s.db.db.ExecContext(context.Background(), "DELETE FROM cloud_accounts WHERE id = $1", id)
 	return err
+}
+
+// ScheduleStore provides schedule CRUD operations
+type ScheduleStore struct {
+	db *Postgres
+}
+
+// NewScheduleStore creates a new schedule store
+func NewScheduleStore(db *Postgres) *ScheduleStore {
+	return &ScheduleStore{db: db}
+}
+
+// GetSchedule retrieves a schedule by ID
+func (s *ScheduleStore) GetSchedule(id string) (*models.Schedule, error) {
+	var schedule models.Schedule
+	var selectorsJSON []byte
+
+	err := s.db.db.QueryRowContext(context.Background(), `
+		SELECT id, name, description, selectors, timezone, sleep_cron, wake_cron, enabled, created_at, updated_at
+		FROM schedules WHERE id = $1`, id).Scan(
+		&schedule.ID, &schedule.Name, &schedule.Description, &selectorsJSON,
+		&schedule.Timezone, &schedule.SleepCron, &schedule.WakeCron, &schedule.Enabled,
+		&schedule.CreatedAt, &schedule.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse selectors JSONB
+	if len(selectorsJSON) > 0 {
+		if err := json.Unmarshal(selectorsJSON, &schedule.Selectors); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal selectors: %w", err)
+		}
+	} else {
+		schedule.Selectors = []models.Selector{}
+	}
+
+	return &schedule, nil
+}
+
+// ListSchedules returns all schedules from the database
+func (s *ScheduleStore) ListSchedules() ([]models.Schedule, error) {
+	query := `
+		SELECT id, name, description, selectors, timezone, sleep_cron, wake_cron, enabled, created_at, updated_at
+		FROM schedules ORDER BY created_at DESC`
+
+	rows, err := s.db.db.QueryContext(context.Background(), query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query schedules: %w", err)
+	}
+	defer rows.Close()
+
+	var schedules []models.Schedule
+	for rows.Next() {
+		var schedule models.Schedule
+		var selectorsJSON []byte
+
+		err := rows.Scan(
+			&schedule.ID, &schedule.Name, &schedule.Description, &selectorsJSON,
+			&schedule.Timezone, &schedule.SleepCron, &schedule.WakeCron, &schedule.Enabled,
+			&schedule.CreatedAt, &schedule.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan schedule: %w", err)
+		}
+
+		// Parse selectors JSONB
+		if len(selectorsJSON) > 0 {
+			if err := json.Unmarshal(selectorsJSON, &schedule.Selectors); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal selectors: %w", err)
+			}
+		} else {
+			schedule.Selectors = []models.Selector{}
+		}
+
+		schedules = append(schedules, schedule)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return schedules, nil
+}
+
+// CreateSchedule creates a new schedule
+func (s *ScheduleStore) CreateSchedule(schedule *models.Schedule) error {
+	selectorsJSON, err := json.Marshal(schedule.Selectors)
+	if err != nil {
+		return fmt.Errorf("failed to marshal selectors: %w", err)
+	}
+
+	err = s.db.db.QueryRowContext(context.Background(), `
+		INSERT INTO schedules (
+			name, description, selectors, timezone, sleep_cron, wake_cron, enabled
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at`, schedule.Name, schedule.Description,
+		selectorsJSON, schedule.Timezone, schedule.SleepCron, schedule.WakeCron, schedule.Enabled).Scan(
+		&schedule.ID, &schedule.CreatedAt,
+	)
+	return err
+}
+
+// UpdateSchedule updates an existing schedule
+func (s *ScheduleStore) UpdateSchedule(schedule *models.Schedule) error {
+	selectorsJSON, err := json.Marshal(schedule.Selectors)
+	if err != nil {
+		return fmt.Errorf("failed to marshal selectors: %w", err)
+	}
+
+	_, err = s.db.db.ExecContext(context.Background(), `
+		UPDATE schedules SET
+			name = $1, description = $2, selectors = $3,
+			timezone = $4, sleep_cron = $5, wake_cron = $6,
+			enabled = $7, updated_at = NOW()
+		WHERE id = $8`,
+		schedule.Name, schedule.Description, selectorsJSON,
+		schedule.Timezone, schedule.SleepCron, schedule.WakeCron, schedule.Enabled, schedule.ID,
+	)
+	return err
+}
+
+// DeleteSchedule deletes a schedule
+func (s *ScheduleStore) DeleteSchedule(id string) error {
+	_, err := s.db.db.ExecContext(context.Background(), "DELETE FROM schedules WHERE id = $1", id)
+	return err
+}
+
+// GetMatchingSchedules returns schedules that match a given instance
+func (s *ScheduleStore) GetMatchingSchedules(instance models.Instance) ([]models.Schedule, error) {
+	// Get all enabled schedules and filter in Go (since selector matching is complex)
+	schedules, err := s.ListSchedules()
+	if err != nil {
+		return nil, err
+	}
+
+	var matching []models.Schedule
+	for _, schedule := range schedules {
+		if !schedule.Enabled {
+			continue
+		}
+
+		if matchesInstance(instance, schedule.Selectors) {
+			matching = append(matching, schedule)
+		}
+	}
+
+	return matching, nil
+}
+
+// matchesInstance checks if an instance matches any of the schedule's selectors
+func matchesInstance(instance models.Instance, selectors []models.Selector) bool {
+	if len(selectors) == 0 {
+		return true
+	}
+
+	for _, selector := range selectors {
+		if selectorMatchesInstance(instance, selector) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func selectorMatchesInstance(instance models.Instance, selector models.Selector) bool {
+	if selector.Name != nil {
+		if !matchesMatcher(instance.Name, selector.Name) {
+			return false
+		}
+	}
+
+	if selector.Provider != nil {
+		if instance.Provider != *selector.Provider {
+			return false
+		}
+	}
+
+	if selector.Region != nil {
+		if !matchesMatcher(instance.Region, selector.Region) {
+			return false
+		}
+	}
+
+	if selector.Engine != nil {
+		if !matchesMatcher(instance.Engine, selector.Engine) {
+			return false
+		}
+	}
+
+	if selector.Tags != nil {
+		for key, matcher := range selector.Tags {
+			tagValue, exists := instance.Tags[key]
+			if !exists {
+				return false
+			}
+			if !matchesMatcher(tagValue, matcher) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func matchesMatcher(value string, matcher *models.Matcher) bool {
+	if matcher == nil {
+		return true
+	}
+
+	pattern := matcher.Pattern
+
+	switch models.MatchType(matcher.Type) {
+	case models.MatchExact:
+		return value == pattern
+	case models.MatchContains:
+		return strings.Contains(value, pattern)
+	case models.MatchPrefix:
+		return strings.HasPrefix(value, pattern)
+	case models.MatchSuffix:
+		return strings.HasSuffix(value, pattern)
+	case models.MatchRegex:
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return false
+		}
+		return re.MatchString(value)
+	default:
+		return strings.Contains(value, pattern)
+	}
 }

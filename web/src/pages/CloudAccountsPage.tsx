@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Cloud, CloudOff, Check, X, RefreshCw, AlertCircle } from 'lucide-react'
+import { Plus, Trash2, Cloud, CloudOff, Check, X, RefreshCw, AlertCircle, Pencil } from 'lucide-react'
+import toast from 'react-hot-toast'
 import api, { CloudAccount } from '../lib/api'
 
 const CloudAccountsPage = () => {
   const [accounts, setAccounts] = useState<CloudAccount[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingAccount, setEditingAccount] = useState<CloudAccount | null>(null)
   const [form, setForm] = useState({
     name: '',
     provider: 'aws' as 'aws' | 'gcp',
@@ -15,6 +17,7 @@ const CloudAccountsPage = () => {
     regions: 'us-east-1,us-west-2',
   })
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   
   const connectionStatusColors: Record<string, string> = {
@@ -28,7 +31,7 @@ const CloudAccountsPage = () => {
     setLoading(true)
     try {
       const accounts = await api.getCloudAccounts()
-      setAccounts(accounts)
+      setAccounts(accounts || [])
     } catch (err) {
       console.error('Failed to load accounts:', err)
       setError('Failed to load cloud accounts')
@@ -40,6 +43,45 @@ const CloudAccountsPage = () => {
   useEffect(() => {
     loadAccounts()
   }, [])
+
+  const resetForm = () => {
+    setForm({
+      name: '',
+      provider: 'aws',
+      accessKeyId: '',
+      secretAccessKey: '',
+      gcpProjectId: '',
+      gcpServiceKey: '',
+      regions: 'us-east-1,us-west-2',
+    })
+    setEditingAccount(null)
+    setError('')
+  }
+
+  const openCreateModal = () => {
+    resetForm()
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (account: CloudAccount) => {
+    setEditingAccount(account)
+    setForm({
+      name: account.name,
+      provider: account.provider as 'aws' | 'gcp',
+      accessKeyId: '', // Don't prefill secrets for security
+      secretAccessKey: '',
+      gcpProjectId: '',
+      gcpServiceKey: '',
+      regions: account.regions?.join(', ') || 'us-east-1,us-west-2',
+    })
+    setError('')
+    setIsModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    resetForm()
+  }
   
   const SkeletonCard = () => (
     <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700 animate-pulse">
@@ -62,7 +104,7 @@ const CloudAccountsPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
+    setSubmitting(true)
     setError('')
 
     try {
@@ -77,21 +119,33 @@ const CloudAccountsPage = () => {
         credentials.gcp_service_account_key = form.gcpServiceKey
       }
 
-      await api.createCloudAccount({
-        name: form.name,
-        provider: form.provider,
-        regions: form.regions.split(',').map(r => r.trim()),
-        credentials,
-      })
+      if (editingAccount) {
+        // Update existing account
+        await api.updateCloudAccount(editingAccount.id, {
+          name: form.name,
+          regions: form.regions.split(',').map(r => r.trim()),
+          credentials,
+        })
+        toast.success('Account updated successfully')
+      } else {
+        // Create new account
+        await api.createCloudAccount({
+          name: form.name,
+          provider: form.provider,
+          regions: form.regions.split(',').map(r => r.trim()),
+          credentials,
+        })
+        toast.success('Account connected successfully')
+      }
 
-      setIsModalOpen(false)
-      setForm({ name: '', provider: 'aws', accessKeyId: '', secretAccessKey: '', gcpProjectId: '', gcpServiceKey: '', regions: 'us-east-1,us-west-2' })
-      setError('')
+      closeModal()
       loadAccounts()
-    } catch (err) {
-      setError('Failed to create cloud account')
+    } catch (err: any) {
+      const errorMessage = err?.message || (editingAccount ? 'Failed to update account' : 'Failed to create account')
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
@@ -100,9 +154,11 @@ const CloudAccountsPage = () => {
 
     try {
       await api.deleteCloudAccount(id)
+      toast.success('Account disconnected')
       loadAccounts()
     } catch (err) {
       setError('Failed to delete cloud account')
+      toast.error('Failed to disconnect account')
     }
   }
 
@@ -116,7 +172,7 @@ const CloudAccountsPage = () => {
           </p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white text-sm font-medium rounded-lg shadow-lg shadow-blue-500/20 transition-all"
         >
           <Plus className="h-4 w-4" />
@@ -124,7 +180,7 @@ const CloudAccountsPage = () => {
         </button>
       </div>
 
-      {accounts.length === 0 ? (
+      {accounts.length === 0 && !loading ? (
         <div className="text-center py-20 bg-slate-800/30 rounded-2xl border border-slate-700/50">
           <CloudOff className="h-16 w-16 text-slate-500 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">No connected accounts</h3>
@@ -132,7 +188,7 @@ const CloudAccountsPage = () => {
             Connect your cloud provider account to automatically discover database instances, track costs, and apply sleep schedules
           </p>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={openCreateModal}
             className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-medium rounded-lg shadow-lg shadow-blue-500/20 transition-all"
           >
             Connect Your First Account
@@ -141,14 +197,18 @@ const CloudAccountsPage = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <>
               <SkeletonCard />
               <SkeletonCard />
               <SkeletonCard />
-            </div>
+            </>
           ) : (
             accounts.map((account) => (
-              <div key={account.id} className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700 hover:border-slate-600 transition-all">
+              <div 
+                key={account.id} 
+                className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700 hover:border-slate-600 transition-all cursor-pointer group"
+                onClick={() => openEditModal(account)}
+              >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     {account.provider === 'aws' ? (
@@ -165,12 +225,28 @@ const CloudAccountsPage = () => {
                       <span className="text-xs text-slate-400 uppercase font-medium">{account.provider}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDelete(account.id)}
-                    className="p-2 text-slate-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-500/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEditModal(account)
+                      }}
+                      className="p-2 text-slate-400 hover:text-blue-400 transition-colors rounded-lg hover:bg-blue-500/10 opacity-0 group-hover:opacity-100"
+                      title="Edit account"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(account.id)
+                      }}
+                      className="p-2 text-slate-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-500/10"
+                      title="Delete account"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-slate-300">
@@ -194,6 +270,9 @@ const CloudAccountsPage = () => {
                       <span className="bg-slate-900/50 px-2 py-1 rounded text-xs">{account.regions.join(', ')}</span>
                     </div>
                   )}
+                  <p className="text-xs text-slate-500 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Click to edit
+                  </p>
                 </div>
               </div>
             ))
@@ -201,24 +280,26 @@ const CloudAccountsPage = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal for Create/Edit */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-white">Connect Cloud Account</h2>
+              <h2 className="text-xl font-semibold text-white">
+                {editingAccount ? 'Edit Cloud Account' : 'Connect Cloud Account'}
+              </h2>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 className="text-slate-400 hover:text-white transition-colors"
               >
                 <X className="h-6 w-6" />
               </button>
             </div>
 
-            {loading ? null : error && (
+            {error && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm flex items-center gap-2">
-                <X className="h-4 w-4" />
-                {error}
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
 
@@ -238,71 +319,87 @@ const CloudAccountsPage = () => {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Provider</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, provider: 'aws' })}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                      form.provider === 'aws'
-                        ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
-                        : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'
-                    }`}
-                  >
-                    <Cloud className="h-5 w-5" />
-                    <span className="font-medium">AWS</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, provider: 'gcp' })}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
-                      form.provider === 'gcp'
-                        ? 'border-red-500 bg-red-500/10 text-red-500'
-                        : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'
-                    }`}
-                  >
-                    <Cloud className="h-5 w-5" />
-                    <span className="font-medium">GCP</span>
-                  </button>
+              {!editingAccount && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Provider</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, provider: 'aws' })}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                        form.provider === 'aws'
+                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
+                          : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <Cloud className="h-5 w-5" />
+                      <span className="font-medium">AWS</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, provider: 'gcp' })}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                        form.provider === 'gcp'
+                          ? 'border-red-500 bg-red-500/10 text-red-500'
+                          : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <Cloud className="h-5 w-5" />
+                      <span className="font-medium">GCP</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {editingAccount && (
+                <div className="p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                  <span className="text-sm text-slate-400">Provider: </span>
+                  <span className="text-sm font-medium text-white uppercase">{editingAccount.provider}</span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  {form.provider === 'aws' ? 'AWS Access Key ID' : 'GCP Project ID'}
+                  {(editingAccount?.provider || form.provider) === 'aws' ? 'AWS Access Key ID' : 'GCP Project ID'}
                 </label>
                 <input
                   type="text"
-                  value={form.provider === 'aws' ? form.accessKeyId : form.gcpProjectId}
-                  onChange={(e) => setForm({ ...form, [form.provider === 'aws' ? 'accessKeyId' : 'gcpProjectId']: e.target.value })}
-                  placeholder={form.provider === 'aws' ? 'e.g., AKIAIOSFODNN7EXAMPLE' : 'e.g., my-gcp-project-123'}
+                  value={(editingAccount?.provider || form.provider) === 'aws' ? form.accessKeyId : form.gcpProjectId}
+                  onChange={(e) => setForm({ ...form, [(editingAccount?.provider || form.provider) === 'aws' ? 'accessKeyId' : 'gcpProjectId']: e.target.value })}
+                  placeholder={(editingAccount?.provider || form.provider) === 'aws' ? 'e.g., AKIAIOSFODNN7EXAMPLE' : 'e.g., my-gcp-project-123'}
                   required
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
                 />
+                {editingAccount && (
+                  <p className="text-xs text-amber-400 mt-1">
+                    You must re-enter credentials to verify the connection
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  {form.provider === 'aws' ? 'AWS Secret Access Key' : 'Service Account JSON Key'}
+                  {(editingAccount?.provider || form.provider) === 'aws' ? 'AWS Secret Access Key' : 'Service Account JSON Key'}
                 </label>
                 <input
                   type="password"
-                  value={form.provider === 'aws' ? form.secretAccessKey : form.gcpServiceKey}
-                  onChange={(e) => setForm({ ...form, [form.provider === 'aws' ? 'secretAccessKey' : 'gcpServiceKey']: e.target.value })}
-                  placeholder={form.provider === 'aws' ? '40-character secret (starts with special characters)' : 'Paste GCP service account JSON key'}
+                  value={(editingAccount?.provider || form.provider) === 'aws' ? form.secretAccessKey : form.gcpServiceKey}
+                  onChange={(e) => setForm({ ...form, [(editingAccount?.provider || form.provider) === 'aws' ? 'secretAccessKey' : 'gcpServiceKey']: e.target.value })}
+                  placeholder={(editingAccount?.provider || form.provider) === 'aws' ? '40-character secret' : 'Paste GCP service account JSON key'}
                   required
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
                 />
                 <p className="text-xs text-slate-500 mt-1">
-                  {form.provider === 'aws'
-                    ? 'AWS Secret Access Keys are 40 characters and don\'t start with "AKIA"'
+                  {(editingAccount?.provider || form.provider) === 'aws'
+                    ? 'AWS Secret Access Keys are 40 characters'
                     : 'You can paste the entire JSON key file content here'}
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">AWS Regions (comma-separated)</label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  {(editingAccount?.provider || form.provider) === 'aws' ? 'AWS Regions' : 'GCP Regions'} (comma-separated)
+                </label>
                 <input
                   type="text"
                   value={form.regions}
@@ -314,21 +411,27 @@ const CloudAccountsPage = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={submitting}
                 className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-medium rounded-lg shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {loading ? (
+                {submitting ? (
                   <>
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Connecting...
+                    {editingAccount ? 'Validating & Saving...' : 'Connecting...'}
                   </>
                 ) : (
                   <>
                     <Cloud className="h-4 w-4" />
-                    Connect Account
+                    {editingAccount ? 'Save Changes' : 'Connect Account'}
                   </>
                 )}
               </button>
+
+              {editingAccount && (
+                <p className="text-xs text-center text-slate-500">
+                  Credentials will be validated before saving
+                </p>
+              )}
             </form>
           </div>
         </div>

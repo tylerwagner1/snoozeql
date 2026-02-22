@@ -3,6 +3,8 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,11 +31,12 @@ type DiscoveryService struct {
 	lastError     error
 	instanceStore *store.InstanceStore
 	accountStore  *store.CloudAccountStore
+	eventStore    *store.EventStore
 	mu            sync.RWMutex
 }
 
 // NewDiscoveryService creates a new discovery service
-func NewDiscoveryService(registry *provider.Registry, instanceStore *store.InstanceStore, accountStore *store.CloudAccountStore, enabled bool, interval int, tags []string) *DiscoveryService {
+func NewDiscoveryService(registry *provider.Registry, instanceStore *store.InstanceStore, accountStore *store.CloudAccountStore, eventStore *store.EventStore, enabled bool, interval int, tags []string) *DiscoveryService {
 	return &DiscoveryService{
 		registry:      registry,
 		enabled:       enabled,
@@ -41,6 +44,7 @@ func NewDiscoveryService(registry *provider.Registry, instanceStore *store.Insta
 		tags:          tags,
 		instanceStore: instanceStore,
 		accountStore:  accountStore,
+		eventStore:    eventStore,
 	}
 }
 
@@ -63,6 +67,11 @@ func (d *DiscoveryService) GetLastError() error {
 	return d.lastError
 }
 
+// RunOnce triggers a single discovery run (for manual refresh)
+func (d *DiscoveryService) RunOnce(ctx context.Context) error {
+	return d.Run(ctx)
+}
+
 // ListAllDatabases lists all databases from all providers
 func (d *DiscoveryService) ListAllDatabases(ctx context.Context) ([]models.Instance, error) {
 	return d.registry.ListAllDatabases(ctx)
@@ -77,6 +86,18 @@ func (d *DiscoveryService) Run(ctx context.Context) error {
 	d.mu.Lock()
 	d.lastError = nil
 	d.mu.Unlock()
+
+	// Load accounts for ID mapping
+	var accountsByID map[string]*models.CloudAccount
+	if d.accountStore != nil {
+		allAccounts, err := d.accountStore.ListCloudAccounts()
+		if err == nil {
+			accountsByID = make(map[string]*models.CloudAccount)
+			for _, account := range allAccounts {
+				accountsByID[account.ID] = &account
+			}
+		}
+	}
 
 	// Update all accounts to "syncing" status before discovery
 	if d.accountStore != nil {
@@ -112,13 +133,33 @@ func (d *DiscoveryService) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to list databases: %w", err)
 	}
 
+	// Set CloudAccountID for each instance based on provider name
+	// Provider format: aws_{accountID}_{region} or gcp_{accountID}
+	if accountsByID != nil {
+		for i := range instances {
+			instance := &instances[i]
+			// Use AccountID that was set by ProviderRegistry
+			accountID := instance.AccountID
+			if accountID != "" {
+				if account, exists := accountsByID[accountID]; exists {
+					instance.CloudAccountID = account.ID
+				}
+			}
+			// Clear AccountID as it's only used for mapping
+			instance.AccountID = ""
+			fmt.Printf("DEBUG: Provider=%s, ProviderName=%s, Instance=%s, ProviderID=%s, Status=%s, CloudAccountID=%s\n", instance.Provider, instance.ProviderName, instance.Name, instance.ProviderID, instance.Status, instance.CloudAccountID)
+		}
+	}
+
 	// Sync instances to database
 	syncCount := 0
 	var syncErrors []error
 	if d.instanceStore != nil {
 		for _, instance := range instances {
+			fmt.Printf("DEBUG: Syncing instance: Name=%s, Provider=%s, ProviderName=%s, ProviderID=%s, Status=%s\n", instance.Name, instance.Provider, instance.ProviderName, instance.ProviderID, instance.Status)
 			if err := d.instanceStore.UpsertInstance(ctx, &instance); err != nil {
-				syncErrors = append(syncErrors, fmt.Errorf("failed to sync instance %s: %w", instance.ProviderID, err))
+				syncErrors = append(syncErrors, fmt.Errorf("failed to sync instance %s (%s): %w", instance.Name, instance.ProviderID, err))
+				fmt.Printf("DEBUG: Failed to sync instance %s: %v\n", instance.Name, err)
 			} else {
 				syncCount++
 			}
@@ -178,7 +219,38 @@ func (d *DiscoveryService) StartDatabase(ctx context.Context, providerName strin
 	if err != nil {
 		return err
 	}
-	return provider.StartDatabase(ctx, id)
+
+	// Try to get current status and UUID before starting
+	instance, getErr := d.instanceStore.GetInstanceByProviderID(ctx, "", id)
+	var prevStatus string
+	var instanceUUID string
+	if getErr == nil {
+		prevStatus = instance.Status
+		instanceUUID = instance.ID
+	}
+
+	// Log start event BEFORE attempting AWS call (so it always happens)
+	if d.eventStore != nil && instanceUUID != "" {
+		err := d.eventStore.CreateEvent(ctx, &models.Event{
+			InstanceID:     instanceUUID,
+			EventType:      "start",
+			PreviousStatus: prevStatus,
+			NewStatus:      "starting",
+			TriggeredBy:    "manual",
+		})
+		if err != nil {
+			log.Printf("DEBUG: Failed to create start event for %s: %v", id, err)
+		} else {
+			log.Printf("DEBUG: Created start event for %s (UUID: %s)", id, instanceUUID)
+		}
+	} else if d.eventStore == nil {
+		log.Printf("DEBUG: eventStore is nil, cannot create start event for %s", id)
+	} else {
+		log.Printf("DEBUG: No instance UUID found for %s, cannot create start event", id)
+	}
+
+	err = provider.StartDatabase(ctx, id)
+	return err
 }
 
 // StopDatabase stops a database instance
@@ -187,7 +259,38 @@ func (d *DiscoveryService) StopDatabase(ctx context.Context, providerName string
 	if err != nil {
 		return err
 	}
-	return provider.StopDatabase(ctx, id)
+
+	// Try to get current status and UUID before stopping
+	instance, getErr := d.instanceStore.GetInstanceByProviderID(ctx, "", id)
+	var prevStatus string
+	var instanceUUID string
+	if getErr == nil {
+		prevStatus = instance.Status
+		instanceUUID = instance.ID
+	}
+
+	// Log stop event BEFORE attempting AWS call (so it always happens)
+	if d.eventStore != nil && instanceUUID != "" {
+		err := d.eventStore.CreateEvent(ctx, &models.Event{
+			InstanceID:     instanceUUID,
+			EventType:      "stop",
+			PreviousStatus: prevStatus,
+			NewStatus:      "stopping",
+			TriggeredBy:    "manual",
+		})
+		if err != nil {
+			log.Printf("DEBUG: Failed to create stop event for %s: %v", id, err)
+		} else {
+			log.Printf("DEBUG: Created stop event for %s (UUID: %s)", id, instanceUUID)
+		}
+	} else if d.eventStore == nil {
+		log.Printf("DEBUG: eventStore is nil, cannot create stop event for %s", id)
+	} else {
+		log.Printf("DEBUG: No instance UUID found for %s, cannot create stop event", id)
+	}
+
+	err = provider.StopDatabase(ctx, id)
+	return err
 }
 
 // SyncInstance syncs a single instance to the database
@@ -238,9 +341,18 @@ func (r *ProviderRegistry) ListAllDatabases(ctx context.Context) ([]models.Insta
 		if err != nil {
 			return nil, fmt.Errorf("failed to list from %s: %w", name, err)
 		}
-		for i := range instances {
-			instances[i].Provider = name
+		// Extract cloud provider type from provider name (e.g., "aws_f74f8e11-42e4-4bce-b85e-6d0cbb3e86ea_us-east-1" -> "aws")
+		cloudProvider := ""
+		parts := strings.Split(name, "_")
+		if len(parts) >= 1 {
+			cloudProvider = parts[0]
 		}
+		for i := range instances {
+			instances[i].Provider = cloudProvider
+			instances[i].ProviderName = name
+			fmt.Printf("DEBUG: Set Provider=%s, ProviderName=%s for instance %s\n", cloudProvider, name, instances[i].Name)
+		}
+		// Verify the values were set
 		allInstances = append(allInstances, instances...)
 	}
 

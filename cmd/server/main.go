@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 
+	"snoozeql/internal/api/handlers"
 	"snoozeql/internal/api/middleware"
 	"snoozeql/internal/config"
 	"snoozeql/internal/discovery"
@@ -34,6 +35,7 @@ var (
 	instanceStore    *store.InstanceStore
 	accountStore     *store.CloudAccountStore
 	eventStore       *store.EventStore
+	scheduleStore    *store.ScheduleStore
 )
 
 // BulkOperationRequest represents a request to start/stop multiple instances
@@ -177,8 +179,9 @@ func main() {
 	instanceStore = store.NewInstanceStore(db)
 	accountStore = store.NewCloudAccountStore(db)
 	eventStore = store.NewEventStore(db)
+	scheduleStore = store.NewScheduleStore(db)
 
-	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
+	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, eventStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
 
 	// Start discovery in background
 	ctx := context.Background()
@@ -276,9 +279,22 @@ func main() {
 			})
 
 			r.Get("/instances/{id}", func(w http.ResponseWriter, r *http.Request) {
+				instanceID := chi.URLParam(r, "id")
+				log.Printf("DEBUG: Get instance by ID: %s", instanceID)
+
+				ctx := r.Context()
+				instance, err := instanceStore.GetInstanceByProviderID(ctx, "", instanceID)
+				if err != nil {
+					log.Printf("ERROR: Instance not found: %s", instanceID)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					w.Write([]byte(`{"error":"Instance not found"}`))
+					return
+				}
+
 				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusNotFound)
-				w.Write([]byte(`{"error":"Not found"}`))
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(instance)
 			})
 
 			r.Post("/instances/{id}/start", func(w http.ResponseWriter, r *http.Request) {
@@ -286,7 +302,8 @@ func main() {
 
 				ctx := r.Context()
 				// Try to find instance in database first
-				instance, err := instanceStore.GetInstanceByProviderID(ctx, instanceID, instanceID)
+				// Note: instance ProviderName is required to find the correct provider
+				instance, err := instanceStore.GetInstanceByProviderID(ctx, "", instanceID)
 				var providerName string
 				if err != nil {
 					// fallback to discovery
@@ -315,10 +332,10 @@ func main() {
 						return
 					}
 
-					providerName = foundInstance.Provider
+					providerName = foundInstance.ProviderName
 				} else {
-					// Found in database, use provider from database
-					providerName = instance.Provider
+					// Found in database, use ProviderName from database
+					providerName = instance.ProviderName
 				}
 
 				log.Printf("DEBUG: Calling StartDatabase with provider=%s, id=%s", providerName, instanceID)
@@ -343,7 +360,10 @@ func main() {
 
 				ctx := r.Context()
 				// Try to find instance in database first
-				instance, err := instanceStore.GetInstanceByProviderID(ctx, instanceID, instanceID)
+				// Note: provider_name is required to find the correct provider, so we use empty provider
+				instance, err := instanceStore.GetInstanceByProviderID(ctx, "", instanceID)
+				log.Printf("DEBUG: GetInstanceByProviderID returned: instance=%v, err=%v", instance, err)
+
 				var providerName string
 				if err != nil {
 					// fallback to discovery
@@ -372,10 +392,10 @@ func main() {
 						return
 					}
 
-					providerName = foundInstance.Provider
+					providerName = foundInstance.ProviderName
 				} else {
-					// Found in database, use provider from database
-					providerName = instance.Provider
+					// Found in database, use provider_name from database
+					providerName = instance.ProviderName
 				}
 
 				log.Printf("DEBUG: Calling StopDatabase with provider=%s, id=%s", providerName, instanceID)
@@ -411,8 +431,8 @@ func main() {
 				}
 
 				ctx := r.Context()
-				var success []string
-				var failed []OperationError
+				success := []string{}
+				failed := []OperationError{}
 
 				for _, instanceID := range req.InstanceIDs {
 					// Get instance from database to find provider and current status
@@ -447,8 +467,8 @@ func main() {
 						continue
 					}
 
-					// Stop the instance using provider_id (the actual cloud resource name)
-					if err := discoveryService.StopDatabase(ctx, instance.Provider, instance.ProviderID); err != nil {
+					// Stop the instance using provider_name (the registered provider)
+					if err := discoveryService.StopDatabase(ctx, instance.ProviderName, instance.ProviderID); err != nil {
 						failed = append(failed, OperationError{InstanceID: instanceID, Error: err.Error()})
 						continue
 					}
@@ -491,8 +511,8 @@ func main() {
 				}
 
 				ctx := r.Context()
-				var success []string
-				var failed []OperationError
+				success := []string{}
+				failed := []OperationError{}
 
 				for _, instanceID := range req.InstanceIDs {
 					// Get instance from database
@@ -527,7 +547,7 @@ func main() {
 					}
 
 					// Start the instance
-					if err := discoveryService.StartDatabase(ctx, instance.Provider, instance.ProviderID); err != nil {
+					if err := discoveryService.StartDatabase(ctx, instance.ProviderName, instance.ProviderID); err != nil {
 						failed = append(failed, OperationError{InstanceID: instanceID, Error: err.Error()})
 						continue
 					}
@@ -552,17 +572,29 @@ func main() {
 				json.NewEncoder(w).Encode(BulkOperationResponse{Success: success, Failed: failed})
 			})
 
-			// Schedules (placeholder)
-			r.Get("/schedules", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`[]`))
-			})
-
+			// Schedules (using ScheduleHandler with real store)
+			scheduleHandler := handlers.NewScheduleHandler(scheduleStore)
+			r.Get("/schedules", scheduleHandler.GetAllSchedules)
 			r.Get("/schedules/{id}", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusNotFound)
-				w.Write([]byte(`{"error":"Not found"}`))
+				id := chi.URLParam(r, "id")
+				scheduleHandler.GetSchedule(w, r, id)
+			})
+			r.Post("/schedules", scheduleHandler.CreateSchedule)
+			r.Put("/schedules/{id}", func(w http.ResponseWriter, r *http.Request) {
+				id := chi.URLParam(r, "id")
+				scheduleHandler.UpdateSchedule(w, r, id)
+			})
+			r.Delete("/schedules/{id}", func(w http.ResponseWriter, r *http.Request) {
+				id := chi.URLParam(r, "id")
+				scheduleHandler.DeleteSchedule(w, r, id)
+			})
+			r.Post("/schedules/{id}/enable", func(w http.ResponseWriter, r *http.Request) {
+				id := chi.URLParam(r, "id")
+				scheduleHandler.EnableSchedule(w, r, id)
+			})
+			r.Post("/schedules/{id}/disable", func(w http.ResponseWriter, r *http.Request) {
+				id := chi.URLParam(r, "id")
+				scheduleHandler.DisableSchedule(w, r, id)
 			})
 
 			// Recommendations (placeholder)
@@ -698,11 +730,14 @@ func main() {
 				response := make([]map[string]any, len(accounts))
 				for i, a := range accounts {
 					response[i] = map[string]any{
-						"id":         a.ID,
-						"name":       a.Name,
-						"provider":   a.Provider,
-						"regions":    a.Regions,
-						"created_at": a.CreatedAt.Format("2006-01-02T15:04:05Z"),
+						"id":                a.ID,
+						"name":              a.Name,
+						"provider":          a.Provider,
+						"regions":           a.Regions,
+						"connection_status": a.ConnectionStatus,
+						"last_sync_at":      a.LastSyncAt,
+						"last_error":        a.LastError,
+						"created_at":        a.CreatedAt.Format("2006-01-02T15:04:05Z"),
 					}
 				}
 				json.NewEncoder(w).Encode(response)
