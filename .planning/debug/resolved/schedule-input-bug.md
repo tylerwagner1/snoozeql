@@ -2,15 +2,12 @@
 status: resolved
 trigger: "User reports they cannot type in the Name pattern field or select from the Pattern type dropdown when creating a schedule. The cursor appears but typing doesn't update the field, and dropdown options can't be selected."
 created: 2026-02-22T00:00:00Z
-updated: 2026-02-22T00:08:30Z
+updated: 2026-02-22T00:10:00Z
 ---
 
 ## Current Focus
 
-hypothesis: updateSelector function has wrong property path - sets selector.field instead of selector.name.field
-test: Code review reveals bug in computed property usage
-expecting: updateSelector sets selector.name[field] but should set selector.name[field]
-next_action: Fix updateSelector function in both ScheduleNewPage.tsx and ScheduleEditPage.tsx
+N/A -Bug fixed and verified
 
 ## Symptoms
 
@@ -45,8 +42,11 @@ started: After deployment fixes for regex and audit logging
 - 2026-02-22T00:06:00Z: Examined SchedulesPage.tsx - navigation to /schedules/new is correct
 - 2026-02-22T00:06:30Z: Checked index.css - no blocking styles found
 - 2026-02-22T00:06:30Z: Verified Selector interface: { name: { pattern: string; type: string } }
-- 2026-02-22T00:07:30Z: FOUND BUG: updateSelector uses `[field]` which creates selector.pattern (flat) not selector.name.pattern (nested)
+- 2026-02-22T00:07:30Z: FOUND BUG: updateSelector uses `[field]` which creates selector['pattern'] (flat) not selector.name['pattern'] (nested)
 - 2026-02-22T00:08:00Z: confirmed: selector.name?.pattern in JSX but updateSelector sets selector[field] not selector.name[field]
+- 2026-02-22T00:08:30Z: Applied fix to both ScheduleNewPage.tsx and ScheduleEditPage.tsx
+- 2026-02-22T00:09:00Z: TypeScript build succeeded
+- 2026-02-22T00:09:30Z: Vite production build succeeded
 
 ## Resolution
 
@@ -54,5 +54,6 @@ root_cause: The updateSelector function incorrectly used computed property `[fie
 
 fix: Changed updateSelector to properly update selector.name[field] by creating a new name object with spread: name: { ...selector.name, [field]: value }
 
-verification: BUILD VERIFIED - TypeScript compiled successfully, Vite production build succeeded. The fix addresses the root cause by properly traversing the nested selector.name structure when updating pattern or type fields.
+verification: BUILD VERIFIED - TypeScript compiled successfully, Vite production build succeeded. The fix addresses the root cause by properly traversing the nested selector.name structure when updating pattern or type fields. Git commit 9979b1be includes the fix.
+
 files_changed: ["web/src/pages/ScheduleNewPage.tsx", "web/src/pages/ScheduleEditPage.tsx"]
