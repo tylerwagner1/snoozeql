@@ -14,8 +14,9 @@ const SchedulesPage = () => {
     const fetchSchedules = async () => {
       try {
         const data = await api.getSchedules()
-        // Ensure selectors is an array for each schedule (API might return null)
-        const safeSchedules = data.map(sched => ({
+        // Ensure selectors is an array for each schedule (API might return null or empty)
+        const schedules = Array.isArray(data) ? data : []
+        const safeSchedules = schedules.map(sched => ({
           ...sched,
           selectors: sched.selectors || []
         }))
@@ -121,12 +122,12 @@ const SchedulesPage = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{schedule.timezone}</td>
                  <td className="px-6 py-4 whitespace-nowrap">
                    <div className="text-sm text-white">{schedule.selectors.length} selector(s)</div>
-                   {schedule.selectors.length > 0 && (
-                     <div className="text-xs text-slate-400 truncate max-w-[150px]">
-                       {schedule.selectors.slice(0, 2).map(s => s.name?.pattern || 'unnamed').join(', ')}
-                       {schedule.selectors.length > 2 && <span> +{schedule.selectors.length - 2} more</span>}
-                     </div>
-                   )}
+                    {schedule.selectors.length > 0 && (
+                      <div className="text-xs text-slate-400 truncate max-w-[150px]">
+                        {schedule.selectors.slice(0, 2).map((s, idx) => s.name?.pattern || s.name?.type || `selector-${idx}`).join(', ')}
+                        {schedule.selectors.length > 2 && <span> +{schedule.selectors.length - 2} more</span>}
+                      </div>
+                    )}
                  </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <label className="inline-flex items-center cursor-pointer">
