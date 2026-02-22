@@ -14,7 +14,12 @@ const SchedulesPage = () => {
     const fetchSchedules = async () => {
       try {
         const data = await api.getSchedules()
-        setSchedules(data)
+        // Ensure selectors is an array for each schedule (API might return null)
+        const safeSchedules = data.map(sched => ({
+          ...sched,
+          selectors: sched.selectors || []
+        }))
+        setSchedules(safeSchedules)
       } catch (err) {
         setError('Failed to load schedules')
         console.error(err)
