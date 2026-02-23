@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 4 of 6 (Advanced Schedule Filtering)
-Plan: 3 of 3 in current phase (completed)
-Status: Phase complete - awaiting human verification
-Last activity: 2026-02-23 — Completed Phase 4 execution (plans 01-03)
+Plan: 1 of 3 in current phase (completed)
+Status: In progress
+Last activity: 2026-02-23 — Completed Plan 01: Backend matcher and filter utilities
 
 Progress: [████████████████████] 4/6 phases complete
 
@@ -54,6 +54,12 @@ Progress: [████████████████████] 4/6 pha
 - [04-02]: Regex validation: Debounced inline validation with error messages
 - [04-02]: Preview display: First 5 instances with "show more" expansion
 - [04-02]: AND/OR operator: Visible between rules when multiple rules exist
+
+- [04-01]: Backend regex matching: Go regexp.Compile for RE2 syntax
+- [04-01]: Client-side preview: Fetch all instances and filter client-side
+- [04-01]: Operator semantics: AND = all selectors must match; OR = any selector matches
+- [04-01]: Empty selectors: Return false (require explicit selection) rather than match all
+- [04-01]: Case sensitivity: Go regex is case-sensitive; JS uses 'i' flag for preview
 
 - [04-01]: Backend regex matching: Go regexp.Compile for RE2 syntax
 - [04-01]: Client-side preview: Fetch all instances and filter client-side
@@ -162,7 +168,7 @@ From Phase 3 research (deferred to future phases):
 - cronstrue integration for human-readable CRON descriptions
 - SchedulesPage integration with modal for create/edit
 
-**Phase 4 - Advanced Schedule Filtering (COMPLETED):**
+**Phase 4 - Advanced Schedule Filtering:**
 - Backend matcher logic with MatchInstance, MatchSelector, ValidateSelectors
 - Filter preview API endpoint: POST /api/v1/schedules/preview-filter
 - FilterBuilder component for visual filter creation
@@ -174,19 +180,23 @@ From Phase 3 research (deferred to future phases):
 - SchedulesPage with instance count column
 - Regex validation with inline error messages
 
+**Plan 01-03 (2026-02-23):**
+- Plan 01: Backend matcher and filter utilities complete
+- Plan 02: Filter components complete
+
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 4 execution complete, awaiting human verification
+Stopped at: Completed Plan 01 - Backend matcher and filter utilities
 
 **Phase 4 Execution Summary:**
 
 3 plans executed in 3 waves:
-- **Wave 1 (04-01):** Backend matcher.go + filterUtils.ts + preview API endpoint ✅
+- **Wave 1 (04-01):** Backend matcher.go + filterUtils.ts + preview API endpoint ✅ COMPLETED
 - **Wave 2 (04-02):** FilterBuilder, FilterRule, FilterPreview components ✅
 - **Wave 3 (04-03):** ScheduleModal integration + SchedulesPage instance counts + verification ⏸️
 
-**Status:** All code complete, awaiting human verification checkpoint.
+**Status:** Plan 01 complete, proceeding to Plan 02.
 
 **To verify:**
 1. Start development servers: `go run cmd/server/main.go` and `npm run dev`
