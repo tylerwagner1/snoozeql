@@ -102,11 +102,13 @@ Plans:
   2. User can see per-instance savings table showing which instances contributed most
   3. User can compare actual costs vs projected "always-on" costs with clear disclaimers
   4. Dashboard displays summary cards with total savings and period-over-period trends
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md — API types, formatters, DateRangeSelector component
+- [ ] 08-02-PLAN.md — SavingsSummaryCards, SavingsChart, InstanceSavingsTable components
+- [ ] 08-03-PLAN.md — CostProjection component with SAV-05 disclaimer
+- [ ] 08-04-PLAN.md — SavingsPage integration, routing, navigation, visual verification
 
 ## Progress
 
