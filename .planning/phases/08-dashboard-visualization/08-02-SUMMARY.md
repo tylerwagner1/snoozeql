@@ -69,7 +69,7 @@ Each task was committed atomically:
 2. **Task 2: Create SavingsChart component** - `ee25563b` (feat)
 3. **Task 3: Create InstanceSavingsTable component** - `c9da9d6f` (feat)
 
-**Plan metadata:** (to be committed)
+**Plan metadata:** `481ff975` (docs: complete plan)
 
 ## Files Created/Modified
 - `web/src/components/savings/SavingsSummaryCards.tsx` - Summary stat cards with icons
