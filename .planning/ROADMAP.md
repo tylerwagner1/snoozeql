@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Manual Control & Audit** - Sleep/wake instances with confirmation and operation logging ✅ Complete (2026-02-23)
 - [x] **Phase 3: Basic Scheduling** - Create time-based sleep/wake schedules ✅ Complete (2026-02-23)
 - [x] **Phase 4: Advanced Schedule Filtering** - Regex-based instance assignment with preview ✅ Complete (2026-02-23)
-- [ ] **Phase 5: Activity Analysis** - Collect metrics and detect inactivity patterns
+- [ ] **Phase 5: Activity Analysis** - Collect metrics and detect inactivity patterns ✅ Complete (2026-02-23)
 - [ ] **Phase 6: Intelligent Recommendations** - Generate and apply activity-based schedule suggestions
 
 ## Phase Details
@@ -150,7 +150,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md — Database schema and MetricsStore (Wave 1)
 - [x] 05-02-PLAN.md — CloudWatch client and MetricsCollector (Wave 2)
-- [ ] 05-03-PLAN.md — Idle period detection algorithms (Wave 3)
+- [x] 05-03-PLAN.md — Idle period detection algorithms (Wave 3)
 
 ### Phase 6: Intelligent Recommendations
 **Goal**: System generates schedule recommendations based on activity analysis that users can review and apply
@@ -178,7 +178,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Manual Control & Audit | 5/5 | Complete | 2026-02-23 ✅ |
 | 3. Basic Scheduling | 3/3 | Complete | 2026-02-23 ✅ |
 | 4. Advanced Schedule Filtering | 3/3 | Complete | 2026-02-23 ✅ |
-| 5. Activity Analysis | 2/3 | In progress | 2026-02-23 |
+| 5. Activity Analysis | 3/3 | Complete | 2026-02-23 ✅ |
 | 6. Intelligent Recommendations | 0/? | Not started | - |
 
 ---
