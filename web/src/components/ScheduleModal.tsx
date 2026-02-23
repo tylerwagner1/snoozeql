@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from '@headlessui/react';
-import { XMarkIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { WeeklyScheduleGrid } from './WeeklyScheduleGrid';
-import { createEmptyGrid, gridToCron, cronToGrid, formatGridSummary, formatHour, describeCron } from '../lib/cronUtils';
+import { createEmptyGrid, gridToCron, cronToGrid, formatGridSummary, describeCron } from '../lib/cronUtils';
 import api from '../lib/api';
 import { Schedule } from '../lib/api';
 
@@ -195,17 +194,10 @@ export function ScheduleModal({
           className="max-w-4xl w-full bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-2xl duration-200 ease-out data-[closed]:scale-95 data-[closed]:opacity-0 flex flex-col max-h-[90vh]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6">
             <DialogTitle className="text-xl font-bold text-white">
               {getTitle()}
             </DialogTitle>
-            <button
-              onClick={onClose}
-              className="text-slate-400 hover:text-white transition-colors"
-              aria-label="Close modal"
-            >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
           </div>
 
           {/* Name input */}
