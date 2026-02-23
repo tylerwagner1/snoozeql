@@ -285,13 +285,6 @@ func (s *InstanceStore) GetInstanceByID(ctx context.Context, id string) (*models
 	return &instance, nil
 }
 
-// ListRecommendationsByStatus returns recommendations by status (for InstanceStore usage)
-func (s *InstanceStore) ListRecommendationsByStatus(ctx context.Context, status string) ([]map[string]interface{}, error) {
-	// Create a temporary RecommendationStore to reuse the logic
-	recStore := NewRecommendationStore(s.db)
-	return recStore.ListRecommendationsByStatus(ctx, status)
-}
-
 // EventStore provides event CRUD operations
 type EventStore struct {
 	db *Postgres
@@ -431,77 +424,26 @@ func (s *RecommendationStore) ListRecommendations(status string) ([]models.Recom
 	return recommendations, rows.Err()
 }
 
-// ListRecommendationsByStatus returns recommendations by status
-func (s *RecommendationStore) ListRecommendationsByStatus(ctx context.Context, status string) ([]map[string]interface{}, error) {
-	query := `
-		SELECT id, instance_id, detected_pattern, suggested_schedule, confidence_score, status, created_at, resolved_at
-		FROM recommendations`
-
-	var conditions []string
-	var args []any
-	if status != "" {
-		conditions = append(conditions, "status = $1")
-		args = append(args, status)
-	}
-
-	if len(conditions) > 0 {
-		query += " WHERE " + strings.Join(conditions, " AND ")
-	}
-
-	query += " ORDER BY created_at DESC"
-
-	rows, err := s.db.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query recommendations: %w", err)
-	}
-	defer rows.Close()
-
-	var recommendations []map[string]interface{}
-	for rows.Next() {
-		var temp struct {
-			ID                string
-			InstanceID        string
-			DetectedPattern   string
-			SuggestedSchedule string
-			ConfidenceScore   float64
-			Status            string
-			CreatedAt         string
-			ResolvedAt        sql.NullString
-		}
-		err := rows.Scan(
-			&temp.ID,
-			&temp.InstanceID,
-			&temp.DetectedPattern,
-			&temp.SuggestedSchedule,
-			&temp.ConfidenceScore,
-			&temp.Status,
-			&temp.CreatedAt,
-			&temp.ResolvedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan recommendation: %w", err)
-		}
-		rec := map[string]interface{}{
-			"id":                 temp.ID,
-			"instance_id":        temp.InstanceID,
-			"detected_pattern":   temp.DetectedPattern,
-			"suggested_schedule": temp.SuggestedSchedule,
-			"confidence_score":   temp.ConfidenceScore,
-			"status":             temp.Status,
-			"created_at":         temp.CreatedAt,
-		}
-		if temp.ResolvedAt.Valid {
-			rec["resolved_at"] = temp.ResolvedAt.String
-		}
-		recommendations = append(recommendations, rec)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
-	}
-
-	return recommendations, nil
+// CreateRecommendation creates a new recommendation
+func (s *RecommendationStore) CreateRecommendation(recommendation *models.Recommendation) error {
+	return s.db.db.QueryRowContext(context.Background(), `
+		INSERT INTO recommendations (instance_id, detected_pattern, suggested_schedule, confidence_score, status)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id`, recommendation.InstanceID, recommendation.DetectedPattern,
+		recommendation.SuggestedSchedule, recommendation.ConfidenceScore, recommendation.Status).Scan(&recommendation.ID)
 }
+
+// UpdateRecommendation updates an existing recommendation
+func (s *RecommendationStore) UpdateRecommendation(recommendation *models.Recommendation) error {
+	_, err := s.db.db.ExecContext(context.Background(), `
+		UPDATE recommendations SET
+			status = $1, resolved_at = NOW()
+		WHERE id = $2`,
+		recommendation.Status, recommendation.ID)
+	return err
+}
+
+// Remove the InstanceStore.ListRecommendationsByStatus method - we'll add it after RecommendationStore
 
 // CloudAccountStore provides cloud account CRUD operations
 type CloudAccountStore struct {

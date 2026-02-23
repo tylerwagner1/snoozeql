@@ -21,7 +21,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Schedule Management
 
-- [ ] **SCH-01**: User can create schedules with start time, end time, and days of week
+- [x] **SCH-01**: User can create schedules with start time, end time, and days of week
 - [ ] **SCH-02**: User can create schedule filters based on instance name (regex)
 - [ ] **SCH-03**: User can create schedule filters based on instance tags (regex)
 - [ ] **SCH-04**: User can create schedule filters based on cloud provider (AWS/GCP)
