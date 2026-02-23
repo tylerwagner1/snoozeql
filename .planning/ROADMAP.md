@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Manual Control & Audit** - Sleep/wake instances with confirmation and operation logging ✅ Complete (2026-02-23)
 - [x] **Phase 3: Basic Scheduling** - Create time-based sleep/wake schedules ✅ Complete (2026-02-23)
 - [x] **Phase 4: Advanced Schedule Filtering** - Regex-based instance assignment with preview ✅ Complete (2026-02-23)
-- [ ] **Phase 5: Activity Analysis** - Collect metrics and detect inactivity patterns ✅ Complete (2026-02-23)
+- [x] **Phase 5: Activity Analysis** - Collect metrics and detect inactivity patterns ✅ Complete (2026-02-23)
 - [ ] **Phase 6: Intelligent Recommendations** - Generate and apply activity-based schedule suggestions
 
 ## Phase Details
@@ -139,10 +139,10 @@ Plans:
 ### Phase 5: Activity Analysis
 **Goal**: System collects and analyzes metrics to detect inactivity patterns
 **Depends on**: Phase 4 ✅ (Phase 4 completed 2026-02-23)
-**Requirements**: ACT-01, ACT-02, ACT-03, ACT-04
+**Requirements**: ACT-01, ACT-02 (deferred), ACT-03, ACT-04
 **Success Criteria** (what must be TRUE):
   1. System ingests CloudWatch metrics for AWS RDS instances
-  2. System ingests Cloud Monitoring metrics for GCP Cloud SQL instances
+  2. ~~System ingests Cloud Monitoring metrics for GCP Cloud SQL instances~~ (deferred per CONTEXT.md)
   3. System identifies periods of low/zero activity from collected metrics
   4. System detects nightly idle periods suitable for sleep scheduling
 **Plans**: 3 plans
@@ -151,6 +151,24 @@ Plans:
 - [x] 05-01-PLAN.md — Database schema and MetricsStore (Wave 1)
 - [x] 05-02-PLAN.md — CloudWatch client and MetricsCollector (Wave 2)
 - [x] 05-03-PLAN.md — Idle period detection algorithms (Wave 3)
+
+#### Phase 5 Completion Details
+
+**Completed:** 2026-02-23  
+**Status:** ✅ Complete (AWS metrics; GCP deferred)  
+**Verification:** see [05-VERIFICATION.md](./phases/05-activity-analysis/05-VERIFICATION.md)
+
+**Key Accomplishments:**
+- Metrics hourly table with indexes for efficient time-range queries
+- HourlyMetric model and MetricsStore with UPSERT support
+- CloudWatchClient with 3 retries and exponential backoff
+- MetricsCollector service running on 15-minute interval
+- Idle period detection with CPU < 1%, 8+ hours, 24+ hours data thresholds
+- Activity pattern analysis integrated into analyzer
+
+**Deferred:** GCP Cloud Monitoring (explicitly deferred per CONTEXT.md to validate AWS first)
+
+---
 
 ### Phase 6: Intelligent Recommendations
 **Goal**: System generates schedule recommendations based on activity analysis that users can review and apply
@@ -178,7 +196,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Manual Control & Audit | 5/5 | Complete | 2026-02-23 ✅ |
 | 3. Basic Scheduling | 3/3 | Complete | 2026-02-23 ✅ |
 | 4. Advanced Schedule Filtering | 3/3 | Complete | 2026-02-23 ✅ |
-| 5. Activity Analysis | 3/3 | Complete | 2026-02-23 ✅ |
+| 5. Activity Analysis | 3/3 | Complete (GCP deferred) | 2026-02-23 ✅ |
 | 6. Intelligent Recommendations | 0/? | Not started | - |
 
 ---

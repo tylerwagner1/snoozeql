@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 5 - Activity Analysis (context captured, ready for planning)
+**Current focus:** Phase 6 - Intelligent Recommendations (ready for planning)
 
 ## Current Position
 
-Phase: 5 of 6 (Activity Analysis)
-Plan: 3 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-23 - Completed 05-03-PLAN.md (Idle period detection algorithms)
+Phase: 6 of 6 (Intelligent Recommendations)
+Plan: Not yet planned
+Status: Ready for planning
+Last activity: 2026-02-23 - Phase 5 complete (AWS metrics; GCP deferred per CONTEXT.md)
 
-Progress: [████████████████████████████] 5/6 phases complete
+Progress: [█████████████████████████████] 5/6 phases complete
 
 ## Performance Metrics
 
