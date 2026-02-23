@@ -35,11 +35,11 @@ Minimize database costs by automatically sleeping instances during inactive peri
 
 ### Active
 
-- [ ] **SAV-01**: System calculates cost savings from stop/start events
-- [ ] **SAV-02**: Savings dashboard shows estimated vs projected costs
-- [ ] **SAV-03**: Historical activity charts visualize usage patterns over time
-- [ ] **SAV-04**: Per-instance savings attribution shows which instances saved money
-- [ ] **SAV-05**: Cost projection compares expected vs actual for billing forecasts
+- ✓ **SAV-01**: System calculates cost savings from stop/start events
+- ✓ **SAV-02**: Savings dashboard shows estimated vs projected costs
+- ✓ **SAV-03**: Historical activity charts visualize usage patterns over time
+- ✓ **SAV-04**: Per-instance savings attribution shows which instances saved money
+- ✓ **SAV-05**: Cost projection compares expected vs actual for billing forecasts
 
 ### Out of Scope
 
@@ -96,4 +96,4 @@ SnoozeQL v1.0 is fully functional with:
 | Decimal phase numbering (2.1, 2.2) | Clear insertion semantics | Easy to insert phases without renumbering |
 
 ---
-*Last updated: 2026-02-23 after v1.1 milestone start*
+*Last updated: 2026-02-23 after v1.1 requirements defined*
