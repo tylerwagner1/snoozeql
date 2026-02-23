@@ -86,12 +86,12 @@ Plans:
   3. User can query savings attributed to specific instances
   4. All savings calculations are logged with instance ID, date, stopped minutes, and rate
   5. System captures hourly rate at stop event time (handles instance resizing)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
-- [ ] 07-03: TBD
+- [ ] 07-01-PLAN.md — Database migration, SavingsStore, SavingsCalculator
+- [ ] 07-02-PLAN.md — EventStoreWithSavings decorator + main.go integration
+- [ ] 07-03-PLAN.md — SavingsHandler API endpoints
 
 #### Phase 8: Dashboard & Visualization
 **Goal**: Users can visualize savings trends, per-instance attribution, and cost projections
@@ -121,10 +121,10 @@ Phases execute in numeric order. v1.0 (1-6) complete. v1.1 (7-8) in progress.
 | 4. Advanced Schedule Filtering | v1.0 | 3/3 | Complete | 2026-02-23 |
 | 5. Activity Analysis | v1.0 | 3/3 | Complete | 2026-02-23 |
 | 6. Intelligent Recommendations | v1.0 | 4/4 | Complete | 2026-02-23 |
-| 7. Core Savings Calculation & API | v1.1 | 0/? | Not started | - |
+| 7. Core Savings Calculation & API | v1.1 | 0/3 | Planned | - |
 | 8. Dashboard & Visualization | v1.1 | 0/? | Not started | - |
 
 ---
 
 *Roadmap created: 2026-02-23*
-*Last updated: 2026-02-23 (v1.1 phases added)*
+*Last updated: 2026-02-23 (Phase 7 planned)*
