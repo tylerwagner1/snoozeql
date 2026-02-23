@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 4 - Advanced Schedule Filtering (planning complete, ready for execution)
+**Current focus:** Phase 4 - Advanced Schedule Filtering (execution complete, awaiting verification)
 
 ## Current Position
 
 Phase: 4 of 6 (Advanced Schedule Filtering)
-Plan: 0 of 3 in current phase (planned, not started)
-Status: Ready for execution
-Last activity: 2026-02-23 — Completed Phase 4 planning
+Plan: 3 of 3 in current phase (completed)
+Status: Phase complete - awaiting human verification
+Last activity: 2026-02-23 — Completed Phase 4 execution (plans 01-03)
 
-Progress: [████████████████████] 3/6 phases complete
+Progress: [████████████████████] 4/6 phases complete
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 17
 - Average duration: ~15 min
-- Total execution time: ~3.5 hours
+- Total execution time: ~4 hours
 
 **By Phase:**
 
@@ -30,18 +30,36 @@ Progress: [████████████████████] 3/6 pha
 | 1 | 6/6 | 6 | ~16 min |
 | 2 | 5/5 | 5 | ~15 min |
 | 3 | 3/3 | 3 | ~15 min |
-| 4 | 0/3 | - | - |
+| 4 | 3/3 | 3 | ~15 min |
 
 **Recent Trend:**
-- Last 14 plans: 14 complete
+- Last 17 plans: 17 complete
 - Trend: Stable
 - Phase 1 complete: 2026-02-21
 - Phase 2 complete: 2026-02-23
 - Phase 3 complete: 2026-02-23
+- Phase 4 complete: 2026-02-23
 
 ## Accumulated Context
 
 ### Decisions
+
+- [04-03]: FilterBuilder placement below time selection in ScheduleModal
+- [04-03]: Instance fetching per-open for preview, not cached across sessions
+- [04-03]: Instance count calculation using matchInstance from filterUtils
+- [04-03]: Empty state display shows "No filters" when selectors is empty
+
+- [04-02]: Field types: name, provider, region, engine, tags
+- [04-02]: Match types: exact, contains, prefix, suffix, regex
+- [04-02]: Regex validation: Debounced inline validation with error messages
+- [04-02]: Preview display: First 5 instances with "show more" expansion
+- [04-02]: AND/OR operator: Visible between rules when multiple rules exist
+
+- [04-01]: Backend regex matching: Go regexp.Compile for RE2 syntax
+- [04-01]: Client-side preview: Fetch all instances and filter client-side
+- [04-01]: Operator semantics: AND = all selectors must match; OR = any selector matches
+- [04-01]: Empty selectors: Return false (require explicit selection) rather than match all
+- [04-01]: Case sensitivity: Go regex is case-sensitive; JS uses 'i' flag for preview
 
 - [04-planning]: Filter builder uses visual chips for rules with AND/OR toggle
 - [04-planning]: Client-side preview for instant feedback, backend validates on save
@@ -144,19 +162,40 @@ From Phase 3 research (deferred to future phases):
 - cronstrue integration for human-readable CRON descriptions
 - SchedulesPage integration with modal for create/edit
 
+**Phase 4 - Advanced Schedule Filtering (COMPLETED):**
+- Backend matcher logic with MatchInstance, MatchSelector, ValidateSelectors
+- Filter preview API endpoint: POST /api/v1/schedules/preview-filter
+- FilterBuilder component for visual filter creation
+- FilterRule component with field type, match type, pattern inputs
+- FilterPreview component showing matched instance count and list
+- AND/OR toggle for combining multiple rules
+- Live client-side preview with instant updates
+- ScheduleModal integration with FilterBuilder section
+- SchedulesPage with instance count column
+- Regex validation with inline error messages
+
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 4 planning complete
-Resume file: None
+Stopped at: Phase 4 execution complete, awaiting human verification
 
-**Phase 4 Planning Summary:**
+**Phase 4 Execution Summary:**
 
-3 plans created in 3 waves:
-- **Wave 1 (04-01):** Backend matcher.go + filterUtils.ts + preview API endpoint
-- **Wave 2 (04-02):** FilterBuilder, FilterRule, FilterPreview components
-- **Wave 3 (04-03):** ScheduleModal integration + SchedulesPage instance counts + verification
+3 plans executed in 3 waves:
+- **Wave 1 (04-01):** Backend matcher.go + filterUtils.ts + preview API endpoint ✅
+- **Wave 2 (04-02):** FilterBuilder, FilterRule, FilterPreview components ✅
+- **Wave 3 (04-03):** ScheduleModal integration + SchedulesPage instance counts + verification ⏸️
 
-**Ready for:** `/gsd-execute-phase 4`
+**Status:** All code complete, awaiting human verification checkpoint.
+
+**To verify:**
+1. Start development servers: `go run cmd/server/main.go` and `npm run dev`
+2. Navigate to http://localhost:5173/schedules
+3. Test filter creation in ScheduleModal (click "Create Schedule")
+4. Test filter rules and AND/OR toggle
+5. Test regex validation (type invalid pattern like "[")
+6. Save a schedule with filters and verify instance count in list view
+
+**Ready for:** Type "approved" to complete Phase 4
 
 *`/new` first - fresh context window*
