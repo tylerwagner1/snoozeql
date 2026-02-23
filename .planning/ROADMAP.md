@@ -138,17 +138,19 @@ Plans:
 
 ### Phase 5: Activity Analysis
 **Goal**: System collects and analyzes metrics to detect inactivity patterns
-**Depends on**: Phase 4
+**Depends on**: Phase 4 ✅ (Phase 4 completed 2026-02-23)
 **Requirements**: ACT-01, ACT-02, ACT-03, ACT-04
 **Success Criteria** (what must be TRUE):
   1. System ingests CloudWatch metrics for AWS RDS instances
   2. System ingests Cloud Monitoring metrics for GCP Cloud SQL instances
   3. System identifies periods of low/zero activity from collected metrics
   4. System detects nightly idle periods suitable for sleep scheduling
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — Database schema and MetricsStore (Wave 1)
+- [ ] 05-02-PLAN.md — CloudWatch client and MetricsCollector (Wave 2)
+- [ ] 05-03-PLAN.md — Idle period detection algorithms (Wave 3)
 
 ### Phase 6: Intelligent Recommendations
 **Goal**: System generates schedule recommendations based on activity analysis that users can review and apply
@@ -176,7 +178,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Manual Control & Audit | 5/5 | Complete | 2026-02-23 ✅ |
 | 3. Basic Scheduling | 3/3 | Complete | 2026-02-23 ✅ |
 | 4. Advanced Schedule Filtering | 3/3 | Complete | 2026-02-23 ✅ |
-| 5. Activity Analysis | 0/? | Not started | - |
+| 5. Activity Analysis | 0/3 | Planned | - |
 | 6. Intelligent Recommendations | 0/? | Not started | - |
 
 ---
