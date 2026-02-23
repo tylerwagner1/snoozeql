@@ -99,7 +99,9 @@ Progress: [███████████████████████
 
 ### Decisions Made
 
-| Phase | Decision | Rationale |
+**Phase 7 - Core Savings Calculation**
+
+| Decision | Rationale |
 |----------|-----------|
 | EventStoreWithSavings decorator pattern | Automatic savings calculation on event creation instead of dashboard load time (push model) |
 | EventCreator interface | Flexible event store types - allows decorator wrapping |
@@ -128,9 +130,8 @@ None - Phase 8 Plan 04 Tasks 1-2 complete. Plan 04 checkpoint reached for human 
 
 Last session: 2026-02-23T21:36:07Z
 Stopped at: Completed Phase 8 Plan 04 (08-04-PLAN.md) - Tasks 1-2, checkpoint:human-verify reached
-Resume file: None
+Resume file: .continue-here
 
----
+## Pending Actions
 
-*Project: SnoozeQL v1.1 (Enhanced Insights & Savings)*
-*Started: 2026-02-23*
+- [ ] Human verification of SavingsPage visual correctness
