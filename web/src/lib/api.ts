@@ -119,6 +119,50 @@ export interface Stats {
   pending_actions: number
 }
 
+export interface SavingsSummary {
+  total_savings_cents: number
+  ongoing_savings_cents: number
+  period: {
+    start: string
+    end: string
+  }
+  top_savers: Array<{
+    instance_id: string
+    savings_cents: number
+    stopped_hours: number
+  }>
+}
+
+export interface DailySavingsResponse {
+  daily_savings: Array<{
+    date: string
+    savings_cents: number
+    stopped_minutes: number
+    hourly_rate_cents?: number
+  }>
+}
+
+export interface InstanceSavingsItem {
+  instance_id: string
+  name: string
+  provider: string
+  region: string
+  savings_cents: number
+  stopped_hours: number
+}
+
+export interface InstanceSavingsDetail {
+  instance_id: string
+  total_savings_cents: number
+  ongoing_savings_cents: number
+  savings: Array<{
+    date: string
+    stopped_minutes: number
+    savings_cents: number
+    hourly_rate_cents: number
+  }>
+}
+
 const api = {
   async get<T>(path: string): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -229,6 +273,20 @@ const api = {
     return api.get<Event[]>(`/events${query ? `?${query}` : ''}`)
   },
   getEventsByInstance: (instanceId: string) => api.get<Event[]>(`/instances/${instanceId}/events`),
+}
+
+  // Savings
+  getSavingsSummary: (days: number = 30) =>
+    api.get<SavingsSummary>(`/savings?days=${days}`),
+
+  getDailySavings: (days: number = 30) =>
+    api.get<DailySavingsResponse>(`/savings/daily?days=${days}`),
+
+  getSavingsByInstance: (days: number = 30, limit: number = 20) =>
+    api.get<InstanceSavingsItem[]>(`/savings/by-instance?days=${days}&limit=${limit}`),
+
+  getInstanceSavings: (instanceId: string, days: number = 30) =>
+    api.get<InstanceSavingsDetail>(`/instances/${instanceId}/savings?days=${days}`),
 }
 
 export default api
