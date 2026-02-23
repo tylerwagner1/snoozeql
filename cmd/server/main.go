@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
 
+	"snoozeql/internal/analyzer"
 	"snoozeql/internal/api/handlers"
 	"snoozeql/internal/api/middleware"
 	"snoozeql/internal/config"
@@ -32,13 +33,14 @@ import (
 
 // Global instances
 var (
-	discoveryService *discovery.DiscoveryService
-	instanceStore    *store.InstanceStore
-	accountStore     *store.CloudAccountStore
-	eventStore       *store.EventStore
-	scheduleStore    *store.ScheduleStore
-	metricsStore     *metrics.MetricsStore
-	metricsCollector *metrics.MetricsCollector
+	discoveryService    *discovery.DiscoveryService
+	instanceStore       *store.InstanceStore
+	accountStore        *store.CloudAccountStore
+	eventStore          *store.EventStore
+	scheduleStore       *store.ScheduleStore
+	recommendationStore *store.RecommendationStore
+	metricsStore        *metrics.MetricsStore
+	metricsCollector    *metrics.MetricsCollector
 )
 
 // BulkOperationRequest represents a request to start/stop multiple instances
@@ -183,6 +185,15 @@ func main() {
 	accountStore = store.NewCloudAccountStore(db)
 	eventStore = store.NewEventStore(db)
 	scheduleStore = store.NewScheduleStore(db)
+	recommendationStore = store.NewRecommendationStore(db)
+
+	// Initialize recommendation analyzer
+	thresholdConfig := analyzer.ThresholdConfig{
+		DefaultInactivityHours: 8,
+		DetectionDays:          7,
+		ConfidenceMinimum:      0.5,
+	}
+	analyzer := analyzer.NewAnalyzer(providerRegistry, recommendationStore, metricsStore, thresholdConfig)
 
 	// Initialize metrics store and collector
 	metricsStore = metrics.NewMetricsStore(db)
@@ -614,29 +625,27 @@ func main() {
 			})
 			r.Post("/schedules/preview-filter", scheduleHandler.PreviewFilter)
 
-			// Recommendations (placeholder)
+			// Recommendations
+			recommendationHandler := handlers.NewRecommendationHandler(
+				recommendationStore, instanceStore, scheduleStore, providerRegistry, analyzer,
+			)
 			r.Get("/recommendations", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`[]`))
+				recommendationHandler.GetAllRecommendations(w, r)
 			})
-
 			r.Get("/recommendations/{id}", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusNotFound)
-				w.Write([]byte(`{"error":"Not found"}`))
+				id := chi.URLParam(r, "id")
+				recommendationHandler.GetRecommendation(w, r, id)
 			})
-
+			r.Post("/recommendations/generate", func(w http.ResponseWriter, r *http.Request) {
+				recommendationHandler.GenerateRecommendations(w, r)
+			})
 			r.Post("/recommendations/{id}/apply", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"success":true}`))
+				id := chi.URLParam(r, "id")
+				recommendationHandler.ConfirmRecommendation(w, r, id)
 			})
-
 			r.Post("/recommendations/{id}/ignore", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"success":true}`))
+				id := chi.URLParam(r, "id")
+				recommendationHandler.DismissRecommendation(w, r, id)
 			})
 
 			// Events/Audit Log
