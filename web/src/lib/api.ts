@@ -264,29 +264,28 @@ const api = {
   // Discovery
   refreshInstances: () => api.post<{ success: boolean; message: string }>('/discovery/refresh'),
 
-  // Events/Audit Log
-  getEvents: (limit?: number, offset?: number) => {
-    const params = new URLSearchParams()
-    if (limit) params.set('limit', limit.toString())
-    if (offset) params.set('offset', offset.toString())
-    const query = params.toString()
-    return api.get<Event[]>(`/events${query ? `?${query}` : ''}`)
-  },
-  getEventsByInstance: (instanceId: string) => api.get<Event[]>(`/instances/${instanceId}/events`),
-}
+   // Events/Audit Log
+   getEvents: (limit?: number, offset?: number) => {
+     const params = new URLSearchParams()
+     if (limit) params.set('limit', limit.toString())
+     if (offset) params.set('offset', offset.toString())
+     const query = params.toString()
+     return api.get<Event[]>(`/events${query ? `?${query}` : ''}`)
+   },
+   getEventsByInstance: (instanceId: string) => api.get<Event[]>(`/instances/${instanceId}/events`),
 
-  // Savings
-  getSavingsSummary: (days: number = 30) =>
-    api.get<SavingsSummary>(`/savings?days=${days}`),
+   // Savings
+   getSavingsSummary: (days: number = 30) =>
+     api.get<SavingsSummary>(`/savings?days=${days}`),
 
-  getDailySavings: (days: number = 30) =>
-    api.get<DailySavingsResponse>(`/savings/daily?days=${days}`),
+   getDailySavings: (days: number = 30) =>
+     api.get<DailySavingsResponse>(`/savings/daily?days=${days}`),
 
-  getSavingsByInstance: (days: number = 30, limit: number = 20) =>
-    api.get<InstanceSavingsItem[]>(`/savings/by-instance?days=${days}&limit=${limit}`),
+   getSavingsByInstance: (days: number = 30, limit: number = 20) =>
+     api.get<InstanceSavingsItem[]>(`/savings/by-instance?days=${days}&limit=${limit}`),
 
-  getInstanceSavings: (instanceId: string, days: number = 30) =>
-    api.get<InstanceSavingsDetail>(`/instances/${instanceId}/savings?days=${days}`),
-}
+   getInstanceSavings: (instanceId: string, days: number = 30) =>
+     api.get<InstanceSavingsDetail>(`/instances/${instanceId}/savings?days=${days}`),
+ }
 
 export default api
