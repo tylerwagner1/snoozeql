@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 5 of 6 (Activity Analysis)
-Plan: 2 of 3 in current phase
+Plan: 3 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-23 - Completed 05-02-PLAN.md (CloudWatch client and MetricsCollector)
+Last activity: 2026-02-23 - Completed 05-03-PLAN.md (Idle period detection algorithms)
 
 Progress: [████████████████████████████] 5/6 phases complete
 
@@ -33,13 +33,13 @@ Progress: [███████████████████████
 | 4 | 3/3 | 3 | ~15 min |
 
 **Recent Trend:**
-- Last 17 plans: 17 complete
+- Last 18 plans: 18 complete
 - Trend: Stable
 - Phase 1 complete: 2026-02-21
 - Phase 2 complete: 2026-02-23
 - Phase 3 complete: 2026-02-23
 - Phase 4 complete: 2026-02-23
-- Phase 5 progress: Plan 02 complete (CloudWatch client and MetricsCollector)
+- Phase 5 progress: Plan 03 complete (Idle period detection algorithms)
 
 ## Accumulated Context
 
@@ -194,6 +194,7 @@ From Phase 3 research (deferred to future phases):
 **Phase 5 - Activity Analysis:**
 - Plan 01 (05-01): Database schema (metrics_hourly table), HourlyMetric model, MetricsStore ✅ COMPLETED
 - Plan 02 (05-02): CloudWatch client, MetricsCollector service, integration in main.go ✅ COMPLETED
+- Plan 03 (05-03): Idle period detection algorithms ✅ COMPLETED
 
 **Plan 01-03 (2026-02-23):**
 - Plan 01: Backend matcher and filter utilities complete ✅
@@ -202,8 +203,8 @@ From Phase 3 research (deferred to future phases):
 
 ## Session Continuity
 
-Last session: 2026-02-23T16:44:00Z
-Stopped at: Completed 05-02-PLAN.md (CloudWatch client and MetricsCollector)
+Last session: 2026-02-23T16:35:00Z
+Stopped at: Completed 05-03-PLAN.md (Idle period detection algorithms)
 
 **Phase 5 Execution Summary:**
 
@@ -217,15 +218,24 @@ Plan 02 (05-02) - CloudWatch Client and MetricsCollector ✅ COMPLETED
 - Created MetricsCollector with RunContinuous, CollectAll, per-instance collection, and client caching
 - Integrated MetricsCollector into cmd/server/main.go with 15-minute interval
 
+Plan 03 (05-03) - Idle Period Detection Algorithms ✅ COMPLETED
+- Created internal/analyzer/patterns.go with idle window detection algorithms
+- Implemented IdleWindow, ActivityPattern, HourBucket types
+- Added analyzeActivityPattern with 24+ hours data requirement
+- Implemented overnight window detection via 48-hour walk
+- Updated internal/analyzer/analyzer.go with metricsStore integration
+- Added AnalyzeInstanceActivity and AnalyzeAllInstances methods
+
 **Files created:**
-- internal/metrics/cloudwatch.go
-- internal/metrics/collector.go
+- internal/analyzer/patterns.go (346 lines)
+- internal/metrics/cloudwatch.go (05-02)
+- internal/metrics/collector.go (05-02)
 
 **Files modified:**
-- cmd/server/main.go (added metrics import, globals, initialization, and goroutine startup)
-- go.mod (added github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.54.0 dependency)
-
-**Ready for:** Next Phase 5 plan (Idle period detection algorithms)
+- internal/analyzer/analyzer.go (added metricsStore field, new methods)
+- cmd/server/main.go (05-02 - added metrics initialization)
+- internal/models/models.go (05-01 - added HourlyMetric)
+- go.mod (05-02 - added cloudwatch dependency)
 
 **Phase 4 Execution Summary:**
 
@@ -250,4 +260,4 @@ Plan 02 (05-02) - CloudWatch Client and MetricsCollector ✅ COMPLETED
 
 **Ready for:** Type "approved" to complete Phase 4
 
-*`/new` first - fresh context window*
+*Phase 5 complete: 2026-02-23*
