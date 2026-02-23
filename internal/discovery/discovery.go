@@ -21,6 +21,11 @@ type CloudAccountProvider struct {
 	Regions     []string
 }
 
+// EventCreator interface for event operations needed by DiscoveryService
+type EventCreator interface {
+	CreateEvent(ctx context.Context, event *models.Event) error
+}
+
 // DiscoveryService manages database instance discovery
 type DiscoveryService struct {
 	registry      *provider.Registry
@@ -31,12 +36,12 @@ type DiscoveryService struct {
 	lastError     error
 	instanceStore *store.InstanceStore
 	accountStore  *store.CloudAccountStore
-	eventStore    *store.EventStore
+	eventStore    EventCreator
 	mu            sync.RWMutex
 }
 
 // NewDiscoveryService creates a new discovery service
-func NewDiscoveryService(registry *provider.Registry, instanceStore *store.InstanceStore, accountStore *store.CloudAccountStore, eventStore *store.EventStore, enabled bool, interval int, tags []string) *DiscoveryService {
+func NewDiscoveryService(registry *provider.Registry, instanceStore *store.InstanceStore, accountStore *store.CloudAccountStore, eventStore EventCreator, enabled bool, interval int, tags []string) *DiscoveryService {
 	return &DiscoveryService{
 		registry:      registry,
 		enabled:       enabled,

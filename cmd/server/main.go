@@ -194,6 +194,15 @@ func main() {
 	// Initialize savings calculator
 	savingsCalculator := savings.NewSavingsCalculator()
 
+	// Initialize decorated EventStore with automatic savings calculation
+	decoratedEventStore = savings.NewEventStoreWithSavings(
+		eventStore,
+		savingsCalculator,
+		savingsStore,
+		instanceStore,
+		db,
+	)
+
 	// Initialize recommendation analyzer
 	thresholdConfig := analyzer.ThresholdConfig{
 		DefaultInactivityHours: 8,
@@ -211,7 +220,7 @@ func main() {
 		15, // 15-minute collection interval per CONTEXT.md
 	)
 
-	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, eventStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
+	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, decoratedEventStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
 
 	// Start discovery in background
 	ctx := context.Background()
