@@ -141,6 +141,20 @@ func (p *CloudSQLProvider) GetMetrics(ctx context.Context, providerName string, 
 	return metrics, nil
 }
 
+// GetDatabaseByID returns a database by its ID
+func (p *CloudSQLProvider) GetDatabaseByID(ctx context.Context, id string) (*models.Instance, error) {
+	result, err := p.sqlAdminService.Instances.Get(p.projectID, id).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Cloud SQL instance %s: %w", id, err)
+	}
+
+	inst, err := p.instanceToModel(result)
+	if err != nil {
+		return nil, err
+	}
+	return &inst, nil
+}
+
 func (p *CloudSQLProvider) instanceToModel(db *cloudsql.DatabaseInstance) (models.Instance, error) {
 	tags := make(map[string]string)
 	if db.Settings != nil && db.Settings.UserLabels != nil {

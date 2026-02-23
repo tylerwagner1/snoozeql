@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingDown, Timer, Activity } from 'lucide-react'
+import { TrendingDown, Activity } from 'lucide-react'
 import api from '../lib/api'
 import type { RecommendationEnriched } from '../lib/api'
 

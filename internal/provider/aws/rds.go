@@ -169,6 +169,26 @@ func (p *RDSProvider) GetMetrics(ctx context.Context, providerName string, id st
 	return metrics, nil
 }
 
+// GetDatabaseByID returns a database by its ID
+func (p *RDSProvider) GetDatabaseByID(ctx context.Context, id string) (*models.Instance, error) {
+	result, err := p.rdsClient.DescribeDBInstances(ctx, &rds.DescribeDBInstancesInput{
+		DBInstanceIdentifier: aws.String(id),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe DB instance %s: %w", id, err)
+	}
+
+	if len(result.DBInstances) == 0 {
+		return nil, fmt.Errorf("DB instance %s not found", id)
+	}
+
+	inst, err := p.dbInstanceToModel(result.DBInstances[0])
+	if err != nil {
+		return nil, err
+	}
+	return &inst, nil
+}
+
 func (p *RDSProvider) dbInstanceToModel(db types.DBInstance) (models.Instance, error) {
 	tags := make(map[string]string)
 

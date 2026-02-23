@@ -113,3 +113,30 @@ func (r *Registry) GetMetrics(ctx context.Context, providerName string, id strin
 	}
 	return provider.GetMetrics(ctx, providerName, id, period)
 }
+
+// GetDatabaseByID returns a database by its ID from any provider
+func (r *Registry) GetDatabaseByID(ctx context.Context, id string) (*models.Instance, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for providerName, provider := range r.Providers {
+		instances, err := provider.ListDatabases(ctx)
+		if err != nil {
+			continue
+		}
+
+		for _, inst := range instances {
+			if inst.ID == id {
+				// Update with provider info
+				parts := strings.Split(providerName, "_")
+				if len(parts) >= 1 {
+					inst.Provider = parts[0]
+				}
+				inst.ProviderName = providerName
+				return &inst, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("instance %s not found", id)
+}

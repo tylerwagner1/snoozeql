@@ -25,6 +25,7 @@ type Store interface {
 	ListRecommendations(status string) ([]models.Recommendation, error)
 	CreateRecommendation(recommendation *models.Recommendation) error
 	UpdateRecommendation(recommendation *models.Recommendation) error
+	ListRecommendationsByStatus(ctx context.Context, status string) ([]map[string]interface{}, error)
 }
 
 // ThresholdConfig defines detection thresholds
@@ -272,6 +273,60 @@ func (a *Analyzer) AnalyzeAllInstances(ctx context.Context) (map[string]*Activit
 	}
 
 	return patterns, nil
+}
+
+// GenerateRecommendations generates recommendations from analyzed patterns
+func (a *Analyzer) GenerateRecommendations(ctx context.Context) ([]models.Recommendation, error) {
+	instances, err := a.provider.ListAllDatabases(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list instances: %w", err)
+	}
+
+	patterns, err := a.AnalyzeAllInstances(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze instances: %w", err)
+	}
+
+	var recommendations []models.Recommendation
+
+	for instanceID, pattern := range patterns {
+		if len(pattern.IdleWindows) == 0 {
+			continue
+		}
+
+		// Find instance in the list
+		var instance *models.Instance
+		for i := range instances {
+			if instances[i].ID == instanceID {
+				instance = &instances[i]
+				break
+			}
+		}
+		if instance == nil {
+			fmt.Printf("Warning: Could not find instance %s for recommendation\n", instanceID)
+			continue
+		}
+
+		// Skip if already has pending recommendation
+		existing, _ := a.store.ListRecommendationsByStatus(ctx, "pending")
+		hasPending := false
+		for _, rec := range existing {
+			if rec["instance_id"] == instanceID {
+				hasPending = true
+				break
+			}
+		}
+		if hasPending {
+			continue
+		}
+
+		// Convert best IdleWindow to Recommendation
+		window := pattern.IdleWindows[0] // Already sorted by confidence
+		rec := idleWindowToRecommendation(instance, window)
+		recommendations = append(recommendations, *rec)
+	}
+
+	return recommendations, nil
 }
 
 // DetectedPattern represents the detected pattern for storage

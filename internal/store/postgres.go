@@ -192,51 +192,78 @@ func (s *InstanceStore) ListInstances(ctx context.Context) ([]models.Instance, e
 	return instances, nil
 }
 
-// GetInstanceByProviderID returns an instance by provider and provider ID (only from active accounts)
-func (s *InstanceStore) GetInstanceByProviderID(ctx context.Context, provider, providerID string) (*models.Instance, error) {
+// GetInstanceByProviderID returns an instance by provider and provider ID
+func (s *InstanceStore) GetInstanceByProviderID(ctx context.Context, provider string, providerID string) (*models.Instance, error) {
+	query := `
+		SELECT i.id, i.cloud_account_id, i.provider, i.provider_name, i.provider_id, i.name, i.region,
+			i.instance_type, i.engine, i.status, i.managed, i.tags, i.hourly_cost_cents,
+			i.created_at, i.updated_at
+		FROM instances i
+		JOIN cloud_accounts ca ON i.cloud_account_id = ca.id
+		WHERE ca.deleted_at IS NULL`
+
+	var conditions []string
+	var args []any
+
+	if provider != "" {
+		conditions = append(conditions, "i.provider = $1")
+		args = append(args, provider)
+	}
+	conditions = append(conditions, "i.provider_id = $"+fmt.Sprintf("%d", len(args)+1))
+	args = append(args, providerID)
+
+	query += " WHERE " + strings.Join(conditions, " AND ")
+	query += " LIMIT 1"
+
+	rows, err := s.db.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query instance: %w", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		var instance models.Instance
+		var tagsJSON []byte
+
+		err := rows.Scan(
+			&instance.ID, &instance.CloudAccountID, &instance.Provider,
+			&instance.ProviderName, &instance.ProviderID, &instance.Name, &instance.Region,
+			&instance.InstanceType, &instance.Engine, &instance.Status,
+			&instance.Managed, &tagsJSON, &instance.HourlyCostCents,
+			&instance.CreatedAt, &instance.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan instance: %w", err)
+		}
+
+		if len(tagsJSON) > 0 {
+			if err := json.Unmarshal(tagsJSON, &instance.Tags); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal tags: %w", err)
+			}
+		} else {
+			instance.Tags = make(map[string]string)
+		}
+
+		return &instance, nil
+	}
+
+	return nil, nil
+}
+
+// GetInstanceByID returns an instance by its ID
+func (s *InstanceStore) GetInstanceByID(ctx context.Context, id string) (*models.Instance, error) {
+	query := `
+		SELECT i.id, i.cloud_account_id, i.provider, i.provider_name, i.provider_id, i.name, i.region,
+			i.instance_type, i.engine, i.status, i.managed, i.tags, i.hourly_cost_cents,
+			i.created_at, i.updated_at
+		FROM instances i
+		JOIN cloud_accounts ca ON i.cloud_account_id = ca.id
+		WHERE i.id = $1 AND ca.deleted_at IS NULL`
+
 	var instance models.Instance
 	var tagsJSON []byte
 
-	// Determine lookup type based on input
-	// If providerID is a UUID, look up by id; otherwise look up by provider_id
-	// Provider ID can be either: UUID (for single instance lookup) or provider_id string (for provider+ID lookup)
-	var query string
-	var args []any
-
-	// Check if the input is a UUID (36 chars) or a provider_id
-	if len(providerID) == 36 && strings.Contains(providerID, "-") {
-		// This looks like a UUID, look up by id
-		query = `
-			SELECT i.id, i.cloud_account_id, i.provider, i.provider_name, i.provider_id, i.name, i.region,
-				i.instance_type, i.engine, i.status, i.managed, i.tags, i.hourly_cost_cents,
-				i.created_at, i.updated_at
-			FROM instances i
-			JOIN cloud_accounts ca ON i.cloud_account_id = ca.id
-			WHERE i.id = $1 AND ca.deleted_at IS NULL`
-		args = []any{providerID}
-	} else if provider == "" {
-		// No provider specified, match any provider; look up by provider_id
-		query = `
-			SELECT i.id, i.cloud_account_id, i.provider, i.provider_name, i.provider_id, i.name, i.region,
-				i.instance_type, i.engine, i.status, i.managed, i.tags, i.hourly_cost_cents,
-				i.created_at, i.updated_at
-			FROM instances i
-			JOIN cloud_accounts ca ON i.cloud_account_id = ca.id
-			WHERE i.provider_id = $1 AND ca.deleted_at IS NULL`
-		args = []any{providerID}
-	} else {
-		// Both provider and provider_id specified
-		query = `
-			SELECT i.id, i.cloud_account_id, i.provider, i.provider_name, i.provider_id, i.name, i.region,
-				i.instance_type, i.engine, i.status, i.managed, i.tags, i.hourly_cost_cents,
-				i.created_at, i.updated_at
-			FROM instances i
-			JOIN cloud_accounts ca ON i.cloud_account_id = ca.id
-			WHERE i.provider = $1 AND i.provider_id = $2 AND ca.deleted_at IS NULL`
-		args = []any{provider, providerID}
-	}
-
-	err := s.db.db.QueryRowContext(ctx, query, args...).Scan(
+	err := s.db.db.QueryRowContext(ctx, query, id).Scan(
 		&instance.ID, &instance.CloudAccountID, &instance.Provider,
 		&instance.ProviderName, &instance.ProviderID, &instance.Name, &instance.Region,
 		&instance.InstanceType, &instance.Engine, &instance.Status,
@@ -247,7 +274,6 @@ func (s *InstanceStore) GetInstanceByProviderID(ctx context.Context, provider, p
 		return nil, err
 	}
 
-	// Parse tags JSONB
 	if len(tagsJSON) > 0 {
 		if err := json.Unmarshal(tagsJSON, &instance.Tags); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal tags: %w", err)
@@ -257,6 +283,13 @@ func (s *InstanceStore) GetInstanceByProviderID(ctx context.Context, provider, p
 	}
 
 	return &instance, nil
+}
+
+// ListRecommendationsByStatus returns recommendations by status (for InstanceStore usage)
+func (s *InstanceStore) ListRecommendationsByStatus(ctx context.Context, status string) ([]map[string]interface{}, error) {
+	// Create a temporary RecommendationStore to reuse the logic
+	recStore := NewRecommendationStore(s.db)
+	return recStore.ListRecommendationsByStatus(ctx, status)
 }
 
 // EventStore provides event CRUD operations
@@ -398,8 +431,8 @@ func (s *RecommendationStore) ListRecommendations(status string) ([]models.Recom
 	return recommendations, rows.Err()
 }
 
-// ListRecommendationsByStatus returns recommendations by status (for InstanceStore usage)
-func (s *InstanceStore) ListRecommendationsByStatus(ctx context.Context, status string) ([]map[string]interface{}, error) {
+// ListRecommendationsByStatus returns recommendations by status
+func (s *RecommendationStore) ListRecommendationsByStatus(ctx context.Context, status string) ([]map[string]interface{}, error) {
 	query := `
 		SELECT id, instance_id, detected_pattern, suggested_schedule, confidence_score, status, created_at, resolved_at
 		FROM recommendations`
@@ -425,7 +458,6 @@ func (s *InstanceStore) ListRecommendationsByStatus(ctx context.Context, status 
 
 	var recommendations []map[string]interface{}
 	for rows.Next() {
-		// Using a struct to receive the scan, then convert to map
 		var temp struct {
 			ID                string
 			InstanceID        string
@@ -469,31 +501,6 @@ func (s *InstanceStore) ListRecommendationsByStatus(ctx context.Context, status 
 	}
 
 	return recommendations, nil
-}
-
-// CreateRecommendation creates a new recommendation
-func (s *RecommendationStore) CreateRecommendation(recommendation *models.Recommendation) error {
-	return s.db.db.QueryRowContext(context.Background(), `
-		INSERT INTO recommendations (instance_id, detected_pattern, suggested_schedule, confidence_score, status)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id`, recommendation.InstanceID, recommendation.DetectedPattern,
-		recommendation.SuggestedSchedule, recommendation.ConfidenceScore, recommendation.Status).Scan(&recommendation.ID)
-}
-
-// UpdateRecommendation updates an existing recommendation
-func (s *RecommendationStore) UpdateRecommendation(recommendation *models.Recommendation) error {
-	_, err := s.db.db.ExecContext(context.Background(), `
-		UPDATE recommendations SET
-			status = $1, resolved_at = NOW()
-		WHERE id = $2`,
-		recommendation.Status, recommendation.ID)
-	return err
-}
-
-// DeleteRecommendation deletes a recommendation
-func (s *RecommendationStore) DeleteRecommendation(id string) error {
-	_, err := s.db.db.ExecContext(context.Background(), "DELETE FROM recommendations WHERE id = $1", id)
-	return err
 }
 
 // CloudAccountStore provides cloud account CRUD operations
