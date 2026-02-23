@@ -12,26 +12,23 @@ Minimize database costs by automatically sleeping instances during inactive peri
 
 ### Validated
 
-- ✓ Cloud provider abstraction layer supports AWS RDS and GCP Cloud SQL
-- ✓ Discovery service polls providers for database instances
-- ✓ Background scheduling system for recurring sleep/wake operations
-- ✓ PostgreSQL persistence for schedules, recommendations, and account configurations
+- ✓ Cloud provider abstraction layer supports AWS RDS and GCP Cloud SQL — v1.0
+- ✓ Discovery service polls providers for database instances — v1.0
+- ✓ Background scheduling system for recurring sleep/wake operations — v1.0
+- ✓ PostgreSQL persistence for schedules, recommendations, and account configurations — v1.0
+- ✓ Instance discovery with multi-account AWS/GCP support — v1.0
+- ✓ Manual sleep/wake with confirmation dialogs — v1.0
+- ✓ Schedule creation with regex-based instance assignment — v1.0
+- ✓ SchedulesPage with instance count and audit logging — v1.0
+- ✓ Activity analysis with idle period detection — v1.0
+- ✓ Intelligent schedule recommendations based on activity patterns — v1.0
+- ✓ Recommendation workflow (view → confirm → create schedule) — v1.0
 
 ### Active
 
-- [ ] **UI-01**: User can view all database instances from multiple AWS and GCP accounts
-- [ ] **UI-02**: User can manually select one or many instances and trigger immediate sleep
-- [ ] **SCH-01**: User can create schedules with regex-based instance assignment (name, tags, provider)
-- [ ] **SCH-02**: Schedule assignment logic supports AND/OR operators with regex patterns
-- [ ] **SCH-03**: User can create schedules manually by specifying start/sleep times
-- [ ] **REC-01**: System analyzes activity metrics and recommends sleep schedules
-- [ ] **REC-02**: RecommendationsDisplay shows recommendations as cards on dashboard and in separate tab
-- [ ] **REC-03**: User can confirm and apply schedule recommendations to create new schedules
-- [ ] **ACT-01**: System ingests CloudWatch metrics (AWS) and Cloud Monitoring metrics (GCP)
-- [ ] **ACT-02**: Activity analysis identifies patterns of low/zero activity (e.g., nightly off-hours)
-- [ ] **CON-01**: Support multiple AWS "connections" (different accounts/instances)
-- [ ] **CON-02**: Support multiple GCP "connections" (different projects/instances)
-- [ ] **CONF-01**: Sleep/wake operations use cloud provider APIs to physically stop/start instances
+- [ ] **UI-01**: Export schedule as IaC configuration (Terraform/CloudFormation)
+- [ ] **UI-02**: Cost savings dashboard with actual vs projected costs
+- [ ] **UI-03**: Bulk operation presets for common patterns
 
 ### Out of Scope
 
@@ -43,23 +40,25 @@ Minimize database costs by automatically sleeping instances during inactive peri
 
 ## Context
 
-**Current State (from codebase analysis):**
+**Current State (v1.0 shipped 2026-02-23):**
 
-The existing codebase has a working foundation:
-- Go backend with REST API serving a React SPA frontend
-- Provider abstraction pattern for AWS RDS and GCP Cloud SQL
-- Discovery service that continuously polls cloud providers
-- PostgreSQL persistence with JSONB support
-- Models for CloudAccount, Instance, Schedule, Recommendation, Override, Event, Saving, Settings
+SnoozeQL v1.0 is fully functional with:
+- Go 1.24.0 backend (Chi router, PostgreSQL with pgx)
+- React 18.2 frontend (Vite, React Router DOM, Recharts)
+- AWS SDK v2 and Google Cloud API support
+- Docker/Docker Compose deployment
+- 25/26 v1 requirements shipped (ACT-02 GCP deferred)
 
-**What Needs Work:**
+**Key Achievements:**
+- Multi-cloud discovery (AWS RDS + GCP Cloud SQL)
+- Manual sleep/wake with audit logging
+- Time-based scheduling with regex-based instance assignment
+- Activity analysis with idle period detection
+- Intelligent schedule recommendations
 
-The existing codebase needs enhancement to support:
-1. Enhanced UI for multi-account instance viewing and selection
-2. Manual sleep operations for selected instances
-3. Schedule creation with regex-based assignment
-4. Activity-based recommendation engine
-5. Recommendation workflow (view → confirm → create schedule)
+**Known Issues:**
+- AWS 7-day auto-restart: implement re-stop mechanism (deferred)
+- Instance state race conditions: implement proper state machine (deferred)
 
 **Technical Environment:**
 
@@ -86,6 +85,8 @@ The existing codebase needs enhancement to support:
 | Regex-based schedule assignment | User requested flexible filtering with wildcards | Powerful and familiar pattern |
 | Manual confirmation before applying recommendations | Prevents accidental schedule changes | Safety for user, clear workflow |
 | Activity metrics from CloudWatch/Cloud Monitoring | Standard provider metrics, well-documented | Reliable data source for analysis |
+| ROADMAP.md split (one line per completed milestone) | Constant context cost for large project | Scales to 100+ phases without overflow |
+| Decimal phase numbering (2.1, 2.2) | Clear insertion semantics | Easy to insert phases without renumbering |
 
 ---
-*Last updated: 2026-02-20 after initialization*
+*Last updated: 2026-02-23 after v1.0 milestone*
