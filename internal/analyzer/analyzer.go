@@ -4,16 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"snoozeql/internal/metrics"
 	"snoozeql/internal/models"
 	"snoozeql/internal/provider"
 )
 
 // Analyzer manages activity analysis and pattern detection
 type Analyzer struct {
-	provider  *provider.Registry
-	store     Store
-	threshold ThresholdConfig
+	provider     *provider.Registry
+	store        Store
+	metricsStore *metrics.MetricsStore
+	threshold    ThresholdConfig
 }
 
 // Store interface for recommendation persistence
@@ -32,11 +35,12 @@ type ThresholdConfig struct {
 }
 
 // NewAnalyzer creates a new analyzer
-func NewAnalyzer(provider *provider.Registry, store Store, threshold ThresholdConfig) *Analyzer {
+func NewAnalyzer(provider *provider.Registry, store Store, metricsStore *metrics.MetricsStore, threshold ThresholdConfig) *Analyzer {
 	return &Analyzer{
-		provider:  provider,
-		store:     store,
-		threshold: threshold,
+		provider:     provider,
+		store:        store,
+		metricsStore: metricsStore,
+		threshold:    threshold,
 	}
 }
 
@@ -152,9 +156,9 @@ func (a *Analyzer) calculateConfidence(pattern *DetectedPattern) float64 {
 // generateRecommendation generates a schedule recommendation from a pattern
 func (a *Analyzer) generateRecommendation(instance models.Instance, pattern *DetectedPattern) *models.Recommendation {
 	recommendation := &models.Recommendation{
-		InstanceID:     instance.ProviderID,
+		InstanceID:      instance.ProviderID,
 		ConfidenceScore: pattern.Confidence,
-		Status:         "pending",
+		Status:          "pending",
 	}
 
 	// Generate suggested schedule from pattern
@@ -169,9 +173,9 @@ func (a *Analyzer) generateRecommendation(instance models.Instance, pattern *Det
 // generateScheduleFromPattern creates a cron schedule from detected pattern
 func (a *Analyzer) generateScheduleFromPattern(pattern *DetectedPattern, instance models.Instance) []byte {
 	schedule := map[string]interface{}{
-		"timezone":    "America/New_York",
-		"sleep_cron":  "0 19 * * 1-5",
-		"wake_cron":   "0 7 * * 1-5",
+		"timezone":   "America/New_York",
+		"sleep_cron": "0 19 * * 1-5",
+		"wake_cron":  "0 7 * * 1-5",
 	}
 
 	// Enhance based on instance tags
@@ -208,6 +212,66 @@ func (a *Analyzer) encodePattern(pattern *DetectedPattern) []byte {
 // ThresholdConfig returns the current threshold configuration
 func (a *Analyzer) ThresholdConfig() ThresholdConfig {
 	return a.threshold
+}
+
+// AnalyzeInstanceActivity analyzes an instance's activity patterns from stored metrics
+func (a *Analyzer) AnalyzeInstanceActivity(ctx context.Context, instanceID string) (*ActivityPattern, error) {
+	// Check for sufficient data first
+	hasSufficient, err := a.metricsStore.HasSufficientData(ctx, instanceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check data sufficiency: %w", err)
+	}
+
+	if !hasSufficient {
+		return &ActivityPattern{
+			InstanceID:        instanceID,
+			HasSufficientData: false,
+			AnalyzedAt:        time.Now(),
+		}, nil
+	}
+
+	// Get last 14 days of metrics
+	end := time.Now().UTC()
+	start := end.AddDate(0, 0, -14)
+
+	metrics, err := a.metricsStore.GetMetricsByInstance(ctx, instanceID, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metrics: %w", err)
+	}
+
+	// Analyze patterns using default thresholds from CONTEXT.md
+	thresholds := DefaultThresholds()
+	pattern := AnalyzeActivityPattern(metrics, thresholds)
+
+	return pattern, nil
+}
+
+// AnalyzeAllInstances analyzes activity patterns for all instances with sufficient data
+func (a *Analyzer) AnalyzeAllInstances(ctx context.Context) (map[string]*ActivityPattern, error) {
+	instances, err := a.provider.ListAllDatabases(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list instances: %w", err)
+	}
+
+	patterns := make(map[string]*ActivityPattern)
+
+	for _, instance := range instances {
+		if !instance.Managed {
+			continue
+		}
+
+		pattern, err := a.AnalyzeInstanceActivity(ctx, instance.ID)
+		if err != nil {
+			fmt.Printf("Warning: Failed to analyze %s: %v\n", instance.Name, err)
+			continue
+		}
+
+		if len(pattern.IdleWindows) > 0 {
+			patterns[instance.ID] = pattern
+		}
+	}
+
+	return patterns, nil
 }
 
 // DetectedPattern represents the detected pattern for storage
