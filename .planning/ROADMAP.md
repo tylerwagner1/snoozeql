@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Basic Scheduling** - Create time-based sleep/wake schedules ✅ Complete (2026-02-23)
 - [x] **Phase 4: Advanced Schedule Filtering** - Regex-based instance assignment with preview ✅ Complete (2026-02-23)
 - [x] **Phase 5: Activity Analysis** - Collect metrics and detect inactivity patterns ✅ Complete (2026-02-23)
-- [ ] **Phase 6: Intelligent Recommendations** - Generate and apply activity-based schedule suggestions
+- [x] **Phase 6: Intelligent Recommendations** - Generate and apply activity-based schedule suggestions ✅ Complete (2026-02-23)
 
 ## Phase Details
 
@@ -183,10 +183,25 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Backend recommendation generation and API handlers
-- [ ] 06-02-PLAN.md — Frontend components (RecommendationCard, Modal, ActivityGraph)
-- [ ] 06-03-PLAN.md — Dashboard and RecommendationsPage integration
-- [ ] 06-04-PLAN.md — End-to-end verification checkpoint
+- [x] 06-01-PLAN.md — Backend recommendation generation and API handlers
+- [x] 06-02-PLAN.md — Frontend components (RecommendationCard, Modal, ActivityGraph)
+- [x] 06-03-PLAN.md — Dashboard and RecommendationsPage integration
+- [x] 06-04-PLAN.md — End-to-end verification checkpoint
+
+#### Phase 6 Completion Details
+
+**Completed:** 2026-02-23  
+**Status:** ✅ Complete (with 1 human-verify checkpoint)  
+**Verification:** see [06-VERIFICATION.md](./phases/06-intelligent-recommendations/06-VERIFICATION.md)
+
+**Key Accomplishments:**
+- Backend recommendation generation from idle patterns (GenerateRecommendations, API handlers)
+- RecommendationCard with expand/collapse and confidence labels (High/Medium/Low)
+- RecommendationModal with ActivityGraph visualization and schedule confirmation
+- Dashboard recommendations section with generate button and empty states
+- RecommendationsPage with full dismiss/confirm workflow
+- 24-hour CPU activity visualization using recharts
+- Human verification checkpoint for end-to-end workflow testing
 
 ## Progress
 
@@ -200,7 +215,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Basic Scheduling | 3/3 | Complete | 2026-02-23 ✅ |
 | 4. Advanced Schedule Filtering | 3/3 | Complete | 2026-02-23 ✅ |
 | 5. Activity Analysis | 3/3 | Complete (GCP deferred) | 2026-02-23 ✅ |
-| 6. Intelligent Recommendations | 0/4 | Planned | - |
+| 6. Intelligent Recommendations | 4/4 | Complete | 2026-02-23 ✅ |
 
 ---
 *Created: 2026-02-20*
