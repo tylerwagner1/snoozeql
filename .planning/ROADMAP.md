@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Multi-Cloud Discovery** - Connect to AWS/GCP and display all database instances ✅ Complete (2026-02-21)
 - [x] **Phase 2: Manual Control & Audit** - Sleep/wake instances with confirmation and operation logging ✅ Complete (2026-02-23)
 - [x] **Phase 3: Basic Scheduling** - Create time-based sleep/wake schedules ✅ Complete (2026-02-23)
-- [ ] **Phase 4: Advanced Schedule Filtering** - Regex-based instance assignment with preview
+- [x] **Phase 4: Advanced Schedule Filtering** - Regex-based instance assignment with preview ✅ Complete (2026-02-23)
 - [ ] **Phase 5: Activity Analysis** - Collect metrics and detect inactivity patterns
 - [ ] **Phase 6: Intelligent Recommendations** - Generate and apply activity-based schedule suggestions
 
