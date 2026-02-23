@@ -8,6 +8,15 @@ A database lifecycle management application that helps users reduce cloud costs 
 
 Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
 
+## Current Milestone: v1.1 Enhanced Insights & Savings
+
+**Goal:** Extend the v1.0 foundation with cost savings tracking, usage analytics, and historical visualization to validate SnoozeQL's value and improve user confidence in recommendations.
+
+**Target features:**
+- Cost savings dashboard with actual vs projected costs
+- Historical activity charts for usage patterns
+- Per-instance savings attribution
+
 ## Requirements
 
 ### Validated
@@ -26,21 +35,23 @@ Minimize database costs by automatically sleeping instances during inactive peri
 
 ### Active
 
-- [ ] **UI-01**: Export schedule as IaC configuration (Terraform/CloudFormation)
-- [ ] **UI-02**: Cost savings dashboard with actual vs projected costs
-- [ ] **UI-03**: Bulk operation presets for common patterns
+- [ ] **SAV-01**: System calculates cost savings from stop/start events
+- [ ] **SAV-02**: Savings dashboard shows estimated vs projected costs
+- [ ] **SAV-03**: Historical activity charts visualize usage patterns over time
+- [ ] **SAV-04**: Per-instance savings attribution shows which instances saved money
+- [ ] **SAV-05**: Cost projection compares expected vs actual for billing forecasts
 
 ### Out of Scope
 
 - Multi-user support with RBAC — Single-user POC only
-- Billing reports or cost projections — Focus is on sleep scheduling, not analytics
 - Email notifications or alerts — No notification infrastructure needed for POC
 - Real-time wake-on-connect — Manual wake-up only for now
 - Advanced scheduling patterns (timezone-aware, holidays, etc.) — Basic time-based scheduling only
+- Billing API integration — Estimation from instance specs + uptime sufficient for POC
 
 ## Context
 
-**Current State (v1.0 shipped 2026-02-23):**
+**Current State (v1.0 shipped 2026-02-23, v1.1 in planning):**
 
 SnoozeQL v1.0 is fully functional with:
 - Go 1.24.0 backend (Chi router, PostgreSQL with pgx)
@@ -49,16 +60,12 @@ SnoozeQL v1.0 is fully functional with:
 - Docker/Docker Compose deployment
 - 25/26 v1 requirements shipped (ACT-02 GCP deferred)
 
-**Key Achievements:**
-- Multi-cloud discovery (AWS RDS + GCP Cloud SQL)
-- Manual sleep/wake with audit logging
-- Time-based scheduling with regex-based instance assignment
-- Activity analysis with idle period detection
-- Intelligent schedule recommendations
+**v1.1 scope:** Cost savings tracking, usage analytics, historical visualization
 
-**Known Issues:**
-- AWS 7-day auto-restart: implement re-stop mechanism (deferred)
-- Instance state race conditions: implement proper state machine (deferred)
+**Known Issues (deferred to future):**
+- AWS 7-day auto-restart: implement re-stop mechanism (Phase 1)
+- Instance state race conditions: implement proper state machine (Phase 1)
+- GCP Cloud Monitoring metrics: defer until AWS validation proves value
 
 **Technical Environment:**
 
@@ -89,4 +96,4 @@ SnoozeQL v1.0 is fully functional with:
 | Decimal phase numbering (2.1, 2.2) | Clear insertion semantics | Easy to insert phases without renumbering |
 
 ---
-*Last updated: 2026-02-23 after v1.0 milestone*
+*Last updated: 2026-02-23 after v1.1 milestone start*

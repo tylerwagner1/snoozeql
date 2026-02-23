@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Planning next milestone
+**Current focus:** v1.1 - Enhanced Insights & Savings (requirements definition)
 
 ## Current Position
 
-Phase: 1 of 6 (Next milestone)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-02-23 - v1.0 milestone complete
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-23 - Milestone v1.1 started
 
 Progress: [██████████████████████████████] 6/6 phases complete
 
@@ -76,14 +76,10 @@ Progress: [███████████████████████
 
 ## Session Continuity
 
-Last session: 2026-02-23T17:30:00Z
-Stopped at: Completed v1.0 milestone
-
-**v1.0 Milestone Complete (2026-02-23)**
-- 24 plans completed across 6 phases
-- 25/26 v1 requirements shipped (ACT-02 GCP deferred)
+Last session: 2026-02-23T17:45:00Z
+Stopped at: Milestone v1.1 started (requirements definition)
 
 ---
 
-*Project: SnoozeQL v1.0*
-*Completed: 2026-02-23*
+*Project: SnoozeQL v1.1 (Enhanced Insights & Savings)*
+*Started: 2026-02-23*
