@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 7 of 8 (Core Savings Calculation & API)
-Plan: 3
-Status: Complete
-Last activity: 2026-02-23 - Completed Phase 7 (all plans)
+Phase: 8 of 8 (Dashboard & Visualization)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-23 - Completed Phase 8 Plan 01 (08-01-PLAN.md)
 
-Progress: [█████████████████████████████████░] 7/8 phases complete (v1.0 done, v1.1 3/3 plans complete)
+Progress: [██████████████████████████████████] 8/8 phases complete
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: ~15 min
 - Total execution time: ~6.2 hours
 
@@ -34,9 +34,10 @@ Progress: [███████████████████████
 | 5 | 3/3 | 3 | ~15 min |
 | 6 | 4/4 | 4 | ~15 min |
 | 7 | 3/3 | 3 | ~13 min |
+| 8 | 1/4 | 1 | ~12 min |
 
 **Recent Trend:**
-- Last 24 plans: 24 complete
+- Last 25 plans: 25 complete
 - Trend: Stable
 
 ## Accumulated Context
@@ -87,6 +88,12 @@ Progress: [███████████████████████
 - SavingsHandler with 4 API endpoints for summary, daily, by-instance, and instance detail
 - Routes registered: GET /api/v1/savings, /savings/daily, /savings/by-instance, /instances/{id}/savings
 
+**Phase 8 - Dashboard & Visualization:**
+- Savings API types: SavingsSummary, DailySavingsResponse, InstanceSavingsItem, InstanceSavingsDetail
+- Savings API methods: getSavingsSummary, getDailySavings, getSavingsByInstance, getInstanceSavings
+- Currency formatter: formatCurrency using Intl.NumberFormat (centsToDollars)
+- DateRangeSelector component: 7d/30d/90d tab navigation
+
 ### Decisions Made
 
 | Phase | Decision | Rationale |
@@ -94,6 +101,9 @@ Progress: [███████████████████████
 | 07-02 | Implemented EventStoreWithSavings decorator pattern | Automatic savings calculation on event creation instead of dashboard load time |
 | 07-02 | Added EventCreator interface to DiscoveryService | Flexible event store types (allows decorator wrapping) |
 | 07-03 | Implemented full SavingsHandler with 4 endpoints | Required for Phase 8 dashboard API consumption |
+| 08-01 | API methods use GET requests to existing Phase 7 backend | No new backend changes needed; reuses existing endpoints |
+| 08-01 | Currency formatting uses Intl.NumberFormat | Proper locale handling (thousands separators, currency symbols) |
+| 08-01 | Date range selector uses tab-style design | Matches existing Dashboard.tsx card styling pattern |
 
 **Phase 7 - Core Savings Calculation**
 
@@ -103,14 +113,22 @@ Progress: [███████████████████████
 | EventCreator interface | Flexible event store types - allows decorator wrapping |
 | Full SavingsHandler with 4 endpoints | Required for Phase 8 dashboard API consumption |
 
+**Phase 8 - Dashboard & Visualization**
+
+| Decision | Rationale |
+|----------|-----------|
+| API methods use GET requests to Phase 7 backend | No new backend changes needed; reuses existing endpoints |
+| Currency formatting uses Intl.NumberFormat | Proper locale handling (thousands separators, currency symbols) |
+| Date range selector uses tab-style design | Matches existing Dashboard.tsx card styling pattern |
+
 ## Blockers/Concerns Carried Forward
 
-None - savings backend is complete and ready for Phase 8 integration.
+None - Phase 8 Plan 01 foundation complete and ready for Phase 8 visualization components.
 
 ## Session Continuity
 
-Last session: 2026-02-23T18:30:00Z
-Stopped at: Completed Phase 7 (all 3 plans)
+Last session: 2026-02-23T18:42:00Z
+Stopped at: Completed Phase 8 Plan 01 (08-01-PLAN.md)
 Resume file: None
 
 ---
