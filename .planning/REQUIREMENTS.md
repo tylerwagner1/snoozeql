@@ -9,9 +9,9 @@
 
 - ✓ **SAV-01**: System calculates cost savings from stop/start events using instance hourly cost and stopped duration
 - ✓ **SAV-02**: Savings dashboard shows estimated vs projected costs with summary cards and time-series chart
-- [ ] **SAV-03**: Historical activity charts visualize usage patterns over configurable time ranges (7d, 30d, 90d, custom)
-- [ ] **SAV-04**: Per-instance savings attribution shows which instances contributed most to overall savings
-- [ ] **SAV-05**: Cost projection compares expected vs actual for billing forecasts with clear disclaimers
+- ✓ **SAV-03**: Historical activity charts visualize usage patterns over configurable time ranges (7d, 30d, 90d, custom)
+- ✓ **SAV-04**: Per-instance savings attribution shows which instances contributed most to overall savings
+- ✓ **SAV-05**: Cost projection compares expected vs actual for billing forecasts with clear disclaimers
 
 ### Audit & Compliance
 
@@ -47,9 +47,9 @@
 |-------------|-------|--------|
 | SAV-01 | Phase 7 | Complete |
 | SAV-02 | Phase 7 | Complete |
-| SAV-03 | Phase 8 | Pending |
-| SAV-04 | Phase 8 | Pending |
-| SAV-05 | Phase 8 | Pending |
+| SAV-03 | Phase 8 | Complete |
+| SAV-04 | Phase 8 | Complete |
+| SAV-05 | Phase 8 | Complete |
 | AUD-01 | Phase 7 | Complete |
 | AUD-02 | Phase 7 | Complete |
 
@@ -64,4 +64,4 @@
 ---
 
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 (Phase 7 complete - SAV-01, SAV-02, AUD-01, AUD-02)*
+*Last updated: 2026-02-23 (Phase 8 complete - SAV-03, SAV-04, SAV-05)*

@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** - Phases 1-6 (shipped 2026-02-23)
-- 🚧 **v1.1 Enhanced Insights & Savings** - Phases 7-8 (in progress)
+- ✅ **v1.1 Enhanced Insights & Savings** - Phases 7-8 (completed 2026-02-23)
 
 ## Phases
 
@@ -105,10 +105,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — API types, formatters, DateRangeSelector component
-- [ ] 08-02-PLAN.md — SavingsSummaryCards, SavingsChart, InstanceSavingsTable components
-- [ ] 08-03-PLAN.md — CostProjection component with SAV-05 disclaimer
-- [ ] 08-04-PLAN.md — SavingsPage integration, routing, navigation, visual verification
+- [x] 08-01-PLAN.md — API types, formatters, DateRangeSelector component
+- [x] 08-02-PLAN.md — SavingsSummaryCards, SavingsChart, InstanceSavingsTable components
+- [x] 08-03-PLAN.md — CostProjection component with SAV-05 disclaimer
+- [x] 08-04-PLAN.md — SavingsPage integration, routing, navigation, visual verification
 
 ## Progress
 
@@ -124,9 +124,10 @@ Phases execute in numeric order. v1.0 (1-6) complete. v1.1 (7-8) in progress.
 | 5. Activity Analysis | v1.0 | 3/3 | Complete | 2026-02-23 |
 | 6. Intelligent Recommendations | v1.0 | 4/4 | Complete | 2026-02-23 |
 | 7. Core Savings Calculation & API | v1.1 | 3/3 | Complete | 2026-02-23 |
-| 8. Dashboard & Visualization | v1.1 | 0/? | Not started | - |
+| 8. Dashboard & Visualization | v1.1 | 4/4 | Complete | 2026-02-23 |
+| 9. v1.1 Milestone Complete | v1.1 | - | Complete | 2026-02-23 |
 
 ---
 
 *Roadmap created: 2026-02-23*
-*Last updated: 2026-02-23 (Phase 7 complete)*
+*Last updated: 2026-02-23 (Phase 8 complete, v1.1 milestone achieved)*
