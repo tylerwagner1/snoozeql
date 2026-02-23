@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Clock, Plus } from 'lucide-react'
 import api from '../lib/api'
-import type { Schedule } from '../lib/api'
+import type { Schedule, Instance } from '../lib/api'
 import { ScheduleModal } from '../components/ScheduleModal'
 import { cronToGrid, formatGridSummary } from '../lib/cronUtils'
+import { matchInstance } from '../lib/filterUtils'
 
 const SchedulesPage = () => {
   const [schedules, setSchedules] = useState<Schedule[]>([])
+  const [instances, setInstances] = useState<Instance[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -23,6 +25,10 @@ const SchedulesPage = () => {
           selectors: sched.selectors || []
         }))
         setSchedules(safeSchedules)
+
+        // Fetch instances for count calculation
+        const instancesData = await api.getInstances()
+        setInstances(Array.isArray(instancesData) ? instancesData : [])
       } catch (err) {
         setError('Failed to load schedules')
         console.error(err)
@@ -32,6 +38,14 @@ const SchedulesPage = () => {
     }
     fetchSchedules()
   }, [])
+
+  // Count matched instances for a schedule
+  const getMatchedCount = (schedule: Schedule): number => {
+    if (!schedule.selectors || schedule.selectors.length === 0) {
+      return 0;
+    }
+    return instances.filter(inst => matchInstance(inst, schedule.selectors, 'and')).length;
+  };
 
   const handleToggle = async (id: string, enabled: boolean) => {
     try {
@@ -116,6 +130,7 @@ const SchedulesPage = () => {
               <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Name</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Days</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Sleep Hours</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Instances</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
               <th className="px-6 py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
             </tr>
@@ -145,14 +160,26 @@ const SchedulesPage = () => {
                       <Clock className="h-4 w-4 text-slate-500 mr-2" />
                       <span className="text-sm text-slate-300">{summary.activeDays}</span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <span className="text-sm text-slate-300">{summary.sleepHours}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <label className="inline-flex items-center cursor-pointer">
+                   </td>
+                   <td className="px-6 py-4 whitespace-nowrap">
+                     <div className="flex items-center">
+                       <span className="text-sm text-slate-300">{summary.sleepHours}</span>
+                     </div>
+                   </td>
+                   <td className="px-6 py-4 whitespace-nowrap">
+                     <div className="flex items-center gap-2">
+                       {schedule.selectors && schedule.selectors.length > 0 ? (
+                         <>
+                           <span className="text-sm font-medium text-white">{getMatchedCount(schedule)}</span>
+                           <span className="text-xs text-slate-400">matched</span>
+                         </>
+                       ) : (
+                         <span className="text-xs text-slate-500">No filters</span>
+                       )}
+                     </div>
+                   </td>
+                   <td className="px-6 py-4 whitespace-nowrap">
+                     <label className="inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
                         checked={schedule.enabled}
