@@ -1,204 +1,434 @@
-# Feature Research
+# Feature Landscape: Cost Savings Tracking
 
-**Domain:** Database Sleep Scheduling / Instance Lifecycle Management
-**Researched:** 2026-02-20
-**Confidence:** HIGH
+**Domain:** Cloud cost management / Database cost optimization dashboards
+**Researched:** 2026-02-23
+**Confidence:** HIGH (verified with AWS, GCP, and FinOps Foundation sources)
 
-## Feature Landscape
+## Overview
 
-### Table Stakes (Users Expect These)
+This research identifies the features required for SnoozeQL v1.1's cost savings tracking capabilities, aligned with requirements SAV-01 through SAV-05. The findings draw from industry leaders (AWS Cost Explorer, GCP Billing Reports, Kubecost, FinOps Foundation best practices) to define what users expect from cost optimization dashboards.
 
-Features users assume exist. Missing these = product feels incomplete.
+---
 
-| Feature | Why Expected | Complexity | Notes |
+## 1. Core Dashboard Features
+
+Must-have components that users expect from any cost savings dashboard.
+
+### Summary Cards (Hero Metrics)
+
+| Feature | Why Expected | Complexity | Implementation Notes |
+|---------|--------------|------------|----------------------|
+| **Total Savings (Current Period)** | Primary value proposition - shows SnoozeQL's ROI | Low | Sum of `estimated_savings_cents` from savings table |
+| **Month-to-Date Savings** | Standard financial reporting period | Low | Filter savings by current month |
+| **Forecasted Savings** | Users want to predict future value | Medium | Project based on schedule patterns + historical data |
+| **Savings Trend Indicator** | Shows if savings are improving | Low | Compare current period vs previous period (% change) |
+| **Stopped Hours (Current Period)** | Validates that sleep is happening | Low | Sum of `stopped_minutes` / 60 |
+
+**AWS Cost Explorer Pattern:** Shows "Month-to-date costs" and "Forecasted month end costs" prominently at top with percentage change indicators.
+
+**Recommendation:** Use 4 summary cards: Total Savings, Month-to-Date, Forecasted, and Savings Trend (% change vs last period).
+
+### Primary Chart
+
+| Feature | Why Expected | Complexity | Implementation Notes |
 |---------|--------------|------------|-------|
-| Manual start/stop instances | Core value proposition - users need immediate control | LOW | AWS RDS API: `StartDBInstance`/`StopDBInstance`, GCP: `PATCH` with `activationPolicy` |
-| Instance discovery & listing | Users need to see what they're managing | LOW | Already implemented in existing codebase via discovery service |
-| Multi-account/project support | Enterprises have multiple cloud accounts | MEDIUM | Already modeled in existing codebase (CloudAccount entity) |
-| Schedule creation with time windows | Users define when instances sleep/wake | MEDIUM | Start time, end time, days of week - standard scheduling UX |
-| Instance filtering/search | Can't manage 100+ instances without search | LOW | Filter by name, tags, provider, status |
-| Instance status visibility | Must show current state (running/stopped/pending) | LOW | Poll provider APIs for current state |
-| Operation history/audit log | Users need to know what happened and when | LOW | Already modeled (Event entity in existing codebase) |
-| Error handling & retry | Cloud API calls fail; system must be resilient | MEDIUM | Exponential backoff, dead letter handling |
-| Multiple cloud provider support | RDS + Cloud SQL in same dashboard | MEDIUM | Already architected with provider abstraction |
+| **Time-series savings chart** | Visual trend analysis | Medium | Stacked bar chart showing daily/weekly/monthly savings |
+| **Actual vs Projected overlay** | Validates estimates | Medium | Two data series on same chart |
+| **Configurable time range** | Different analysis needs | Low | 7d, 30d, 90d, custom range selectors |
 
-### Differentiators (Competitive Advantage)
+**Recommendation:** Use Recharts (already in stack) for a stacked bar chart with daily granularity for short ranges, weekly/monthly for longer ranges.
 
-Features that set the product apart. Not required, but valuable.
+### Data Table
+
+| Feature | Why Expected | Complexity | Implementation Notes |
+|---------|--------------|------------|-------|
+| **Per-instance savings breakdown** | Attribution and accountability | Low | Table with instance name, savings, stopped hours |
+| **Sortable columns** | Find top savers | Low | Sort by savings, hours stopped, instance name |
+| **Drill-down to instance detail** | Investigation workflow | Low | Link to instance detail page |
+
+---
+
+## 2. Key Metrics
+
+What to display and why, based on FinOps best practices and industry standards.
+
+### Primary Metrics (Must Display)
+
+| Metric | Definition | Why Important | Calculation |
+|--------|------------|---------------|-------------|
+| **Total Savings** | Money not spent due to stopped instances | Primary value metric | `hourly_cost_cents * stopped_minutes / 60` |
+| **Stopped Hours** | Total time instances were stopped | Validates system is working | Direct from events or savings table |
+| **Running Cost** | What would have been spent if always running | Baseline comparison | `hourly_cost_cents * total_hours` |
+| **Actual Cost** | What was actually spent | Reality check | `hourly_cost_cents * running_minutes / 60` |
+
+### Secondary Metrics (Should Display)
+
+| Metric | Definition | Why Important | Calculation |
+|--------|------------|---------------|-------------|
+| **Savings Percentage** | Savings as % of what would have spent | Easy to understand efficiency | `(savings / running_cost) * 100` |
+| **Cost per Instance** | Average hourly cost per instance | Identifies expensive instances | Sum costs / instance count |
+| **Schedule Effectiveness** | How well schedules match actual usage | Optimization feedback | Compare scheduled stop time vs actual idle time |
+
+### ROI Metrics (Optional but Valuable)
+
+| Metric | Definition | Why Important | Calculation |
+|--------|------------|---------------|-------------|
+| **Daily Average Savings** | Normalized daily savings | Consistent comparison | Total savings / days in period |
+| **Projected Annual Savings** | Extrapolated yearly value | Business justification | Daily average * 365 |
+
+**FinOps Foundation Guidance:** "Context relevant cost reporting data available to all Core Personas" - metrics should be understandable by both technical and finance users.
+
+---
+
+## 3. User Workflows
+
+How users interact with cost data, based on observed patterns in AWS Cost Explorer and GCP Billing.
+
+### Workflow 1: Executive Summary (Daily Check)
+
+**User Goal:** "Is SnoozeQL saving me money?"
+
+**Steps:**
+1. View dashboard summary cards
+2. Check savings trend indicator (up/down vs last period)
+3. Glance at chart for anomalies
+4. Done (< 30 seconds)
+
+**Required Features:**
+- Summary cards with clear numbers
+- Percentage change indicator
+- Clean, scannable UI
+
+### Workflow 2: Cost Attribution (Monthly Review)
+
+**User Goal:** "Which instances are saving the most? Which aren't contributing?"
+
+**Steps:**
+1. View dashboard for overall picture
+2. View per-instance savings table
+3. Sort by savings to find top/bottom performers
+4. Drill into specific instances for detail
+5. Identify instances that should be stopped more
+
+**Required Features:**
+- Per-instance savings table (SAV-04)
+- Sorting and filtering
+- Instance detail page with savings history
+
+### Workflow 3: Trend Analysis (Optimization)
+
+**User Goal:** "Are my schedules optimized? How have savings changed over time?"
+
+**Steps:**
+1. Select longer time range (30d, 90d)
+2. Review historical chart
+3. Identify patterns (weekends vs weekdays, specific periods)
+4. Compare actual vs projected costs (SAV-02)
+5. Adjust schedules if needed
+
+**Required Features:**
+- Historical activity charts (SAV-03)
+- Actual vs projected comparison (SAV-02, SAV-05)
+- Time range selector
+
+### Workflow 4: Billing Forecast (Planning)
+
+**User Goal:** "What will my bill look like this month?"
+
+**Steps:**
+1. View current month's actual costs
+2. View projected costs for rest of month
+3. Compare to previous months
+4. Validate forecast accuracy
+
+**Required Features:**
+- Cost projection (SAV-05)
+- Comparison view (actual vs expected)
+- Historical monthly totals
+
+---
+
+## 4. Historical Visualization Requirements
+
+Time-based charting requirements based on industry patterns.
+
+### Time Range Options
+
+| Range | Granularity | Use Case |
+|-------|-------------|----------|
+| **Last 7 days** | Daily | Recent activity, troubleshooting |
+| **Last 30 days** | Daily | Monthly review, trend analysis |
+| **Last 90 days** | Weekly | Quarterly review, pattern identification |
+| **Custom range** | Auto (daily/weekly/monthly) | Specific period analysis |
+
+**AWS Cost Explorer Pattern:** Uses daily granularity for ranges up to 62 days, then automatically switches to monthly granularity.
+
+### Chart Types
+
+| Chart Type | When to Use | Data |
+|------------|-------------|------|
+| **Stacked Bar** | Primary savings view | Daily/weekly savings by instance or schedule |
+| **Line Chart** | Trend comparison | Actual vs projected over time |
+| **Area Chart** | Cumulative view | Running total of savings |
+
+**Recommendation:** Primary chart should be a stacked bar chart (matches existing Dashboard.tsx pattern and Recharts capabilities).
+
+### Grouping Options
+
+| Group By | What It Shows | Priority |
+|----------|---------------|----------|
+| **Date** | Daily/weekly/monthly savings | Must have |
+| **Instance** | Per-instance attribution | Must have |
+| **Schedule** | Which schedules save most | Should have |
+| **Region** | Regional cost distribution | Nice to have |
+| **Engine** | Database type comparison | Nice to have |
+
+---
+
+## 5. Per-Instance Savings Attribution
+
+How to show which instances saved money (SAV-04).
+
+### Attribution Model
+
+**Calculation:** For each instance, for each day:
+```
+daily_savings = hourly_cost_cents * stopped_minutes / 60 / 100 (convert to dollars)
+```
+
+**Data Source:** The `Saving` model already exists:
+```go
+type Saving struct {
+    ID                    string
+    InstanceID            string
+    Date                  string
+    StoppedMinutes        int
+    EstimatedSavingsCents int
+}
+```
+
+### Per-Instance View Requirements
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| **Instance Name** | Identifier | Must have |
+| **Total Savings** | Sum for selected period | Must have |
+| **Stopped Hours** | Sum for selected period | Must have |
+| **Hourly Rate** | Instance cost per hour | Should have |
+| **Savings Percentage** | % of potential cost saved | Should have |
+| **Savings Trend** | Sparkline or change indicator | Nice to have |
+
+### Attribution Accuracy Considerations
+
+1. **Start/Stop Event Tracking:** Use Event table to track exact times
+2. **Partial Hour Billing:** AWS bills per-second with 10-minute minimum; our calculation should align
+3. **Status Changes:** Account for instance status during calculations
+4. **Timezone Handling:** Store times in UTC, display in user's timezone
+
+---
+
+## 6. Actual vs Projected Comparison (SAV-02, SAV-05)
+
+How existing tools show cost comparisons.
+
+### AWS Cost Explorer Pattern
+
+| Metric | Definition |
+|--------|------------|
+| **Actual Cost** | What you spent (from billing data) |
+| **Forecasted Cost** | ML-based projection of month-end cost |
+| **Comparison** | % difference from last period |
+
+### For SnoozeQL Context
+
+| Metric | Definition | Calculation |
+|--------|------------|-------------|
+| **Projected Cost (Without SnoozeQL)** | What costs would be if instances ran 24/7 | `hourly_cost * 24 * days` |
+| **Projected Cost (With Schedules)** | Expected cost based on schedule patterns | `hourly_cost * scheduled_running_hours` |
+| **Actual Cost** | What was actually spent based on events | `hourly_cost * actual_running_hours` |
+| **Savings** | Difference | `Projected - Actual` |
+
+### Visualization Approach
+
+**Recommendation:** Use a dual-series chart showing:
+1. **Projected without schedules** (light gray/dotted line) - baseline
+2. **Actual cost** (solid color) - reality
+3. **Savings** shown as the gap between the two
+
+This clearly demonstrates SnoozeQL's value.
+
+---
+
+## 7. Export and Reporting Requirements
+
+Common requirements for reports, based on industry patterns.
+
+### Export Formats
+
+| Format | Use Case | Priority |
+|--------|----------|----------|
+| **CSV** | Spreadsheet analysis, import to other tools | Should have |
+| **PDF** | Management reports, documentation | Nice to have |
+| **API** | Integration with other systems | Already exists |
+
+### Export Contents
+
+| Data | Include | Notes |
+|------|---------|-------|
+| Instance ID | Yes | For joining with other data |
+| Instance Name | Yes | Human readable |
+| Date | Yes | Time series |
+| Stopped Minutes | Yes | Raw data |
+| Estimated Savings | Yes | Calculated value |
+| Hourly Cost | Yes | For verification |
+
+### Reporting Workflows
+
+| Report Type | Audience | Frequency | Content |
+|-------------|----------|-----------|---------|
+| **Daily Summary** | Ops | Daily | Top savers, anomalies |
+| **Weekly Digest** | Team | Weekly | Trend, total savings |
+| **Monthly Report** | Management | Monthly | ROI, total savings, comparison |
+
+**For POC scope:** CSV export is sufficient. PDF and automated reports are out of scope.
+
+---
+
+## 8. Filtering and Sorting Requirements
+
+What filtering capabilities users need.
+
+### Filter Dimensions
+
+| Dimension | Priority | Already in SnoozeQL |
+|-----------|----------|---------------------|
+| **Time Range** | Must have | No (needs implementation) |
+| **Instance** | Must have | Yes (instance list exists) |
+| **Provider (AWS/GCP)** | Should have | Yes (in Instance model) |
+| **Region** | Should have | Yes (in Instance model) |
+| **Engine** | Nice to have | Yes (in Instance model) |
+| **Schedule** | Nice to have | Yes (in Schedule model) |
+| **Tags** | Nice to have | Yes (in Instance model) |
+
+### Sort Options for Tables
+
+| Column | Direction | Default |
+|--------|-----------|---------|
+| Savings | Desc | **Yes** (show top savers first) |
+| Instance Name | Asc/Desc | No |
+| Stopped Hours | Desc | No |
+| Date | Desc | No |
+
+---
+
+## 9. Table Stakes vs Differentiators
+
+### Table Stakes (Must Have for v1.1)
+
+Features users expect. Missing = product feels incomplete.
+
+| Feature | Requirement ID | Notes |
+|---------|----------------|-------|
+| Total savings display | SAV-02 | Summary card |
+| Per-instance savings | SAV-04 | Attribution table |
+| Historical chart | SAV-03 | Time series visualization |
+| Actual vs projected | SAV-02 | Comparison view |
+| Time range selection | SAV-03 | 7d, 30d, 90d, custom |
+
+### Differentiators (Nice to Have)
+
+Features that set product apart. Not expected, but valued.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Intelligent schedule recommendations | Analyze usage patterns, suggest optimal sleep windows | HIGH | Key differentiator vs. AWS Instance Scheduler which has no recommendations |
-| Regex-based schedule assignment | Flexible matching: `prod-*` or `*-staging-*` patterns | MEDIUM | User explicitly requested this feature |
-| Activity-based insights | Show actual usage patterns visually (CloudWatch/Cloud Monitoring) | MEDIUM | Helps justify recommendations; builds user confidence |
-| Bulk operations UI | Select multiple instances, apply schedule in one action | LOW | UX efficiency for managing large fleets |
-| Unified multi-cloud dashboard | Single pane of glass for AWS + GCP | LOW | Competitors often single-cloud focused |
-| Schedule conflict detection | Warn when schedules overlap or conflict | MEDIUM | Prevents user errors |
-| Cost savings tracking | Show estimated/actual savings from sleep time | MEDIUM | ROI visibility; justifies tool's value |
-| Override support | Temporary "keep awake" for maintenance windows | LOW | Already modeled (Override entity in existing codebase) |
-| Tag-based filtering | Use existing AWS/GCP tags for schedule assignment | LOW | Leverages existing organizational patterns |
+| Savings forecasting | Predict future value | High | ML-based projection |
+| Schedule effectiveness scoring | Optimization feedback | Medium | Compare schedules |
+| Export to CSV | External analysis | Low | Simple implementation |
+| Per-schedule savings | Schedule attribution | Medium | Aggregate by schedule |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+### Anti-Features (Do NOT Build)
 
-Features that seem good but create problems.
+Features to explicitly NOT build for v1.1 POC.
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Real-time wake-on-connect | "Just wake up when someone connects" | Databases take 5-15 minutes to start; connection timeout long gone. Complex DNS/proxy infrastructure needed. | Manual wake with status notification; schedule wake 15 min before expected use |
-| Auto-scaling instead of sleep | "Scale down to zero" | RDS/Cloud SQL don't support scale-to-zero; minimum instance size still costs money. Aurora Serverless exists but is different product. | Stop instance completely for true $0 cost |
-| Email/SMS notifications | "Tell me when things happen" | Adds infrastructure complexity (SES/SNS/SMTP). POC scope creep. | In-app notification/event log; defer notifications to v2 |
-| Multi-user RBAC | "Different team permissions" | Authentication/authorization complexity; session management. Out of scope for POC. | Single-user POC; add auth in later phase |
-| Holiday calendar integration | "Skip schedules on holidays" | Timezone complexity; regional holiday databases; edge cases. | Manual override for holidays; simple date exclusion list |
-| Complex recurrence patterns | "Every 3rd Tuesday" or "First Monday of month" | cron complexity; testing nightmare; user confusion | Simple weekly patterns; daily on/off times |
-| Billing integration | "Show actual cost savings from billing data" | Requires billing API access (Cost Explorer, BigQuery export); additional auth complexity | Estimate savings from instance specs + uptime hours |
-| Auto-applying recommendations | "Just do it automatically" | Risk of production outages; user needs confirmation | Show recommendations, require explicit user action |
-| Terraform/IaC export | "Export schedules as code" | Scope creep; different users have different IaC tools | API-first design; IaC integration can be built later |
-| Database query analysis | "Find truly idle databases by query volume" | Requires DB-level access (not just cloud APIs); permission complexity | Use CloudWatch/Cloud Monitoring metrics for activity |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Real-time billing API integration | Complexity, API costs, out of scope | Use instance hourly cost estimation |
+| Multi-currency support | Complexity | Single currency (USD, configurable) |
+| PDF report generation | Heavyweight for POC | CSV export only |
+| Email reports | Requires notification infrastructure (out of scope) | Manual export |
+| Cost anomaly detection | ML complexity | Simple trend display |
 
-## Feature Dependencies
+---
 
-```
-[Instance Discovery]
-    └──requires──> [Multi-account Configuration]
-                       └──requires──> [Provider Credentials]
+## 10. Implementation Recommendations
 
-[Schedule Assignment]
-    └──requires──> [Instance Discovery]
-    └──requires──> [Schedule Creation]
+### Phase 1: Core Savings Display (SAV-01, SAV-02)
 
-[Intelligent Recommendations]
-    └──requires──> [Activity Metrics Ingestion]
-                       └──requires──> [Instance Discovery]
+1. **Savings Calculation Service**
+   - Calculate savings from Event records (stop/start events)
+   - Populate Saving table with daily aggregates
+   - API endpoint: `GET /api/v1/savings?from=DATE&to=DATE`
 
-[Manual Sleep/Wake]
-    └──requires──> [Instance Discovery]
-    └──requires──> [Provider Stop/Start APIs]
+2. **Summary Cards**
+   - Total savings (current month)
+   - Savings vs last month (% change)
+   - Total stopped hours
+   - Add to existing Dashboard.tsx
 
-[Cost Savings Display]
-    └──requires──> [Instance Discovery] (for specs)
-    └──requires──> [Operation History] (for uptime tracking)
+### Phase 2: Historical Charts (SAV-03)
 
-[Bulk Operations]
-    └──enhances──> [Manual Sleep/Wake]
-    └──enhances──> [Schedule Assignment]
+1. **Time Range Selector**
+   - 7d, 30d, 90d, custom
+   - Store in URL params for sharing
 
-[Schedule Recommendations] ──conflicts──> [Auto-applying] (safety)
-```
+2. **Savings Chart**
+   - Stacked bar chart using Recharts
+   - Daily granularity for <=30d, weekly for >30d
+   - Group by instance initially
 
-### Dependency Notes
+### Phase 3: Per-Instance Attribution (SAV-04)
 
-- **Schedule Assignment requires Instance Discovery:** Can't assign schedules to instances you haven't discovered
-- **Recommendations require Activity Metrics:** Need historical data to identify patterns
-- **Cost Savings requires Operation History:** Need to track actual start/stop times to calculate savings
-- **Recommendations conflict with Auto-apply:** Require explicit user confirmation for safety
+1. **Savings Table**
+   - Sortable by savings, instance name, stopped hours
+   - Link to instance detail page
+   - Filter by provider, region
 
-## MVP Definition
+2. **Instance Detail Enhancement**
+   - Add savings history section to InstanceDetailPage
+   - Show daily savings for that instance
 
-### Launch With (v1)
+### Phase 4: Cost Projection (SAV-05)
 
-Minimum viable product — what's needed to validate the concept.
+1. **Projection Calculation**
+   - Based on schedule patterns
+   - Compare expected vs actual
 
-- [x] **Instance Discovery** — Foundation; users must see their databases
-- [x] **Multi-account Support** — Enterprises need this from day one
-- [ ] **Manual Sleep/Wake** — Core value; immediate user control
-- [ ] **Instance Status Display** — Users need to see current state
-- [ ] **Basic Schedule Creation** — Define start/end times for sleep
-- [ ] **Regex-based Schedule Assignment** — User's requested flexible matching
-- [ ] **Operation History** — Know what happened and when
+2. **Comparison View**
+   - Overlay on historical chart
+   - Clear visual of "what you saved"
 
-### Add After Validation (v1.x)
-
-Features to add once core is working.
-
-- [ ] **Activity Metrics Ingestion** — Trigger: users want to see usage patterns
-- [ ] **Intelligent Recommendations** — Trigger: enough activity data collected (1+ week)
-- [ ] **Cost Savings Display** — Trigger: users asking "how much did I save?"
-- [ ] **Bulk Operations** — Trigger: users managing 10+ instances
-- [ ] **Schedule Conflict Detection** — Trigger: user errors with overlapping schedules
-- [ ] **Override Support** — Trigger: users need temporary exceptions
-
-### Future Consideration (v2+)
-
-Features to defer until product-market fit is established.
-
-- [ ] **Holiday calendar** — Complexity outweighs value for POC
-- [ ] **Email notifications** — Infrastructure overhead for POC
-- [ ] **Multi-user auth** — Out of scope per PROJECT.md
-- [ ] **Billing API integration** — Estimation sufficient for now
-- [ ] **Complex recurrence** — Weekly patterns sufficient for most cases
-
-## Feature Prioritization Matrix
-
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Instance discovery | HIGH | LOW (exists) | P1 |
-| Manual sleep/wake | HIGH | LOW | P1 |
-| Instance status | HIGH | LOW | P1 |
-| Basic scheduling | HIGH | MEDIUM | P1 |
-| Regex assignment | HIGH | MEDIUM | P1 |
-| Operation history | MEDIUM | LOW (exists) | P1 |
-| Activity metrics | HIGH | MEDIUM | P2 |
-| Recommendations | HIGH | HIGH | P2 |
-| Cost savings display | MEDIUM | LOW | P2 |
-| Bulk operations | MEDIUM | LOW | P2 |
-| Override support | MEDIUM | LOW | P2 |
-| Schedule conflicts | LOW | MEDIUM | P3 |
-| Tag-based filtering | MEDIUM | LOW | P3 |
-
-**Priority key:**
-- P1: Must have for launch (validates core concept)
-- P2: Should have, add when core is stable
-- P3: Nice to have, future consideration
-
-## Competitor Feature Analysis
-
-| Feature | AWS Instance Scheduler | GCP Cloud Scheduler | IBM Cloudability | SnoozeQL |
-|---------|------------------------|---------------------|------------------|----------|
-| Start/stop scheduling | ✓ Tag-based | ✓ HTTP/Pub-Sub triggers | ✗ Cost visibility only | ✓ Direct API |
-| RDS support | ✓ Full | ✗ (needs custom Cloud Function) | ✗ | ✓ Full |
-| Cloud SQL support | ✗ AWS only | ✓ Indirect | ✗ | ✓ Full |
-| Multi-cloud | ✗ | ✗ | ✓ | ✓ |
-| Recommendations | ✗ | ✗ | ✓ (optimization) | ✓ |
-| Activity analysis | ✗ | ✗ | ✓ (spend) | ✓ (metrics) |
-| Regex matching | ✗ (exact tags) | ✗ | N/A | ✓ |
-| UI dashboard | ✗ (CLI/DynamoDB) | ✗ (Console) | ✓ | ✓ |
-| Setup complexity | HIGH (CloudFormation) | MEDIUM | LOW (SaaS) | LOW |
-| Cross-account | ✓ (with remote stacks) | ✗ | ✓ | ✓ |
-
-### Our Differentiating Approach
-
-**AWS Instance Scheduler** is infrastructure-focused (CloudFormation, DynamoDB, Lambda). No UI, no recommendations, AWS-only. Complex setup requiring tagging discipline.
-
-**GCP Cloud Scheduler** is a generic job scheduler, not purpose-built for databases. Requires custom Cloud Functions to actually stop/start instances.
-
-**IBM Cloudability** and similar FinOps tools focus on cost visibility and optimization recommendations, but don't provide direct instance control or scheduling.
-
-**SnoozeQL's approach:**
-1. **Purpose-built for database sleep** — Not generic compute scheduling
-2. **Multi-cloud first** — AWS + GCP in unified interface
-3. **Intelligent by default** — Recommendations, not just scheduling
-4. **Low setup friction** — Connect accounts, see instances, create schedules
-5. **Regex-based flexibility** — Match naming conventions, not just exact tags
+---
 
 ## Sources
 
-**AWS Instance Scheduler (HIGH confidence - official):**
-- https://aws.amazon.com/solutions/implementations/instance-scheduler-on-aws/
-- https://github.com/aws-solutions/instance-scheduler-on-aws
-- https://docs.aws.amazon.com/solutions/latest/instance-scheduler-on-aws/operator-guide.html
+### High Confidence (Official Documentation)
 
-**GCP Cloud SQL (HIGH confidence - official):**
-- https://cloud.google.com/sql/docs/mysql/start-stop-restart-instance
-- https://cloud.google.com/scheduler/docs/overview
+- AWS Cost and Usage Reports: https://docs.aws.amazon.com/cur/latest/userguide/what-is-cur.html
+- AWS Cost Explorer: https://docs.aws.amazon.com/cost-management/latest/userguide/ce-exploring-data.html
+- GCP Billing Reports: https://cloud.google.com/billing/docs/how-to/reports
+- AWS RDS Pricing: https://aws.amazon.com/rds/pricing/
 
-**GCP Cloud Scheduler (HIGH confidence - official):**
-- https://cloud.google.com/scheduler/docs/overview
+### Medium Confidence (Industry Standards)
 
-**FinOps/Cost Management (MEDIUM confidence - vendor sites):**
-- https://www.apptio.com/products/cloudability/
-- https://www.flexera.com/
-- https://www.infracost.io/
+- FinOps Foundation - Reporting & Analytics: https://www.finops.org/framework/capabilities/reporting-analytics/
+- IBM Kubecost - Cost monitoring patterns: https://www.apptio.com/products/kubecost/
+
+### Existing SnoozeQL Implementation
+
+- Dashboard.tsx - Current dashboard patterns
+- models.go - Saving, Event, Instance models
+- STACK.md - Recharts already available
 
 ---
-*Feature research for: Database Sleep Scheduling*
-*Researched: 2026-02-20*
+
+*Feature landscape research: 2026-02-23*

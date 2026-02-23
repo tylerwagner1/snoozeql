@@ -1,167 +1,261 @@
 # Project Research Summary
 
-**Project:** SnoozeQL
-**Domain:** Database Sleep Scheduling (Multi-Cloud RDS/Cloud SQL Management)
-**Researched:** 2026-02-20
+**Project:** SnoozeQL v1.1 - Cost Savings Tracking
+**Domain:** Cloud database cost optimization / Infrastructure cost management
+**Researched:** 2026-02-23
 **Confidence:** HIGH
 
 ## Executive Summary
 
-SnoozeQL is a database sleep scheduling system that automates the stopping and starting of AWS RDS and GCP Cloud SQL instances to reduce cloud costs during inactive periods. The existing codebase provides a strong foundation with provider abstraction, instance discovery, and a well-structured Go backend with React frontend. Research confirms this architecture aligns with best practices for infrastructure automation tools.
+SnoozeQL v1.0 already contains the foundational infrastructure for cost savings tracking: the `Event` model captures all stop/start actions with timestamps, instances store `HourlyCostCents`, and the `Saving` model with `StoppedMinutes` and `EstimatedSavingsCents` is ready to use. The v1.1 cost tracking feature is primarily about **calculating and visualizing** data the system already captures. No new external libraries are required—the existing Go backend handles savings calculation with simple arithmetic, and Recharts (already in use) supports all needed visualizations.
 
-The recommended approach is to extend the existing architecture rather than rebuild. Key additions needed are: CloudWatch/Cloud Monitoring integration for activity metrics, robfig/cron for timezone-aware scheduling, and an event system for audit trails and savings calculation. The most critical differentiator is **intelligent schedule recommendations** based on activity analysis — competitors like AWS Instance Scheduler provide only manual configuration with no usage insights.
+The recommended approach is a **hybrid push/pull model**: calculate savings when events occur (push) using a decorator pattern that wraps the existing EventStore, then aggregate views on-demand (pull) with a materialized view for dashboard performance. The architecture minimizes coupling by using the decorator pattern—savings calculation hooks into the existing event flow without modifying core event storage logic. This allows existing code to remain unchanged while adding new functionality.
 
-The primary risks are platform constraints (AWS 7-day auto-restart, instances with read replicas cannot be stopped) and user expectations around cost savings (storage charges continue while stopped). These require proactive handling: the 7-day restart must be addressed in Phase 1 core scheduling, and storage cost communication must be clear in all UI surfaces. Variable startup times (5-45 minutes) also impact user experience and must be accounted for in schedule recommendations.
+The primary risks are **AWS 7-day auto-restart** (instances automatically restart after 7 days stopped, causing overcounted savings if ignored) and **race conditions in event processing** (duplicate or out-of-order events causing double-counted savings). Both are mitigated by state-based calculation from periodic instance status polls rather than relying solely on event timestamps. POC pricing accuracy is acceptable with disclaimers—defer billing API integration to future versions.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack (Go 1.24.0, React 18.2, PostgreSQL, Chi router) is solid and appropriate. Key additions are CloudWatch SDK for AWS activity monitoring, Cloud Monitoring SDK for GCP, and robfig/cron for schedule execution. Frontend would benefit from TanStack Query for data fetching and date-fns for timezone handling.
+No new dependencies required for POC. The existing Go/React/PostgreSQL stack is sufficient.
 
 **Core technologies:**
-- **Go 1.24.0 + Chi v5.2.5**: Already in use — excellent for concurrent cloud API calls, lightweight HTTP routing
-- **pgx v5.8.0**: Best-in-class PostgreSQL driver with connection pooling and JSONB support
-- **robfig/cron v3.0.1**: Standard Go cron library — timezone-aware, panic recovery, skip-if-running options
-- **aws-sdk-go-v2/service/cloudwatch**: NEW — required for DatabaseConnections metrics to detect activity
-- **cloud.google.com/go/monitoring v1.24.3**: NEW — Cloud Monitoring API for GCP activity metrics
-- **TanStack Query 5.x**: Recommended for frontend — handles caching, refetching, optimistic updates
+- **Go stdlib `time`**: Duration calculations for stop periods — already available
+- **pgx/v5**: PostgreSQL aggregation queries with materialized views — already in use
+- **Recharts 2.10.0**: Time-series charts (LineChart, BarChart, ComposedChart) — already integrated
+- **Integer cents pattern**: Store all currency as `int` cents, not `float64` dollars — already the SnoozeQL pattern
+
+**Explicitly NOT needed for POC:**
+- AWS Pricing API / GCP Cloud Billing API — adds complexity for marginal accuracy improvement
+- shopspring/decimal — integer cents is sufficient
+- Infracost / OpenCost — designed for IaC and K8s, not managed database stop/start
 
 ### Expected Features
 
 **Must have (table stakes):**
-- Manual start/stop instances — core value proposition
-- Instance discovery & listing — foundation for all features
-- Multi-account support — enterprises require this from day one
-- Basic schedule creation with time windows — core automation
-- Regex-based schedule assignment — user-requested flexible matching
-- Instance status visibility — users need current state
-- Operation history/audit log — know what happened and when
+- **Total savings display** (SAV-02) — summary card showing money saved
+- **Per-instance savings table** (SAV-04) — attribution showing which instances contributed
+- **Historical time-series chart** (SAV-03) — visualize savings trend over time
+- **Actual vs projected comparison** (SAV-02, SAV-05) — show what SnoozeQL saved vs running 24/7
+- **Time range selection** (SAV-03) — 7d, 30d, 90d, custom
 
-**Should have (competitive differentiators):**
-- Intelligent schedule recommendations — key differentiator vs. AWS Instance Scheduler
-- Activity-based insights visualization — builds user confidence in recommendations
-- Cost savings tracking — ROI visibility justifies the tool
-- Override support — temporary exceptions for maintenance windows
+**Should have (differentiators):**
+- **Savings trend indicator** — % change vs previous period
+- **Month-to-date rollup** — standard financial reporting view
+- **CSV export** — external analysis capability
+- **Per-schedule savings** — attribute savings to schedules, not just instances
 
 **Defer (v2+):**
-- Multi-user RBAC — authentication complexity out of POC scope
-- Email/SMS notifications — infrastructure overhead for POC
-- Holiday calendar integration — timezone complexity, edge cases
-- Complex recurrence patterns (every 3rd Tuesday) — simple weekly patterns sufficient
+- Real billing API integration (AWS Cost Explorer, GCP Cloud Billing)
+- PDF report generation
+- Email notifications for savings milestones
+- ML-based forecasting
+- Multi-currency support
 
 ### Architecture Approach
 
-The system follows a **control plane + worker pattern** common in infrastructure automation. The existing service-oriented architecture with provider abstraction is well-suited. Key patterns: Provider Interface (abstracts cloud operations), Event Sourcing (audit trail + savings calculation), Selector-Based Matching (schedules match instances dynamically via regex/tags), Background Workers (polling loops for discovery and scheduling).
+Use an **Event-Driven Savings Calculator** with a hybrid push/pull model. The calculator hooks into existing event flow via the **decorator pattern**: `EventStoreWithSavings` wraps the existing `EventStore`, triggering savings calculation when start/wake events occur (finalizing the previous stop period). Dashboard queries use a **materialized view** (`savings_summary`) refreshed every 15 minutes for performance. Currently-stopped instances calculate ongoing savings in real-time using `time.Now() - last_stop_event`.
 
 **Major components:**
-1. **Discovery Service** — Polls cloud providers, syncs instances to PostgreSQL, detects tag changes
-2. **Scheduler Service** — Evaluates cron expressions, matches instances to schedules, executes start/stop via providers
-3. **Analyzer Service** — Collects metrics, detects inactivity patterns, generates recommendations (NEW)
-4. **Provider Registry** — Abstracts AWS/GCP operations behind common interface (exists, extend for metrics)
-5. **Savings Calculator** — Tracks stop/start events, calculates cost savings (NEW)
+1. **SavingsCalculator** (`internal/savings/calculator.go`) — core calculation logic: duration × hourly_cost_cents
+2. **EventStoreWithSavings** (`internal/savings/event_decorator.go`) — decorator that triggers savings on start events
+3. **SavingsStore** (`internal/store/savings_store.go`) — PostgreSQL storage with upsert for daily aggregations
+4. **SavingsHandler** (`internal/api/handlers/savings.go`) — API endpoints for summary, history, per-instance
+5. **Materialized View** (`savings_summary`) — pre-aggregated daily/weekly/monthly rollups
+
+**Data Model (Minimal Changes):**
+- Use existing `savings` table (already defined with `instance_id`, `date`, `stopped_minutes`, `estimated_savings_cents`)
+- Add `savings_summary` materialized view for dashboard performance
+- Add indexes: `idx_events_instance_time`, `idx_events_type_time`
+- Store `hourly_rate_cents` in event metadata at stop time (handles instance type changes)
 
 ### Critical Pitfalls
 
-1. **AWS 7-Day Auto-Restart** — AWS forces restart after 7 days stopped. Must implement "re-stop" mechanism that monitors for auto-restart events and immediately stops again. **Address in Phase 1.**
+1. **AWS 7-day auto-restart ignored** — AWS RDS automatically restarts stopped instances after 7 consecutive days. Cap `actualStoppedDuration` at 7 days maximum. Detection: calculated savings vs actual billing diverge after 7+ days.
 
-2. **Instance State Race Conditions** — Stop/start operations are async (minutes to hours). Must implement proper state machine: only stop if `available`, only start if `stopped`, handle transitional states as in-progress. **Address in Phase 1.**
+2. **Race conditions in event processing** — Stop/start events can arrive out of order, duplicate, or fail. Use **state-based calculation** from periodic instance status polls, not just event timestamps. Deduplicate consecutive same-state observations.
 
-3. **Read Replicas Cannot Be Stopped** — Instances with read replicas cannot be stopped (AWS/GCP constraint). Discovery must flag these as "unsleepable" with clear UI explanation. **Address in Phase 1.**
+3. **Calculating on every dashboard load** — Query all events and compute durations on each page load becomes O(n*m) as events grow. Use pre-aggregated `savings` table; calculate once on event, read many times.
 
-4. **Storage Charges Continue** — Users expect $0 cost when sleeping. In reality: storage, backups, IPs still charged. UI must clearly communicate "saves compute costs, storage charges continue." **Address in Phase 1 UI.**
+4. **Ignoring currently-stopped instances** — Only calculating savings on start event shows $0 for instances stopped for days. Calculate **ongoing savings** separately: `time.Since(last_stop_event) × hourly_cost_cents`.
 
-5. **Variable Start Time** — Startup ranges from minutes to hours. Cannot schedule wake at 8:55 AM for 9:00 AM meeting. Track historical startup times, add warm-up buffer (30-60 min). **Address in Phase 2.**
+5. **Floating-point for money** — Rounding errors compound over thousands of operations. Already solved: SnoozeQL uses integer cents. **Maintain this pattern.**
+
+## Implementation Approach
+
+### Data Model Changes
+
+**New migration: `006_cost_tracking.sql`**
+
+```sql
+-- Materialized view for dashboard performance
+CREATE MATERIALIZED VIEW savings_summary AS
+SELECT 
+    instance_id,
+    DATE_TRUNC('day', date) as day,
+    DATE_TRUNC('week', date) as week,
+    DATE_TRUNC('month', date) as month,
+    SUM(stopped_minutes) as total_stopped_minutes,
+    SUM(estimated_savings_cents) as total_savings_cents
+FROM savings
+GROUP BY instance_id, DATE_TRUNC('day', date), DATE_TRUNC('week', date), DATE_TRUNC('month', date);
+
+CREATE UNIQUE INDEX idx_savings_summary_instance_day ON savings_summary(instance_id, day);
+
+-- Index for time-range queries on events
+CREATE INDEX idx_events_instance_time ON events(instance_id, created_at DESC);
+CREATE INDEX idx_events_type_time ON events(event_type, created_at);
+```
+
+### Service Layer
+
+**New files:**
+```
+internal/savings/
+├── calculator.go      # Core calculation: duration × hourly_cost_cents
+├── event_decorator.go # EventStoreWithSavings decorator
+├── backfill.go        # One-time historical calculation
+└── service.go         # Business logic orchestration
+
+internal/store/
+└── savings_store.go   # PostgreSQL CRUD for savings table
+```
+
+**Key interfaces:**
+```go
+type SavingsStore interface {
+    UpsertDailySaving(ctx context.Context, saving *models.Saving) error
+    GetSavingsByInstance(ctx context.Context, instanceID string, start, end time.Time) ([]models.Saving, error)
+    GetTotalSavings(ctx context.Context, start, end time.Time) (int, error)
+}
+```
+
+### API Endpoints
+
+| Endpoint | Purpose | Response |
+|----------|---------|----------|
+| `GET /api/v1/savings` | Overall summary | `{total_savings_cents, period, top_savers[], ongoing_savings}` |
+| `GET /api/v1/savings/daily?days=30` | Daily breakdown | `{daily_savings: [{date, savings_cents, stopped_minutes}]}` |
+| `GET /api/v1/savings/by-instance` | Per-instance attribution | `[{instance_id, name, savings_cents, stopped_hours}]` |
+| `GET /api/v1/instances/{id}/savings` | Single instance detail | `{instance_id, total_savings_cents, events[]}` |
+| `POST /api/v1/savings/backfill` | Trigger historical calc | `{status: "backfill_started"}` |
+
+### Frontend Components
+
+**New components (using existing Recharts patterns):**
+```
+web/src/components/
+├── SavingsCard.tsx           # Summary stat card (like existing dashboard cards)
+├── SavingsLineChart.tsx      # Time series trend using <LineChart>
+├── SavingsBreakdown.tsx      # Per-instance attribution table
+└── ProjectionChart.tsx       # Actual vs projected using <ComposedChart>
+```
+
+**Dashboard.tsx integration:**
+- Replace mock `totalSavings` calculation with real API data from `/api/v1/savings`
+- Add time range selector (7d/30d/90d/custom)
+- Add per-instance savings table below chart
+
+### Integration Points
+
+| v1.0 Component | Integration | Changes |
+|----------------|-------------|---------|
+| `EventStore` | Wrap with `EventStoreWithSavings` decorator | None to existing code |
+| `DiscoveryService` | Use decorated EventStore in constructor | One-line change in main.go |
+| `Dashboard.tsx` | Fetch from new `/api/v1/savings` endpoint | Replace mock data |
+| PostgreSQL | Add migration 006, materialized view | Additive only |
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Core Scheduling Foundation
-**Rationale:** Must establish reliable start/stop operations before building intelligence on top. 7-day auto-restart and state machine are fundamental — broken core undermines everything.
-**Delivers:** Working sleep/wake operations, schedule creation, instance management
-**Addresses:** Manual sleep/wake, instance status, basic scheduling, regex assignment, operation history
-**Avoids:** 7-day auto-restart (implement re-stop), state race conditions (proper state machine), read replica constraint (flag in discovery), storage charge confusion (clear UI messaging)
+### Phase 1: Core Savings Calculation (SAV-01)
+**Rationale:** Foundation that all other features depend on. Must work correctly before visualization.
+**Delivers:** SavingsCalculator service, savings calculation on events, daily aggregation
+**Addresses:** SAV-01 (calculate savings from stop/start events)
+**Avoids:** Pitfall #1 (7-day restart), Pitfall #2 (race conditions), Pitfall #5 (floating-point)
+**Estimated time:** 1-1.5 days
 
-### Phase 2: Schedule Enhancement & Conflict Detection
-**Rationale:** Once core scheduling works, add robustness features. Variable start times and regex conflicts are user-impacting issues that need addressing before recommendations.
-**Delivers:** Improved scheduling reliability, conflict detection, startup time tracking
-**Uses:** robfig/cron for proper cron evaluation, event system for tracking
-**Implements:** Schedule conflict detection, startup time estimation, override system
+### Phase 2: Savings API Layer (SAV-02 partial)
+**Rationale:** Backend must expose data before frontend can consume it
+**Delivers:** REST endpoints (`/api/v1/savings/*`), SavingsStore, SavingsHandler
+**Uses:** Existing handler patterns, Chi router
+**Implements:** SavingsStore, SavingsHandler
+**Estimated time:** 0.5-1 day
 
-### Phase 3: Activity Analysis & Metrics
-**Rationale:** Metrics collection must precede recommendations — analyzer depends on having historical data. This phase builds the intelligence foundation.
-**Delivers:** CloudWatch/Cloud Monitoring integration, activity dashboards, metrics storage
-**Uses:** aws-sdk-go-v2/cloudwatch, cloud.google.com/go/monitoring
-**Implements:** Metrics collector, activity visualization, pattern detection groundwork
-**Avoids:** Metrics lag issues (use conservative thresholds, require sustained low activity)
+### Phase 3: Dashboard Integration (SAV-02, SAV-03)
+**Rationale:** Users see value through the UI—this is the primary deliverable
+**Delivers:** Summary cards, time-series chart, time range selector
+**Addresses:** SAV-02 (savings dashboard), SAV-03 (historical charts)
+**Avoids:** Pitfall #9 (too much data), Pitfall #10 (too little context)
+**Estimated time:** 1-1.5 days
 
-### Phase 4: Intelligent Recommendations
-**Rationale:** Key differentiator but requires metrics data accumulated in Phase 3. This is where SnoozeQL exceeds competitors.
-**Delivers:** Schedule recommendations based on usage patterns, confidence scoring
-**Uses:** Accumulated metrics, pattern detection algorithms
-**Implements:** Analyzer service, recommendation generation, user confirmation workflow
-**Avoids:** Minimum billing increment trap (filter windows below cost-effective threshold)
+### Phase 4: Per-Instance Attribution (SAV-04)
+**Rationale:** Attribution answers "which instances contribute most?"—key for optimization
+**Delivers:** Per-instance savings table, sortable columns, drill-down links
+**Addresses:** SAV-04 (per-instance savings attribution)
+**Avoids:** Pitfall #6 (N+1 queries)
+**Estimated time:** 0.5-1 day
 
-### Phase 5: Savings & Reporting
-**Rationale:** Depends on events flowing from Phase 1-2 and metrics from Phase 3. ROI reporting validates the tool's value.
-**Delivers:** Cost savings dashboard, estimated vs. actual savings, per-instance reporting
-**Uses:** Event history, instance specs, pricing data
-**Implements:** Savings calculator, aggregation queries, dashboard charts
+### Phase 5: Cost Projection (SAV-05)
+**Rationale:** Comparison validates SnoozeQL's value proposition
+**Delivers:** Actual vs projected chart, "what you would have spent" baseline
+**Addresses:** SAV-05 (cost projection), SAV-02 (actual vs expected)
+**Avoids:** Pitfall #12 (confusing stopped with saving—add disclaimer)
+**Estimated time:** 0.5-1 day
 
 ### Phase Ordering Rationale
 
-- **Dependency chain:** Discovery → Scheduling → Events → Metrics → Analysis → Recommendations → Savings
-- **Risk mitigation:** Phase 1 addresses 4 of 5 critical pitfalls — get these right before adding complexity
-- **Value delivery:** Each phase delivers usable functionality. Phase 1 alone provides value (manual control + basic scheduling). Recommendations (Phase 4) are the differentiator but require foundation.
-- **Architecture alignment:** Follows build order from ARCHITECTURE.md — Events first (dependency for savings), Metrics before Analysis, Scheduler enhancement after core works
+- **Calculation before visualization:** Phase 1 must complete before phases 3-5 have data to display
+- **API before frontend:** Phase 2 exposes endpoints that phases 3-5 consume
+- **Core dashboard before details:** Phase 3 delivers the primary value; phases 4-5 add depth
+- **Group by architectural layer:** Backend (1-2), then frontend (3-5)
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 3 (Activity Analysis):** CloudWatch/Cloud Monitoring API specifics, metrics granularity, optimal collection intervals
-- **Phase 4 (Recommendations):** Pattern detection algorithms, confidence scoring methodology, threshold tuning
-
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (Core Scheduling):** Well-documented AWS/GCP APIs, existing codebase provides patterns
-- **Phase 2 (Schedule Enhancement):** robfig/cron is well-documented, standard conflict detection patterns
-- **Phase 5 (Savings):** Straightforward calculation from events + pricing, established patterns
+- **Phase 1:** Calculation logic is simple arithmetic; existing Event/Instance models sufficient
+- **Phase 2:** Follow existing handler patterns from `internal/api/handlers/`
+- **Phase 3:** Recharts already in use; follow existing Dashboard.tsx patterns
+- **Phase 4:** Standard table component with sorting
+- **Phase 5:** Composed chart with two data series
+
+No phases require additional deep research—architecture and patterns are well-documented in the codebase.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Versions verified via pkg.go.dev, existing codebase validates core stack |
-| Features | HIGH | Competitor analysis from official sources, clear table stakes identified |
-| Architecture | HIGH | Based on existing codebase analysis + infrastructure automation best practices |
-| Pitfalls | HIGH | All critical pitfalls sourced from official AWS/GCP documentation |
+| Stack | HIGH | No new dependencies; all existing libraries sufficient |
+| Features | HIGH | Clear requirements from PROJECT.md; industry patterns verified |
+| Architecture | HIGH | Existing codebase provides patterns; decorator approach minimizes risk |
+| Pitfalls | MEDIUM | AWS 7-day behavior documented; race condition mitigation needs testing |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **GCP Cloud SQL scheduling details:** Provider scaffolded but not fully implemented — needs completion in Phase 1
-- **Pricing data source:** Savings calculation needs instance pricing lookup — consider AWS Pricing API or static lookup table
-- **Multi-instance deployment:** Research focused on single-instance POC; distributed locking needed for HA deployment (v2 consideration)
-- **Startup time prediction:** No existing data — must collect empirically before recommendations can account for it
+- **AWS 7-day auto-restart verification:** Test that savings calculation correctly caps at 7 days. Manual testing required with long-stopped instance.
+- **Event ordering edge cases:** Unit tests needed for out-of-order events, duplicates, and missing start events.
+- **Pricing accuracy disclaimer:** UI must clearly communicate that estimates may differ from actual billing.
+- **Historical backfill:** One-time backfill job needed to calculate savings for events that occurred before v1.1 deployment.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- AWS RDS Stop/Start Documentation — https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_StopInstance.html
-- AWS CloudWatch RDS Metrics — https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/rds-metricscollected.html
-- GCP Cloud SQL Start/Stop — https://cloud.google.com/sql/docs/mysql/start-stop-restart-instance
-- GCP Cloud Monitoring — https://cloud.google.com/sql/docs/mysql/monitor-instance
-- pkg.go.dev — robfig/cron v3.0.1, aws-sdk-go-v2 v1.41.1, cloud.google.com/go/monitoring v1.24.3
+- SnoozeQL v1.0 codebase — existing models, handlers, and UI patterns
+- `internal/models/models.go` — Saving, Event, Instance models already defined
+- `deployments/docker/migrations/001_base_schema.sql` — existing schema
+- `Dashboard.tsx` — existing Recharts usage patterns
 
 ### Secondary (MEDIUM confidence)
-- AWS Instance Scheduler solution — https://aws.amazon.com/solutions/implementations/instance-scheduler-on-aws/
-- Go project layout conventions — https://github.com/golang-standards/project-layout
-- TanStack Query documentation — https://tanstack.com/query/latest
+- AWS RDS Documentation — confirms 7-day auto-restart behavior
+- AWS RDS Pricing — validates cost estimation approach
+- FinOps Foundation Reporting & Analytics — industry standard metrics
 
 ### Tertiary (LOW confidence)
-- Startup time estimates (5-45 minutes) — based on AWS documentation language ("minutes to hours") rather than empirical data
+- Community patterns for cloud cost dashboards — informed feature prioritization
 
 ---
-*Research completed: 2026-02-20*
+*Research completed: 2026-02-23*
 *Ready for roadmap: yes*

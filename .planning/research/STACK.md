@@ -1,247 +1,338 @@
-# Stack Research
+# Technology Stack: Cost Savings Tracking for SnoozeQL v1.1
 
-**Domain:** Database sleep scheduling (multi-cloud RDS/Cloud SQL management)
-**Researched:** 2026-02-20
-**Confidence:** HIGH
+**Project:** SnoozeQL v1.1 - Cost Savings Tracking
+**Researched:** 2026-02-23
+**Confidence:** HIGH (leverages existing infrastructure patterns)
 
 ## Executive Summary
 
-This research validates and extends the existing SnoozeQL technology stack for a database sleep scheduling application. The current stack (Go 1.24.0, React 18.2, PostgreSQL, Chi router) is solid and appropriate for this domain. Key additions needed are: CloudWatch metrics SDK for AWS activity monitoring, GCP Cloud Monitoring SDK for GCP activity, and robust cron scheduling for sleep/wake automation.
+SnoozeQL v1.0 already has the core data structures needed for cost tracking: `HourlyCostCents` on instances, `Saving` model with `StoppedMinutes` and `EstimatedSavingsCents`, and `Event` records for stop/start operations. The v1.1 cost tracking feature is primarily about **calculating and visualizing** data that the system already captures.
 
-## Recommended Stack
+**Key insight:** No new external libraries are required for core cost calculation. The existing Go backend can implement savings calculation using simple arithmetic from Event timestamps and instance costs. The frontend already uses Recharts for visualization.
 
-### Core Backend Technologies
+---
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Go | 1.24.0 | Backend runtime | Already in use, excellent for concurrent cloud API calls. Modern Go with improved tooling. |
-| Chi | v5.2.5 | HTTP router | Already at v5.2.0, minor update available. Lightweight, composable middleware, standard library compatible. |
-| pgx | v5.8.0 | PostgreSQL driver | Already in use. Best-in-class Go PostgreSQL driver with connection pooling and JSONB support. |
-| robfig/cron | v3.0.1 | Cron scheduling | Standard Go cron library with 5,150+ importers. Supports timezone-aware scheduling, job wrappers for recovery/logging. |
+## 1. Cost Estimation Techniques
 
-**Confidence:** HIGH - Verified via pkg.go.dev and GitHub releases on 2026-02-20.
+### Recommended Approach: Event-Based Calculation
 
-### Cloud Provider SDKs
+**Method:** Calculate savings from actual stop/start events by measuring stopped duration.
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| aws-sdk-go-v2 | v1.41.1 | AWS core SDK | Already in use. Official AWS SDK v2 with modular design. |
-| aws-sdk-go-v2/service/rds | v1.116.0 | RDS operations | Already in use. Provides StartDBInstance, StopDBInstance APIs. |
-| aws-sdk-go-v2/service/cloudwatch | v1.54.0 | Activity metrics | **NEW** - Required for GetMetricData to fetch DatabaseConnections, CPUUtilization metrics for activity detection. |
-| google.golang.org/api | v0.267.0 | GCP core API | Already in use for Cloud SQL admin operations. |
-| cloud.google.com/go/monitoring | v1.24.3 | GCP metrics | **NEW** - Cloud Monitoring API for fetching cloudsql.googleapis.com/database/network/connections and CPU metrics. |
-
-**Confidence:** HIGH - Versions verified via pkg.go.dev on 2026-02-20.
-
-### Frontend Technologies
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| React | 18.2.0 | UI framework | Already in use. Stable, widely adopted. React 19.x available but 18.2 is mature and well-tested. |
-| Vite | 5.0.8 → 7.3.1 | Build tool | Current version outdated. **Consider upgrade** to Vite 7.x for faster builds and improved DX. |
-| TypeScript | 5.3.3 → 5.9.3 | Type safety | Current version works but 5.9 has improved inference. Optional upgrade. |
-| React Router DOM | 6.20.0 → 7.13.0 | Routing | Major version available with data loading improvements. **Consider upgrade** for better async support. |
-| Tailwind CSS | 3.4.0 → 4.2.0 | Styling | Tailwind v4 is production-ready with improved performance. **Optional upgrade**. |
-
-**Confidence:** MEDIUM - React 18.2 is stable; upgrades are optional improvements.
-
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| TanStack Query | 5.90.21 | Server state management | **NEW** - Recommended for frontend API calls. Handles caching, refetching, optimistic updates. |
-| react-hook-form | 7.71.1 | Form handling | For schedule creation forms with validation. |
-| zod | 4.3.6 | Schema validation | Frontend/backend validation schemas. Already using JSON for API, Zod provides type-safe parsing. |
-| date-fns | 4.1.0 | Date manipulation | Schedule time calculations, timezone handling. Smaller than moment.js, tree-shakeable. |
-| Recharts | 2.10.0 | Charting | Already in use for dashboard. Continue using for activity visualization. |
-
-**Confidence:** HIGH for TanStack Query (standard React data fetching); MEDIUM for others (optional but recommended).
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| golangci-lint | Go linting | Already configured in Makefile. Keep using for code quality. |
-| ESLint 8.x | JS/TS linting | Already configured. Note: ESLint 9 has breaking config format. |
-| Docker Compose | Local development | Already in use for PostgreSQL and multi-service setup. |
-| Air | Hot reload | Consider adding for Go hot reload during development. |
-
-## Installation
-
-### Backend Dependencies (Go)
-
-```bash
-# Core (already present)
-go get github.com/go-chi/chi/v5@v5.2.5
-go get github.com/jackc/pgx/v5@v5.8.0
-
-# AWS SDK (add CloudWatch)
-go get github.com/aws/aws-sdk-go-v2/service/cloudwatch@latest
-
-# GCP SDK (add Cloud Monitoring)
-go get cloud.google.com/go/monitoring@latest
-
-# Cron scheduling (new)
-go get github.com/robfig/cron/v3@v3.0.1
+```
+Savings = (StoppedDuration in hours) × (HourlyCostCents)
 ```
 
-### Frontend Dependencies (npm)
+**Why this approach:**
+- **Accurate:** Based on actual stop/start events, not projections
+- **Simple:** No external API dependencies or pricing lookups
+- **Already supported:** `Event` model captures all start/stop actions with timestamps
+- **POC-appropriate:** Avoids complexity of billing API integration
 
-```bash
-# Recommended additions
-npm install @tanstack/react-query@^5
-npm install date-fns@^4
-npm install zod@^4
-npm install react-hook-form@^7
+**Data flow:**
+1. `Event` records capture `stop` and `start` actions with `created_at` timestamps
+2. Calculate duration between stop → start pairs per instance
+3. Multiply stopped duration by `instance.HourlyCostCents`
+4. Aggregate into `Saving` records (daily rollup)
 
-# Optional upgrades (major version changes - test thoroughly)
-npm install vite@^7 react-router-dom@^7
-```
+### Alternative: Real Billing API Integration (NOT recommended for POC)
 
-## Alternatives Considered
+**AWS Pricing API:**
+- `github.com/aws/aws-sdk-go-v2/service/pricing` provides programmatic access
+- Requires parsing complex JSON pricing structures
+- Pricing varies by region, instance class, storage type, and reservation model
+- Adds significant complexity for marginal accuracy improvement
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| robfig/cron | go-co-op/gocron v2.19 | gocron is more feature-rich (distributed locks, event listeners) but adds complexity. Use for multi-instance deployments needing job coordination. |
-| pgx | database/sql + lib/pq | Use lib/pq only if you need standard library compatibility. pgx is faster and more feature-rich. |
-| TanStack Query | SWR | SWR is simpler but TanStack Query has better devtools and mutation support. Use SWR for simpler read-only data fetching. |
-| date-fns | Day.js | Day.js has smaller bundle size but date-fns is more feature-complete for timezone handling. |
-| React 18.2 | React 19.x | Upgrade to React 19 if you need the new `use()` hook or improved suspense. Not required for this project. |
+**GCP Cloud Billing API:**
+- `cloud.google.com/billing` for programmatic access
+- Similar complexity to AWS
 
-## What NOT to Use
+**Verdict:** The existing `HourlyCostCents` field on instances is sufficient for POC. Real billing integration can be a future enhancement.
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| aws-sdk-go v1 | Deprecated, worse performance, no module support | aws-sdk-go-v2 (already using) |
-| moment.js | Large bundle size, deprecated | date-fns or Day.js |
-| node-cron (frontend) | Wrong layer - scheduling belongs in backend | robfig/cron in Go backend |
-| GraphQL | Overkill for this app - simple REST endpoints suffice | Chi REST API (already using) |
-| Redis for job queues | Adds operational complexity for POC | In-memory cron scheduler is sufficient for single-instance POC |
-| Kubernetes CronJobs | Infrastructure complexity - app handles scheduling | robfig/cron for in-app scheduling |
+---
 
-## Stack Patterns by Variant
+## 2. Recommended Libraries/Tools
 
-**If deploying multi-instance (HA):**
-- Add Redis for distributed locks on scheduled jobs
-- Consider gocron v2 with distributed locking support
-- Use pg advisory locks for singleton job execution
+### Go Backend (No New Dependencies Required)
 
-**If adding more cloud providers (Azure, etc.):**
-- Maintain provider abstraction pattern already in place
-- Add Azure SDK v2 for Azure SQL
-- Keep metrics interface generic (GetMetrics returns map[string]any)
+| Library | Status | Purpose |
+|---------|--------|---------|
+| **shopspring/decimal** | OPTIONAL | Precise decimal arithmetic for currency |
+| **stdlib time** | EXISTING | Duration calculations |
+| **pgx/v5** | EXISTING | PostgreSQL queries for aggregation |
 
-**If scaling to thousands of instances:**
-- Add message queue (SQS/Pub/Sub) for async operations
-- Consider worker pool pattern for concurrent stop/start
-- Rate limit cloud API calls per provider
+**Recommendation:** Use integer cents throughout (already the pattern). `HourlyCostCents` avoids floating-point issues. Only add `shopspring/decimal` if converting to dollars for display causes rounding issues.
 
-## Version Compatibility
+### React Frontend (Leverage Existing)
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| pgx v5.8.0 | PostgreSQL 12-16 | Tested with PG 15 in docker-compose |
-| aws-sdk-go-v2 v1.41.1 | All AWS regions | Auto-detects regions from credentials |
-| robfig/cron v3.0.1 | Go 1.11+ | Uses Go modules, timezone-aware |
-| React 18.2 | Vite 5.x-7.x | Vite 7 requires minor config updates |
-| TanStack Query 5.x | React 18+ | Suspense support requires React 18 |
+| Library | Version | Status | Purpose |
+|---------|---------|--------|---------|
+| **Recharts** | 2.10.0 | EXISTING | Charts and visualizations |
+| **lucide-react** | 0.300.0 | EXISTING | Icons for dashboard components |
+| **React Router** | 6.20.0 | EXISTING | Navigation between savings views |
 
-## CloudWatch Metrics for RDS Activity Detection
+**Recommendation:** No new frontend dependencies. Recharts already supports all needed chart types (line, bar, area, pie) for cost visualization.
 
-Key metrics to fetch for sleep scheduling decisions:
+### External Tools Considered (Not Recommended for POC)
 
-| Metric | Namespace | Purpose |
-|--------|-----------|---------|
-| DatabaseConnections | AWS/RDS | Primary activity indicator - 0 = inactive |
-| CPUUtilization | AWS/RDS | Secondary indicator - low % = minimal activity |
-| ReadIOPS, WriteIOPS | AWS/RDS | I/O activity - 0 = no database operations |
+| Tool | What It Does | Why NOT Use |
+|------|--------------|-------------|
+| **Infracost** | Cloud cost estimation for Terraform | Focused on IaC, not runtime cost tracking |
+| **OpenCost** | Kubernetes cost monitoring | Focused on K8s workloads, not managed databases |
+| **AWS Cost Explorer API** | Actual billing data | Requires additional IAM permissions, complex integration |
+| **GCP Cloud Billing API** | Actual billing data | Same complexity concerns |
+
+---
+
+## 3. Common Data Points for Accurate Estimation
+
+### Already Captured in SnoozeQL v1.0
+
+| Data Point | Model | Field | Notes |
+|------------|-------|-------|-------|
+| Instance class | `Instance` | `InstanceType` | e.g., `db.t3.micro` |
+| Hourly cost | `Instance` | `HourlyCostCents` | Already populated per-instance |
+| Region | `Instance` | `Region` | Affects pricing (not used yet) |
+| Stop events | `Event` | `event_type='stop'` | With `created_at` timestamp |
+| Start events | `Event` | `event_type='start'` | With `created_at` timestamp |
+| Instance status | `Instance` | `Status` | Current state |
+
+### Data Points to Add for v1.1
+
+| Data Point | Purpose | Implementation |
+|------------|---------|----------------|
+| **Stopped start time** | Calculate duration | Query `Event` for last `stop` event per instance |
+| **Daily aggregates** | Historical views | Populate `Saving` table with daily rollups |
+| **Projected vs actual** | Forecast accuracy | Compare schedule intent vs realized savings |
+
+### Data Points Deferred (Future Enhancement)
+
+| Data Point | Why Defer |
+|------------|-----------|
+| Storage costs | Typically constant (not affected by stop/start) |
+| Backup costs | Minor, constant cost |
+| IOPS costs | Provisioned IOPS continue during stop |
+| Multi-AZ pricing | Doubles compute cost but same calculation |
+| Reserved instance pricing | Would require billing API integration |
+
+---
+
+## 4. Go Ecosystem for Cost Calculation
+
+### Custom Implementation (Recommended)
+
+The calculation logic is simple enough that custom implementation is cleaner than any library:
 
 ```go
-// Example: GetMetricData for connections
-input := &cloudwatch.GetMetricDataInput{
-    StartTime: aws.Time(time.Now().Add(-24 * time.Hour)),
-    EndTime:   aws.Time(time.Now()),
-    MetricDataQueries: []types.MetricDataQuery{
-        {
-            Id: aws.String("connections"),
-            MetricStat: &types.MetricStat{
-                Metric: &types.Metric{
-                    Namespace:  aws.String("AWS/RDS"),
-                    MetricName: aws.String("DatabaseConnections"),
-                    Dimensions: []types.Dimension{
-                        {Name: aws.String("DBInstanceIdentifier"), Value: aws.String(instanceID)},
-                    },
-                },
-                Period: aws.Int32(3600), // 1 hour
-                Stat:   aws.String("Average"),
-            },
-        },
-    },
+// internal/savings/calculator.go
+
+// CalculateDailySavings computes savings for a given instance and day
+func CalculateDailySavings(events []models.Event, instance models.Instance, date time.Time) int {
+    stoppedMinutes := 0
+    
+    // Find stop/start pairs within the date
+    // Calculate total stopped duration
+    
+    hoursStopped := float64(stoppedMinutes) / 60.0
+    savingsCents := int(hoursStopped * float64(instance.HourlyCostCents))
+    
+    return savingsCents
 }
 ```
 
-## GCP Cloud Monitoring for Cloud SQL Activity Detection
+### Useful Patterns from Existing Code
 
-Key metrics to fetch:
+The codebase already has good patterns to follow:
 
-| Metric | Resource Type | Purpose |
-|--------|---------------|---------|
-| cloudsql.googleapis.com/database/network/connections | cloudsql_database | Primary activity indicator |
-| cloudsql.googleapis.com/database/cpu/utilization | cloudsql_database | CPU load indicator |
-| cloudsql.googleapis.com/database/disk/read_ops_count | cloudsql_database | Read operations |
+1. **Time duration parsing** in `internal/provider/aws/rds.go:parsePeriod()`
+2. **Model structures** in `internal/models/models.go` (Saving model ready to use)
+3. **Aggregation queries** can follow PostgreSQL patterns in `internal/store/postgres.go`
+
+### Go Libraries If Needed
+
+| Library | When to Use |
+|---------|-------------|
+| `github.com/shopspring/decimal` | If precise currency math becomes an issue |
+| `github.com/dustin/go-humanize` | For human-readable cost formatting ("$1.2K") |
+
+**Current recommendation:** Don't add either for POC. Use integer cents and format in frontend.
+
+---
+
+## 5. Frontend Visualization
+
+### Existing Capability (Recharts 2.10.0)
+
+The Dashboard already demonstrates cost visualization with the "Cost Over Time (7 days)" chart:
+
+```tsx
+// Current pattern in Dashboard.tsx (lines 272-301)
+<div className="h-64 w-full flex items-end space-x-1 sm:space-x-2">
+  {costData.map((d, i) => {
+    const heightPercentage = (d.cost / maxCost) * 100
+    return (
+      <div key={i} className="flex-1 flex flex-col justify-end group relative">
+        <div 
+          className="bg-gradient-to-t from-blue-600 via-cyan-500 to-cyan-400..."
+          style={{ height: `${Math.max(heightPercentage, 0.5)}%` }}
+        />
+      </div>
+    )
+  })}
+</div>
+```
+
+### Recommended Chart Types for v1.1
+
+| Visualization | Recharts Component | Use Case |
+|---------------|-------------------|----------|
+| Savings over time | `<LineChart>` | Historical trend |
+| Daily savings breakdown | `<BarChart>` | Per-day comparison |
+| Savings by instance | `<BarChart>` horizontal | Attribution |
+| Projected vs actual | `<ComposedChart>` | Line + area overlay |
+| Cumulative savings | `<AreaChart>` | Total savings growth |
+
+### UI Components to Create
+
+```
+web/src/components/
+├── SavingsLineChart.tsx      # Time series savings trend
+├── SavingsBreakdown.tsx      # Per-instance savings list
+├── SavingsCard.tsx           # Summary stat card (like existing dashboard cards)
+└── ProjectionChart.tsx       # Expected vs actual comparison
+```
+
+### Dashboard Integration
+
+The existing `Dashboard.tsx` already shows:
+- Total savings stat card (line 180-189)
+- Cost over time chart (line 270-301)
+
+**v1.1 enhancement:** Replace mock `totalSavings` calculation with real API data:
+```tsx
+// Current (mock)
+const totalSavings = instances.reduce((sum, inst) => sum + (inst.hourly_cost_cents / 100) * 24 * 7, 0)
+
+// v1.1 (real API)
+const [savingsData, setSavingsData] = useState<SavingsSummary | null>(null)
+// ... fetch from /api/savings/summary
+```
+
+---
+
+## 6. Migration Path: Incremental Implementation
+
+### Phase 1: Backend Savings Calculation (Day 1-2)
+
+1. **Create savings calculator service**
+   ```
+   internal/savings/
+   ├── calculator.go     # Core calculation logic
+   ├── aggregator.go     # Daily rollup logic
+   └── service.go        # Business logic orchestration
+   ```
+
+2. **Implement savings API endpoints** (extend existing `handlers/savings.go`)
+   - `GET /api/savings/summary` - Total savings stats
+   - `GET /api/savings/history` - Daily savings history
+   - `GET /api/savings/by-instance/{id}` - Per-instance breakdown
+
+3. **Populate Saving model** from Event data
+   - Background job to calculate daily aggregates
+   - Calculate current-day savings on-demand
+
+### Phase 2: Frontend Visualization (Day 2-3)
+
+1. **Create API client methods** in `lib/api.ts`
+2. **Build savings components** using existing Recharts patterns
+3. **Integrate into Dashboard** - replace mock data with real API
+
+### Phase 3: Historical Analysis (Day 3-4)
+
+1. **Add projected savings** (based on schedules)
+2. **Compare projected vs actual** 
+3. **Add per-instance savings attribution**
+
+---
+
+## Database Schema (Already Exists)
+
+The `Saving` model in `internal/models/models.go` is ready:
 
 ```go
-// Example: Cloud Monitoring query
-req := &monitoringpb.ListTimeSeriesRequest{
-    Name:   "projects/" + projectID,
-    Filter: `metric.type="cloudsql.googleapis.com/database/network/connections" AND resource.labels.database_id="` + instanceID + `"`,
-    Interval: &monitoringpb.TimeInterval{
-        StartTime: timestamppb.New(time.Now().Add(-24 * time.Hour)),
-        EndTime:   timestamppb.Now(),
-    },
+type Saving struct {
+    ID                    string `json:"id" db:"id"`
+    InstanceID            string `json:"instance_id" db:"instance_id"`
+    Date                  string `json:"date" db:"date"`
+    StoppedMinutes        int    `json:"stopped_minutes" db:"stopped_minutes"`
+    EstimatedSavingsCents int    `json:"estimated_savings_cents" db:"estimated_savings_cents"`
 }
 ```
 
-## Cron Scheduling Pattern
+**Check:** Verify the PostgreSQL `savings` table exists and matches this schema.
 
-Use robfig/cron v3 with timezone support for sleep/wake schedules:
+---
 
-```go
-import "github.com/robfig/cron/v3"
+## API Design
 
-// Initialize with timezone support and panic recovery
-c := cron.New(
-    cron.WithLocation(time.UTC),
-    cron.WithChain(
-        cron.Recover(logger),
-        cron.SkipIfStillRunning(logger),
-    ),
-)
-
-// Add sleep/wake jobs from schedule
-c.AddFunc("CRON_TZ=America/New_York 0 19 * * 1-5", func() {
-    // Stop instances at 7 PM ET on weekdays
-    scheduler.ExecuteSleepOperation(scheduleID)
-})
-
-c.AddFunc("CRON_TZ=America/New_York 0 7 * * 1-5", func() {
-    // Start instances at 7 AM ET on weekdays
-    scheduler.ExecuteWakeOperation(scheduleID)
-})
-
-c.Start()
-defer c.Stop()
+### Savings Summary
 ```
+GET /api/savings/summary?period=7d
+
+Response:
+{
+  "total_savings_cents": 45230,
+  "period_start": "2026-02-16",
+  "period_end": "2026-02-23",
+  "instance_count": 5,
+  "total_stopped_hours": 840
+}
+```
+
+### Savings History
+```
+GET /api/savings/history?period=30d
+
+Response:
+{
+  "data": [
+    {"date": "2026-02-22", "savings_cents": 6500, "stopped_hours": 12},
+    {"date": "2026-02-23", "savings_cents": 7200, "stopped_hours": 14}
+  ]
+}
+```
+
+### Per-Instance Savings
+```
+GET /api/savings/by-instance/{id}?period=7d
+
+Response:
+{
+  "instance_id": "db-prod-1",
+  "total_savings_cents": 12500,
+  "daily_breakdown": [...]
+}
+```
+
+---
+
+## Confidence Assessment
+
+| Area | Confidence | Reason |
+|------|------------|--------|
+| Calculation approach | HIGH | Simple math from existing Event data |
+| Go implementation | HIGH | No new dependencies, follows existing patterns |
+| Frontend visualization | HIGH | Recharts already in use, proven patterns |
+| Data availability | HIGH | Events and instance costs already captured |
+| Accuracy | MEDIUM | Estimated costs may differ from actual billing |
+
+---
 
 ## Sources
 
-- pkg.go.dev/github.com/robfig/cron/v3 — Cron library documentation, v3.0.1 features (2026-02-20)
-- pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/cloudwatch — CloudWatch SDK v1.54.0 (2026-02-20)
-- pkg.go.dev/cloud.google.com/go/monitoring — GCP Monitoring v1.24.3 (2026-02-20)
-- registry.npmjs.org — npm package versions verified (2026-02-20)
-- GitHub API releases — Chi v5.2.5, pgx v5.8.0 verified (2026-02-20)
-- Existing codebase analysis — go.mod, package.json reviewed
-
----
-*Stack research for: Database sleep scheduling (SnoozeQL)*
-*Researched: 2026-02-20*
+- **Official:** AWS RDS Pricing (https://aws.amazon.com/rds/pricing/) - Verified 2026-02-23
+- **Official:** GCP Cloud Billing API (https://cloud.google.com/billing/docs/reference/rest) - Verified 2026-02-23
+- **Official:** Recharts documentation - Already in use, v2.10.0
+- **Open Source:** Infracost (https://github.com/infracost/infracost) - Reviewed for patterns, not recommended for this use case
+- **Open Source:** OpenCost (https://github.com/opencost/opencost) - Reviewed, K8s-focused
+- **Go Package:** shopspring/decimal (https://pkg.go.dev/github.com/shopspring/decimal) - Optional, v1.4.0
+- **Codebase:** SnoozeQL v1.0 - Reviewed existing models, API patterns, and frontend components
