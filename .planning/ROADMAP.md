@@ -89,9 +89,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — Database migration, SavingsStore, SavingsCalculator
-- [ ] 07-02-PLAN.md — EventStoreWithSavings decorator + main.go integration
-- [ ] 07-03-PLAN.md — SavingsHandler API endpoints
+- [x] 07-01-PLAN.md — Database migration, SavingsStore, SavingsCalculator
+- [x] 07-02-PLAN.md — EventStoreWithSavings decorator + main.go integration
+- [x] 07-03-PLAN.md — SavingsHandler API endpoints
 
 #### Phase 8: Dashboard & Visualization
 **Goal**: Users can visualize savings trends, per-instance attribution, and cost projections
@@ -121,10 +121,10 @@ Phases execute in numeric order. v1.0 (1-6) complete. v1.1 (7-8) in progress.
 | 4. Advanced Schedule Filtering | v1.0 | 3/3 | Complete | 2026-02-23 |
 | 5. Activity Analysis | v1.0 | 3/3 | Complete | 2026-02-23 |
 | 6. Intelligent Recommendations | v1.0 | 4/4 | Complete | 2026-02-23 |
-| 7. Core Savings Calculation & API | v1.1 | 0/3 | Planned | - |
+| 7. Core Savings Calculation & API | v1.1 | 3/3 | Complete | 2026-02-23 |
 | 8. Dashboard & Visualization | v1.1 | 0/? | Not started | - |
 
 ---
 
 *Roadmap created: 2026-02-23*
-*Last updated: 2026-02-23 (Phase 7 planned)*
+*Last updated: 2026-02-23 (Phase 7 complete)*

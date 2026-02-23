@@ -7,16 +7,16 @@
 
 ### Cost Tracking
 
-- [ ] **SAV-01**: System calculates cost savings from stop/start events using instance hourly cost and stopped duration
-- [ ] **SAV-02**: Savings dashboard shows estimated vs projected costs with summary cards and time-series chart
+- ✓ **SAV-01**: System calculates cost savings from stop/start events using instance hourly cost and stopped duration
+- ✓ **SAV-02**: Savings dashboard shows estimated vs projected costs with summary cards and time-series chart
 - [ ] **SAV-03**: Historical activity charts visualize usage patterns over configurable time ranges (7d, 30d, 90d, custom)
 - [ ] **SAV-04**: Per-instance savings attribution shows which instances contributed most to overall savings
 - [ ] **SAV-05**: Cost projection compares expected vs actual for billing forecasts with clear disclaimers
 
 ### Audit & Compliance
 
-- [ ] **AUD-01**: All cost calculations are logged with instance ID, date, stopped minutes, and estimated savings
-- [ ] **AUD-02**: System stores hourly rate at stop event time to handle instance resizing accurately
+- ✓ **AUD-01**: All cost calculations are logged with instance ID, date, stopped minutes, and estimated savings
+- ✓ **AUD-02**: System stores hourly rate at stop event time to handle instance resizing accurately
 
 ## v2 Requirements
 
@@ -45,13 +45,13 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SAV-01 | Phase 7 | Pending |
-| SAV-02 | Phase 7 | Pending |
+| SAV-01 | Phase 7 | Complete |
+| SAV-02 | Phase 7 | Complete |
 | SAV-03 | Phase 8 | Pending |
 | SAV-04 | Phase 8 | Pending |
 | SAV-05 | Phase 8 | Pending |
-| AUD-01 | Phase 7 | Pending |
-| AUD-02 | Phase 7 | Pending |
+| AUD-01 | Phase 7 | Complete |
+| AUD-02 | Phase 7 | Complete |
 
 **Coverage:**
 
@@ -64,4 +64,4 @@
 ---
 
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 (traceability updated for v1.1 roadmap)*
+*Last updated: 2026-02-23 (Phase 7 complete - SAV-01, SAV-02, AUD-01, AUD-02)*

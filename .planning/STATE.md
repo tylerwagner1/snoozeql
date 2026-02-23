@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 7 of 8 (Core Savings Calculation & API)
-Plan: 2
+Plan: 3
 Status: Complete
-Last activity: 2026-02-23 - Completed 07-02-PLAN.md (EventStoreWithSavings decorator)
+Last activity: 2026-02-23 - Completed Phase 7 (all plans)
 
-Progress: [████████████████████████████████░░░] 7/8 phases complete (v1.0 done, v1.1 2/8 plans complete)
+Progress: [█████████████████████████████████░] 7/8 phases complete (v1.0 done, v1.1 3/3 plans complete)
 
 ## Performance Metrics
 
@@ -33,7 +33,7 @@ Progress: [███████████████████████
 | 4 | 3/3 | 3 | ~15 min |
 | 5 | 3/3 | 3 | ~15 min |
 | 6 | 4/4 | 4 | ~15 min |
-| 7 | 2/3 | 2 | ~12 min |
+| 7 | 3/3 | 3 | ~13 min |
 
 **Recent Trend:**
 - Last 24 plans: 24 complete
@@ -84,6 +84,8 @@ Progress: [███████████████████████
 - EventStoreWithSavings decorator for automatic savings calculation on stop/wake events
 - EventStoreWithSavings intercepts CreateEvent: captures hourly_rate_cents in stop events (AUD-02)
 - EventStoreWithSavings calculates and persists savings on start/wake events (AUD-01)
+- SavingsHandler with 4 API endpoints for summary, daily, by-instance, and instance detail
+- Routes registered: GET /api/v1/savings, /savings/daily, /savings/by-instance, /instances/{id}/savings
 
 ### Decisions Made
 
@@ -93,14 +95,22 @@ Progress: [███████████████████████
 | 07-02 | Added EventCreator interface to DiscoveryService | Flexible event store types (allows decorator wrapping) |
 | 07-03 | Implemented full SavingsHandler with 4 endpoints | Required for Phase 8 dashboard API consumption |
 
+**Phase 7 - Core Savings Calculation**
+
+| Decision | Rationale |
+|----------|-----------|
+| EventStoreWithSavings decorator pattern | Automatic savings calculation on event creation instead of dashboard load time (push model) |
+| EventCreator interface | Flexible event store types - allows decorator wrapping |
+| Full SavingsHandler with 4 endpoints | Required for Phase 8 dashboard API consumption |
+
 ## Blockers/Concerns Carried Forward
 
 None - savings backend is complete and ready for Phase 8 integration.
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Completed 07-02-PLAN.md (EventStoreWithSavings decorator)
+Last session: 2026-02-23T18:30:00Z
+Stopped at: Completed Phase 7 (all 3 plans)
 Resume file: None
 
 ---
