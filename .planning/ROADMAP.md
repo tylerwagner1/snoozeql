@@ -13,7 +13,7 @@ This roadmap delivers a database sleep scheduling system that minimizes cloud co
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Multi-Cloud Discovery** - Connect to AWS/GCP and display all database instances ✅ Complete (2026-02-21)
-- [ ] **Phase 2: Manual Control & Audit** - Sleep/wake instances with confirmation and operation logging
+- [x] **Phase 2: Manual Control & Audit** - Sleep/wake instances with confirmation and operation logging ✅ Complete (2026-02-23)
 - [ ] **Phase 3: Basic Scheduling** - Create time-based sleep/wake schedules
 - [ ] **Phase 4: Advanced Schedule Filtering** - Regex-based instance assignment with preview
 - [ ] **Phase 5: Activity Analysis** - Collect metrics and detect inactivity patterns
@@ -70,10 +70,26 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — EventStore and Events API endpoint (Wave 1)
-- [ ] 02-02-PLAN.md — ConfirmDialog component with Headless UI (Wave 1)
-- [ ] 02-03-PLAN.md — Bulk stop/start API endpoints with audit logging (Wave 2)
-- [ ] 02-04-PLAN.md — Multi-select and bulk actions in InstancesPage (Wave 3)
-- [ ] 02-05-PLAN.md — AuditLogPage, navigation, and verification (Wave 4)
+- [x] 02-02-PLAN.md — ConfirmDialog component with Headless UI (Wave 1)
+- [x] 02-03-PLAN.md — Bulk stop/start API endpoints with audit logging (Wave 2)
+- [x] 02-04-PLAN.md — Multi-select and bulk actions in InstancesPage (Wave 3)
+- [x] 02-05-PLAN.md — AuditLogPage, navigation, and verification (Wave 4)
+
+#### Phase 2 Completion Details
+
+**Completed:** 2026-02-23  
+**Status:** ✅ Complete  
+**Verification:** see [02-VERIFICATION.md](./phases/02-manual-control-audit/02-VERIFICATION.md)
+
+**Key Accomplishments:**
+- EventStore with CreateEvent, ListEvents methods for audit logging
+- ConfirmDialog component with Headless UI for confirmation flows
+- Bulk stop/start API endpoints with event logging
+- Multi-select table with bulk action buttons in InstancesPage
+- AuditLogPage with event filtering and navigation link
+- Human-verified complete end-to-end flow
+
+---
 
 ### Phase 3: Basic Scheduling
 **Goal**: Users can create time-based sleep/wake schedules
@@ -140,7 +156,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Multi-Cloud Discovery | 6/6 | Complete | 2026-02-21 ✅ |
-| 2. Manual Control & Audit | 0/5 | Planned | - |
+| 2. Manual Control & Audit | 5/5 | Complete | 2026-02-23 ✅ |
 | 3. Basic Scheduling | 0/? | Not started | - |
 | 4. Advanced Schedule Filtering | 0/? | Not started | - |
 | 5. Activity Analysis | 0/? | Not started | - |
