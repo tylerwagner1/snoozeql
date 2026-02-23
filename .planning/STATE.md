@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 3 - Basic Scheduling (plan 01 complete)
+**Current focus:** Phase 3 - Basic Scheduling (plan 02 complete)
 
 ## Current Position
 
 Phase: 3 of 6 (Basic Scheduling)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-23 — Completed 03-01-PLAN.md (CRON utilities and schedule grid)
+Last activity: 2026-02-23 — Completed 03-02-PLAN.md (ScheduleModal with grid and CRON mode)
 
-Progress: [████████████░░░░░░░] 2/6 phases complete
+Progress: [██████████████████░] 11/17 plans complete
 
 ## Performance Metrics
 
@@ -29,7 +29,7 @@ Progress: [████████████░░░░░░░] 2/6 phases
 |-------|-------|-------|----------|
 | 1 | 6/6 | 6 | ~16 min |
 | 2 | 5/5 | 5 | ~15 min |
-| 3 | 1/3 | 3 | - |
+| 3 | 2/3 | 3 | - |
 
 **Recent Trend:**
 - Last 12 plans: 12 complete
@@ -74,7 +74,9 @@ Progress: [████████████░░░░░░░] 2/6 phases
 - [01-05]: Dashboard stats cards are clickable with useNavigate
 - [01-05]: CTAs shown when no accounts exist
 
-- [03-01]: Simplified CRON conversion for Phase 3 - assumes single contiguous sleep window per day. Complex multi-block schedules deferred to future phases.
+- [03-02]: ScheduleModal uses Headless UI Dialog matching ConfirmDialog styling
+- [03-02]: Modal supports create and edit modes
+- [03-02]: Toggle between grid and CRON modes with data preservation
 
 - [Init]: Use existing Go/React/PostgreSQL stack
 - [Init]: Single-user POC scope (no RBAC complexity)
@@ -122,22 +124,25 @@ From research (deferred to Phase 3 for implementation):
 - cronUtils.ts with grid↔CRON conversion utilities
 - Nighttime (overnight) schedule handling
 - Active days summary (Weekdays, Weekends, Every day)
+- ScheduleModal with create/edit modes
+- Grid and CRON mode toggle with data preservation
+- cronstrue integration for human-readable CRON descriptions
 
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 03-01-PLAN.md (CRON utilities and weekly schedule grid)
+Stopped at: Completed 03-02-PLAN.md (ScheduleModal with grid and CRON mode)
 Resume file: None
 
 **Next Phase Readiness:**
-- Phase 3 plan 01 complete ✅
-- WeeklyScheduleGrid component with click-drag painting ✅
-- CRON conversion utilities with grid↔CRON round-trip ✅
-- Ready for 03-02-PLAN.md (ScheduleModal with grid and CRON mode)
+- Phase 3 plan 02 complete ✅
+- ScheduleModal component with grid integration ✅
+- CRON descriptions via cronstrue ✅
+- Ready for 03-03-PLAN.md (SchedulesPage integration)
 
 **Phase 3 Goal:** Users can create time-based sleep/wake schedules
 **Phase 3 Success Criteria:**
 1. User can create a schedule specifying start time, end time, and days of week
 2. Created schedules appear in the schedules list
 
-**Ready for:** 03-02-PLAN.md (ScheduleModal with grid integration)
+**Ready for:** 03-03-PLAN.md (SchedulesPage integration with grid)
