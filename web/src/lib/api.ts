@@ -39,6 +39,7 @@ export interface Schedule {
   updated_at: string
 }
 
+// DEPRECATED - use RecommendationEnriched
 export interface Recommendation {
   id: string
   instance_name: string
@@ -53,6 +54,31 @@ export interface Recommendation {
   }
   created_at: string
   status: 'pending' | 'ignored' | 'applied'
+}
+
+export interface RecommendationEnriched {
+  id: string
+  instance_id: string
+  instance_name: string
+  provider: string
+  region: string
+  engine: string
+  detected_pattern: {
+    idle_start_hour: number
+    idle_end_hour: number
+    days_of_week: string[]
+    avg_cpu: number
+    confidence: number
+  }
+  suggested_schedule: {
+    timezone: string
+    sleep_cron: string
+    wake_cron: string
+  }
+  confidence_score: number
+  estimated_daily_savings: number
+  status: 'pending' | 'approved' | 'dismissed'
+  created_at: string
 }
 
 export interface CloudAccount {
@@ -173,10 +199,14 @@ const api = {
     ),
 
   // Recommendations
-  getRecommendations: () => api.get<Recommendation[]>('/recommendations'),
-  getRecommendation: (id: string) => api.get<Recommendation>(`/recommendations/${id}`),
-  applyRecommendation: (id: string) => api.post<void>(`/recommendations/${id}/apply`),
-  ignoreRecommendation: (id: string) => api.post<void>(`/recommendations/${id}/ignore`),
+  getRecommendations: (status?: string) => {
+    const params = status ? `?status=${status}` : ''
+    return api.get<RecommendationEnriched[]>(`/recommendations${params}`)
+  },
+  getRecommendation: (id: string) => api.get<RecommendationEnriched>(`/recommendations/${id}`),
+  generateRecommendations: () => api.post<{ created: number; message: string }>('/recommendations/generate'),
+  dismissRecommendation: (id: string) => api.post<void>(`/recommendations/${id}/dismiss`),
+  confirmRecommendation: (id: string) => api.post<{ schedule_id: string }>(`/recommendations/${id}/confirm`),
 
   // Stats
   getStats: () => api.get<Stats>('/stats'),

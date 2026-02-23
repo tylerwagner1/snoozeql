@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react'
 import { Activity, Zap, TrendingDown, Clock, Search, Filter, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api, { Instance, CloudAccount } from '../lib/api'
-import type { Recommendation, Event } from '../lib/api'
+import type { RecommendationEnriched, Event } from '../lib/api'
 
 const Dashboard = () => {
   const navigate = useNavigate()
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [instances, setInstances] = useState<Instance[]>([])
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [recommendations, setRecommendations] = useState<RecommendationEnriched[]>([])
   const [cloudAccounts, setCloudAccounts] = useState<CloudAccount[]>([])
   const [events, setEvents] = useState<Event[]>([])
 
@@ -313,11 +313,11 @@ const Dashboard = () => {
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                   <div className="flex-1">
                     <p className="font-semibold text-white">{rec.instance_name}</p>
-                    <p className="text-sm text-slate-400 mt-1">{rec.pattern}</p>
+                    <p className="text-sm text-slate-400 mt-1">IDLE: {rec.detected_pattern.idle_start_hour} - {rec.detected_pattern.idle_end_hour}</p>
                     <div className="flex items-center space-x-3 mt-3">
-                      <span className="text-sm font-semibold text-green-400">{rec.estimated_daily_savings}</span>
+                      <span className="text-sm font-semibold text-green-400">${rec.estimated_daily_savings.toFixed(2)}/day</span>
                       <span className="text-xs bg-gradient-to-r from-blue-600 to-purple-600 px-2.5 py-1 rounded text-white font-medium">
-                        Confidence: {rec.confidence}%
+                        Confidence: {rec.confidence_score}%
                       </span>
                     </div>
                   </div>
