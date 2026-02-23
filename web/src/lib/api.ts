@@ -164,6 +164,13 @@ const api = {
   createSchedule: (data: Omit<Schedule, 'id' | 'created_at' | 'updated_at'>) => api.post<Schedule>('/schedules', data),
   updateSchedule: (id: string, data: Partial<Schedule>) => api.put<Schedule>(`/schedules/${id}`, data),
   deleteSchedule: (id: string) => api.del(`/schedules/${id}`),
+  
+  // Schedule filter preview
+  previewFilter: (selectors: Selector[], operator: 'and' | 'or' = 'and') =>
+    api.post<{ matched_count: number; total_count: number; instances: Instance[] }>(
+      '/schedules/preview-filter',
+      { selectors, operator }
+    ),
 
   // Recommendations
   getRecommendations: () => api.get<Recommendation[]>('/recommendations'),

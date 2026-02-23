@@ -5,7 +5,8 @@ import clsx from 'clsx';
 import { WeeklyScheduleGrid } from './WeeklyScheduleGrid';
 import { createEmptyGrid, gridToCron, cronToGrid, formatGridSummary, describeCron } from '../lib/cronUtils';
 import api from '../lib/api';
-import { Schedule } from '../lib/api';
+import { Schedule, Instance, Selector } from '../lib/api';
+import { FilterBuilder } from './FilterBuilder';
 
 interface ScheduleModalProps {
   isOpen: boolean;
@@ -39,6 +40,8 @@ export function ScheduleModal({
   const [showCronMode, setShowCronMode] = useState(false);
   const [sleepCron, setSleepCron] = useState('');
   const [wakeCron, setWakeCron] = useState('');
+  const [selectors, setSelectors] = useState<Selector[]>([]);
+  const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState('');
@@ -55,6 +58,7 @@ export function ScheduleModal({
         setGrid(parsedGrid);
         setSleepCron(schedule.sleep_cron);
         setWakeCron(schedule.wake_cron);
+        setSelectors(schedule.selectors || []);
       } else {
         // Create mode: reset form
         setName('');
@@ -63,11 +67,21 @@ export function ScheduleModal({
         setGrid(createEmptyGrid());
         setSleepCron('');
         setWakeCron('');
+        setSelectors([]);
         setNameError('');
       }
       setError(null);
     }
   }, [isOpen, schedule]);
+
+  // Fetch instances for preview
+  useEffect(() => {
+    if (isOpen) {
+      api.getInstances()
+        .then(setInstances)
+        .catch(console.error);
+    }
+  }, [isOpen]);
 
   // Sync CRON when grid changes (in grid mode)
   useEffect(() => {
@@ -155,7 +169,7 @@ export function ScheduleModal({
         name,
         description,
         timezone,
-        selectors: [],
+        selectors: selectors,
         sleep_cron: showCronMode ? sleepCron : (gridToCron(grid)?.sleepCron || '0 22 * * 1-5'),
         wake_cron: showCronMode ? wakeCron : (gridToCron(grid)?.wakeCron || '0 7 * * 1-5'),
         enabled: true,
@@ -338,6 +352,15 @@ export function ScheduleModal({
                 <span className="font-medium">Current schedule:</span>{' '}
                 <span className="text-indigo-400">{getSummaryText()}</span>
               </p>
+            </div>
+
+            {/* Filter Builder Section */}
+            <div className="mt-6 pt-6 border-t border-slate-700">
+              <FilterBuilder
+                selectors={selectors}
+                onChange={setSelectors}
+                instances={instances}
+              />
             </div>
           </div>
 
