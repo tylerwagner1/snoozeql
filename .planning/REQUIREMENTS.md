@@ -47,7 +47,7 @@
 |-------------|-------|--------|
 | SAV-01 | Phase 7 | Pending |
 | SAV-02 | Phase 7 | Pending |
-| SAV-03 | Phase 7 | Pending |
+| SAV-03 | Phase 8 | Pending |
 | SAV-04 | Phase 8 | Pending |
 | SAV-05 | Phase 8 | Pending |
 | AUD-01 | Phase 7 | Pending |
@@ -55,11 +55,13 @@
 
 **Coverage:**
 
-- v1 requirements: 7 total
-- Mapped to phases: 7
+- v1.1 requirements: 7 total
+- Phase 7 (Core Savings): SAV-01, SAV-02, AUD-01, AUD-02 (4 requirements)
+- Phase 8 (Visualization): SAV-03, SAV-04, SAV-05 (3 requirements)
+- Mapped: 7/7 ✓
 - Unmapped: 0 ✓
 
 ---
 
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after v1.1 research synthesis*
+*Last updated: 2026-02-23 (traceability updated for v1.1 roadmap)*
