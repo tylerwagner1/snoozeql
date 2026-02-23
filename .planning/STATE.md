@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 5 of 6 (Activity Analysis)
-Plan: Not yet planned
-Status: Ready to plan
-Last activity: 2026-02-23 — Captured Phase 5 context
+Plan: 1 of 3 in current phase (05-01 complete)
+Status: In progress
+Last activity: 2026-02-23 — Completed 05-01-PLAN.md (metrics schema and store)
 
-Progress: [████████████████████] 4/6 phases complete
+Progress: [████████████████████████████] 5/6 phases complete
 
 ## Performance Metrics
 
@@ -39,10 +39,15 @@ Progress: [████████████████████] 4/6 pha
 - Phase 2 complete: 2026-02-23
 - Phase 3 complete: 2026-02-23
 - Phase 4 complete: 2026-02-23
+- Phase 5 progress: Plan 01 complete
 
 ## Accumulated Context
 
 ### Decisions
+
+- [05-01]: Hourly aggregation with incremental averaging for UPSERT
+- [05-01]: Unique constraint on (instance_id, metric_name, hour) for idempotent inserts
+- [05-01]: MetricsStore pattern matching existing store implementations (InstanceStore, EventStore)
 
 - [04-03]: FilterBuilder placement below time selection in ScheduleModal
 - [04-03]: Instance fetching per-open for preview, not cached across sessions
@@ -180,6 +185,9 @@ From Phase 3 research (deferred to future phases):
 - SchedulesPage with instance count column
 - Regex validation with inline error messages
 
+**Phase 5 - Activity Analysis:**
+- Plan 01 (05-01): Database schema (metrics_hourly table), HourlyMetric model, MetricsStore ✅ COMPLETED
+
 **Plan 01-03 (2026-02-23):**
 - Plan 01: Backend matcher and filter utilities complete ✅
 - Plan 02: Filter components complete ✅
@@ -187,8 +195,24 @@ From Phase 3 research (deferred to future phases):
 
 ## Session Continuity
 
-Last session: 2026-02-23T15:31:05Z
-Stopped at: Completed Plan 03 - FilterBuilder integration + instance counts (awaiting verification)
+Last session: 2026-02-23T15:45:00Z
+Stopped at: Completed 05-01-PLAN.md (metrics schema and store)
+
+**Phase 5 Execution Summary:**
+
+Plan 01 (05-01) - Activity Analysis Foundation ✅ COMPLETED
+- Created metrics_hourly table with indexes and triggers
+- Added HourlyMetric model struct
+- Implemented MetricsStore with all CRUD operations
+
+**Files created:**
+- deployments/docker/migrations/005_metrics_hourly.sql
+- internal/metrics/store.go
+
+**Files modified:**
+- internal/models/models.go
+
+**Ready for:** Next Phase 5 plan (CloudWatch client and MetricsCollector)
 
 **Phase 4 Execution Summary:**
 
