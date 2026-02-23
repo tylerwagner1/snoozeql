@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 6 - Intelligent Recommendations (ready for planning)
+**Current focus:** Phase 6 - Intelligent Recommendations (plan 03 complete)
 
 ## Current Position
 
 Phase: 6 of 6 (Intelligent Recommendations)
-Plan: 02
+Plan: 03
 Status: In progress
-Last activity: 2026-02-23 - Completed 06-02-PLAN.md (Recommendation UI components)
+Last activity: 2026-02-23 - Completed 06-03-PLAN.md (Dashboard and RecommendationsPage integration)
 
-Progress: [█████████████████████████████] 5/6 phases complete
+Progress: [██████████████████████████████] 6/6 phases complete
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 19
 - Average duration: ~15 min
-- Total execution time: ~4.5 hours
+- Total execution time: ~4.75 hours
 
 **By Phase:**
 
@@ -31,21 +31,26 @@ Progress: [███████████████████████
 | 2 | 5/5 | 5 | ~15 min |
 | 3 | 3/3 | 3 | ~15 min |
 | 4 | 3/3 | 3 | ~15 min |
+| 5 | 3/3 | 3 | ~15 min |
 
 **Recent Trend:**
-- Last 19 plans: 19 complete
+- Last 20 plans: 20 complete
 - Trend: Stable
 - Phase 1 complete: 2026-02-21
 - Phase 2 complete: 2026-02-23
 - Phase 3 complete: 2026-02-23
 - Phase 4 complete: 2026-02-23
 - Phase 5 complete: 2026-02-23
-- Phase 6 progress: Plan 02 complete (Recommendation UI components)
+- Phase 6 progress: Plan 03 complete (Dashboard and RecommendationsPage integration)
 
 ## Accumulated Context
 
 ### Decisions
 
+- [06-03]: Recommendations section shows up to 3 cards on dashboard with "View all" link
+- [06-03]: Empty state on dashboard shows "Need 24+ hours of activity data" message
+- [06-03]: Both dashboard and RecommendationsPage track dismissed recommendations count
+- [06-03]: Dismissed count displayed in RecommendationsPage subtitle and empty state
 - [05-02]: GetMetricStatistics API for single-metric queries (simpler than GetMetricData for this use case)
 - [05-02]: 3 retry attempts with exponential backoff for throttling and transient errors
 - [05-02]: 1-hour period fetching with hourly aggregation, returning hourly averages
@@ -66,12 +71,6 @@ Progress: [███████████████████████
 - [04-02]: Regex validation: Debounced inline validation with error messages
 - [04-02]: Preview display: First 5 instances with "show more" expansion
 - [04-02]: AND/OR operator: Visible between rules when multiple rules exist
-
-- [04-01]: Backend regex matching: Go regexp.Compile for RE2 syntax
-- [04-01]: Client-side preview: Fetch all instances and filter client-side
-- [04-01]: Operator semantics: AND = all selectors must match; OR = any selector matches
-- [04-01]: Empty selectors: Return false (require explicit selection) rather than match all
-- [04-01]: Case sensitivity: Go regex is case-sensitive; JS uses 'i' flag for preview
 
 - [04-01]: Backend regex matching: Go regexp.Compile for RE2 syntax
 - [04-01]: Client-side preview: Fetch all instances and filter client-side
@@ -197,68 +196,52 @@ From Phase 3 research (deferred to future phases):
 - Plan 02 (05-02): CloudWatch client, MetricsCollector service, integration in main.go ✅ COMPLETED
 - Plan 03 (05-03): Idle period detection algorithms ✅ COMPLETED
 
-**Plan 01-03 (2026-02-23):**
-- Plan 01: Backend matcher and filter utilities complete ✅
-- Plan 02: Filter components complete ✅
-- Plan 03: ScheduleModal integration + instance counts complete ✅
+**Phase 6 Plans Complete:**
+- Plan 01 (06-01): Backend recommendation generation and API handlers ✅ COMPLETED
+- Plan 02 (06-02): Frontend components (RecommendationCard, RecommendationModal, ActivityGraph) ✅ COMPLETED
+- Plan 03 (06-03): Dashboard and RecommendationsPage integration ✅ COMPLETED
 
 ## Session Continuity
 
-Last session: 2026-02-23T16:35:00Z
-Stopped at: Completed 05-03-PLAN.md (Idle period detection algorithms)
+Last session: 2026-02-23T17:08:32Z
+Stopped at: Completed 06-03-PLAN.md (Dashboard and RecommendationsPage integration)
 
-**Phase 5 Execution Summary:**
+**Phase 6 Execution Summary:**
 
-Plan 01 (05-01) - Activity Analysis Foundation ✅ COMPLETED
-- Created metrics_hourly table with indexes and triggers
-- Added HourlyMetric model struct
-- Implemented MetricsStore with all CRUD operations
+Plan 01 (06-01) - Backend recommendation generation and API handlers ✅ COMPLETED
+- Added GenerateRecommendations() method to Analyzer service
+- Added /recommendations/generate, /recommendations/:id/dismiss, /recommendations/:id/confirm endpoints
+- Updated RecommendationStore with ListRecommendationsByStatus method
 
-Plan 02 (05-02) - CloudWatch Client and MetricsCollector ✅ COMPLETED
-- Created CloudWatchClient with GetRDSMetrics, retry logic, and 4 metric types
-- Created MetricsCollector with RunContinuous, CollectAll, per-instance collection, and client caching
-- Integrated MetricsCollector into cmd/server/main.go with 15-minute interval
+Plan 02 (06-02) - Frontend recommendation components ✅ COMPLETED
+- Created RecommendationEnriched TypeScript interface
+- Implemented RecommendationCard with expand/collapse for list display
+- Implemented RecommendationModal with schedule confirmation flow
+- Implemented ActivityGraph for 24-hour CPU visualization
+- Updated Dashboard.tsx and RecommendationsPage.tsx to use new types
 
-Plan 03 (05-03) - Idle Period Detection Algorithms ✅ COMPLETED
-- Created internal/analyzer/patterns.go with idle window detection algorithms
-- Implemented IdleWindow, ActivityPattern, HourBucket types
-- Added analyzeActivityPattern with 24+ hours data requirement
-- Implemented overnight window detection via 48-hour walk
-- Updated internal/analyzer/analyzer.go with metricsStore integration
-- Added AnalyzeInstanceActivity and AnalyzeAllInstances methods
+Plan 03 (06-03) - Dashboard and RecommendationsPage integration ✅ COMPLETED
+- Added AI Recommendations section to Dashboard with generate button
+- Dashboard displays up to 3 recommendation cards with expand/collapse
+- RecommendationsPage shows full list with generate button and dismissed count
+- Both pages implement dismiss (remove + increment dismissed count) and confirm (creates schedule) workflows
+- Proper empty states with data requirement message and generate button
 
 **Files created:**
-- internal/analyzer/patterns.go (346 lines)
+- internal/analyzer/patterns.go (Phase 5)
 - internal/metrics/cloudwatch.go (05-02)
 - internal/metrics/collector.go (05-02)
+- internal/analyzer/recommendation.go (06-01)
+- web/src/components/ActivityGraph.tsx (06-02)
+- web/src/components/RecommendationCard.tsx (06-02)
+- web/src/components/RecommendationModal.tsx (06-02)
 
 **Files modified:**
-- internal/analyzer/analyzer.go (added metricsStore field, new methods)
+- internal/analyzer/analyzer.go (06-01 - added GenerateRecommendations)
 - cmd/server/main.go (05-02 - added metrics initialization)
 - internal/models/models.go (05-01 - added HourlyMetric)
-- go.mod (05-02 - added cloudwatch dependency)
+- web/src/lib/api.ts (06-01 - added RecommendationEnriched type)
+- web/src/pages/Dashboard.tsx (06-03 - added recommendations section)
+- web/src/pages/RecommendationsPage.tsx (06-03 - refactored with new components)
 
-**Phase 4 Execution Summary:**
-
-3 plans executed in 3 waves:
-- **Wave 1 (04-01):** Backend matcher.go + filterUtils.ts + preview API endpoint ✅ COMPLETED
-- **Wave 2 (04-02):** FilterBuilder, FilterRule, FilterPreview components ✅
-- **Wave 3 (04-03):** ScheduleModal integration + SchedulesPage instance counts + verification ⏸️
-
-**Status:** Plan 03 execution complete, awaiting human verification at checkpoint.
-
-**To verify:**
-1. Start development servers: `go run cmd/server/main.go` and `npm run dev`
-2. Navigate to http://localhost:5173/schedules
-3. Click "Create Schedule" to open ScheduleModal
-4. Verify FilterBuilder section appears below time selection
-5. Test adding filter rules with different field types (name, provider, region, engine, tag)
-6. Test AND/OR toggle for multiple rules
-7. Type invalid regex pattern like "["
-8. Save a schedule with filters
-9. Verify instance count column shows correct numbers in SchedulesPage
-10. Edit existing schedule to verify filters load correctly
-
-**Ready for:** Type "approved" to complete Phase 4
-
-*Phase 5 complete: 2026-02-23*
+*Phase 6 complete: 2026-02-23*
