@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from '@headlessui/re
 import { XMarkIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { WeeklyScheduleGrid } from './WeeklyScheduleGrid';
-import { createEmptyGrid, gridToCron, cronToGrid, formatGridSummary, formatHour } from '../lib/cronUtils';
+import { createEmptyGrid, gridToCron, cronToGrid, formatGridSummary, formatHour, describeCron } from '../lib/cronUtils';
 import api from '../lib/api';
 import { Schedule } from '../lib/api';
 
@@ -296,6 +296,11 @@ export function ScheduleModal({
                     placeholder="0 22 * * 1-5"
                     className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                   />
+                  {sleepCron && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      {describeCron(sleepCron)}
+                    </p>
+                  )}
                   <p className="mt-1 text-xs text-slate-500">
                     Standard 5-field CRON format. See{' '}
                     <a href="https://crontab.guru" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
@@ -316,6 +321,11 @@ export function ScheduleModal({
                     placeholder="0 7 * * 1-5"
                     className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                   />
+                  {wakeCron && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      {describeCron(wakeCron)}
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (

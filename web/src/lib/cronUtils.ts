@@ -5,6 +5,8 @@
  * and CRON expressions for schedule storage and execution.
  */
 
+import cronstrue from 'cronstrue';
+
 // Type Definitions
 
 export type ScheduleGrid = boolean[][];
@@ -359,4 +361,18 @@ function formatSleepHours(grid: ScheduleGrid, activeDaysIndices: number[]): stri
 
   // Forovernight or complex patterns
   return `${formatHour(sleepStart)}-${formatHour(sleepEnd)}`;
+}
+
+/**
+ * Creates a human-readable description of a CRON expression
+ * 
+ * @param cron - CRON expression (e.g., "0 22 * * 1-5")
+ * @returns Human-readable description (e.g., "At 10:00 PM, Monday through Friday")
+ */
+export function describeCron(cron: string): string {
+  try {
+    return cronstrue.toString(cron);
+  } catch {
+    return 'Invalid CRON expression';
+  }
 }
