@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 3 - Basic Scheduling (ready to plan)
+**Current focus:** Phase 3 - Basic Scheduling (plan 01 complete)
 
 ## Current Position
 
 Phase: 3 of 6 (Basic Scheduling)
-Plan: 0 of ? in current phase (not yet planned)
-Status: Ready for planning
-Last activity: 2026-02-23 — Completed Phase 2 (Manual Control & Audit)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-23 — Completed 03-01-PLAN.md (CRON utilities and schedule grid)
 
-Progress: [████████████░░░░░░░░░░] 2/6 phases complete
+Progress: [████████████░░░░░░░] 2/6 phases complete
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: ~15 min
-- Total execution time: ~2.8 hours
+- Total execution time: ~2.9 hours
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [████████████░░░░░░░░░░] 2
 |-------|-------|-------|----------|
 | 1 | 6/6 | 6 | ~16 min |
 | 2 | 5/5 | 5 | ~15 min |
+| 3 | 1/3 | 3 | - |
 
 **Recent Trend:**
-- Last 11 plans: 11 complete
+- Last 12 plans: 12 complete
 - Trend: Stable
 - Phase 1 complete: 2026-02-21
 - Phase 2 complete: 2026-02-23
@@ -39,9 +40,6 @@ Progress: [████████████░░░░░░░░░░] 2
 ## Accumulated Context
 
 ### Decisions
-
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
 
 - [02-05]: AuditLogPage uses client-side filtering (no additional API calls)
 - [02-05]: Event icons use moon/sun SVG with color coding
@@ -75,6 +73,8 @@ Recent decisions affecting current work:
 
 - [01-05]: Dashboard stats cards are clickable with useNavigate
 - [01-05]: CTAs shown when no accounts exist
+
+- [03-01]: Simplified CRON conversion for Phase 3 - assumes single contiguous sleep window per day. Complex multi-block schedules deferred to future phases.
 
 - [Init]: Use existing Go/React/PostgreSQL stack
 - [Init]: Single-user POC scope (no RBAC complexity)
@@ -115,20 +115,29 @@ From research (deferred to Phase 3 for implementation):
 - AuditLogPage with event filtering
 - Navigation link to audit log
 
+**Phase 3 - Basic Scheduling (in progress):**
+- WeeklyScheduleGrid component with 7×24 visual grid
+- Click-drag painting for scheduling multiple cells
+- Document-level mouseup listener for reliable drag termination
+- cronUtils.ts with grid↔CRON conversion utilities
+- Nighttime (overnight) schedule handling
+- Active days summary (Weekdays, Weekends, Every day)
+
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Phase 2 complete, ready for Phase 3
+Stopped at: Completed 03-01-PLAN.md (CRON utilities and weekly schedule grid)
 Resume file: None
 
 **Next Phase Readiness:**
-- Phase 2 complete and verified ✅
-- All Phase 2 success criteria met
-- Ready to plan Phase 3: Basic Scheduling
+- Phase 3 plan 01 complete ✅
+- WeeklyScheduleGrid component with click-drag painting ✅
+- CRON conversion utilities with grid↔CRON round-trip ✅
+- Ready for 03-02-PLAN.md (ScheduleModal with grid and CRON mode)
 
 **Phase 3 Goal:** Users can create time-based sleep/wake schedules
 **Phase 3 Success Criteria:**
 1. User can create a schedule specifying start time, end time, and days of week
 2. Created schedules appear in the schedules list
 
-**Ready for:** `/gsd-discuss-phase 3` or `/gsd-plan-phase 3`
+**Ready for:** 03-02-PLAN.md (ScheduleModal with grid integration)
