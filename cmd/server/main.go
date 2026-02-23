@@ -573,7 +573,7 @@ func main() {
 			})
 
 			// Schedules (using ScheduleHandler with real store)
-			scheduleHandler := handlers.NewScheduleHandler(scheduleStore, eventStore)
+			scheduleHandler := handlers.NewScheduleHandler(scheduleStore, instanceStore, eventStore)
 			r.Get("/schedules", scheduleHandler.GetAllSchedules)
 			r.Get("/schedules/{id}", func(w http.ResponseWriter, r *http.Request) {
 				id := chi.URLParam(r, "id")
@@ -596,6 +596,7 @@ func main() {
 				id := chi.URLParam(r, "id")
 				scheduleHandler.DisableSchedule(w, r, id)
 			})
+			r.Post("/schedules/preview-filter", scheduleHandler.PreviewFilter)
 
 			// Recommendations (placeholder)
 			r.Get("/recommendations", func(w http.ResponseWriter, r *http.Request) {

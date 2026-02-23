@@ -8,19 +8,22 @@ import (
 	"net/http"
 
 	"snoozeql/internal/models"
+	"snoozeql/internal/scheduler"
 	"snoozeql/internal/store"
 )
 
 // ScheduleHandler handles schedule-related HTTP requests
 type ScheduleHandler struct {
 	scheduleStore *store.ScheduleStore
+	instanceStore *store.InstanceStore
 	eventStore    *store.EventStore
 }
 
 // NewScheduleHandler creates a new schedule handler
-func NewScheduleHandler(scheduleStore *store.ScheduleStore, eventStore *store.EventStore) *ScheduleHandler {
+func NewScheduleHandler(scheduleStore *store.ScheduleStore, instanceStore *store.InstanceStore, eventStore *store.EventStore) *ScheduleHandler {
 	return &ScheduleHandler{
 		scheduleStore: scheduleStore,
+		instanceStore: instanceStore,
 		eventStore:    eventStore,
 	}
 }
@@ -215,4 +218,65 @@ func (h *ScheduleHandler) DisableSchedule(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "disabled", "schedule_id": id})
+}
+
+// PreviewFilter returns instances matching the given selectors
+// POST /api/v1/schedules/preview-filter
+func (h *ScheduleHandler) PreviewFilter(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Selectors []models.Selector `json:"selectors"`
+		Operator  string            `json:"operator"` // "and" or "or", default "and"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request body"})
+		return
+	}
+
+	// Default to "and" if not specified
+	if req.Operator == "" {
+		req.Operator = "and"
+	}
+
+	// Validate operator
+	if req.Operator != "and" && req.Operator != "or" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Operator must be 'and' or 'or'"})
+		return
+	}
+
+	// Validate selectors
+	if errMsg := scheduler.ValidateSelectors(req.Selectors); errMsg != "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": errMsg})
+		return
+	}
+
+	// Get all instances
+	instances, err := h.instanceStore.ListInstances(r.Context())
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to list instances"})
+		return
+	}
+
+	// Filter instances
+	var matched []models.Instance
+	for _, inst := range instances {
+		if scheduler.MatchInstance(&inst, req.Selectors, req.Operator) {
+			matched = append(matched, inst)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{
+		"matched_count": len(matched),
+		"total_count":   len(instances),
+		"instances":     matched,
+	})
 }
