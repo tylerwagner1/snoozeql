@@ -180,10 +180,13 @@ Plans:
   3. Recommendations are available in a dedicated recommendations tab
   4. Each recommendation shows suggested sleep/wake times based on activity patterns
   5. User can review a recommendation and confirm to create a schedule
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md — Backend recommendation generation and API handlers
+- [ ] 06-02-PLAN.md — Frontend components (RecommendationCard, Modal, ActivityGraph)
+- [ ] 06-03-PLAN.md — Dashboard and RecommendationsPage integration
+- [ ] 06-04-PLAN.md — End-to-end verification checkpoint
 
 ## Progress
 
@@ -197,7 +200,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Basic Scheduling | 3/3 | Complete | 2026-02-23 ✅ |
 | 4. Advanced Schedule Filtering | 3/3 | Complete | 2026-02-23 ✅ |
 | 5. Activity Analysis | 3/3 | Complete (GCP deferred) | 2026-02-23 ✅ |
-| 6. Intelligent Recommendations | 0/? | Not started | - |
+| 6. Intelligent Recommendations | 0/4 | Planned | - |
 
 ---
 *Created: 2026-02-20*
