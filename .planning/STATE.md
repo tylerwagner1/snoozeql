@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 5 of 6 (Activity Analysis)
-Plan: 1 of 3 in current phase (05-01 complete)
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-23 — Completed 05-01-PLAN.md (metrics schema and store)
+Last activity: 2026-02-23 - Completed 05-02-PLAN.md (CloudWatch client and MetricsCollector)
 
 Progress: [████████████████████████████] 5/6 phases complete
 
@@ -39,11 +39,17 @@ Progress: [███████████████████████
 - Phase 2 complete: 2026-02-23
 - Phase 3 complete: 2026-02-23
 - Phase 4 complete: 2026-02-23
-- Phase 5 progress: Plan 01 complete
+- Phase 5 progress: Plan 02 complete (CloudWatch client and MetricsCollector)
 
 ## Accumulated Context
 
 ### Decisions
+
+- [05-02]: GetMetricStatistics API for single-metric queries (simpler than GetMetricData for this use case)
+- [05-02]: 3 retry attempts with exponential backoff for throttling and transient errors
+- [05-02]: 1-hour period fetching with hourly aggregation, returning hourly averages
+- [05-02]: Client caching by account+region combination to minimize AWS configuration overhead
+- [05-02]: MetricsCollector background service pattern following existing DiscoveryService
 
 - [05-01]: Hourly aggregation with incremental averaging for UPSERT
 - [05-01]: Unique constraint on (instance_id, metric_name, hour) for idempotent inserts
@@ -187,6 +193,7 @@ From Phase 3 research (deferred to future phases):
 
 **Phase 5 - Activity Analysis:**
 - Plan 01 (05-01): Database schema (metrics_hourly table), HourlyMetric model, MetricsStore ✅ COMPLETED
+- Plan 02 (05-02): CloudWatch client, MetricsCollector service, integration in main.go ✅ COMPLETED
 
 **Plan 01-03 (2026-02-23):**
 - Plan 01: Backend matcher and filter utilities complete ✅
@@ -195,8 +202,8 @@ From Phase 3 research (deferred to future phases):
 
 ## Session Continuity
 
-Last session: 2026-02-23T15:45:00Z
-Stopped at: Completed 05-01-PLAN.md (metrics schema and store)
+Last session: 2026-02-23T16:44:00Z
+Stopped at: Completed 05-02-PLAN.md (CloudWatch client and MetricsCollector)
 
 **Phase 5 Execution Summary:**
 
@@ -205,14 +212,20 @@ Plan 01 (05-01) - Activity Analysis Foundation ✅ COMPLETED
 - Added HourlyMetric model struct
 - Implemented MetricsStore with all CRUD operations
 
+Plan 02 (05-02) - CloudWatch Client and MetricsCollector ✅ COMPLETED
+- Created CloudWatchClient with GetRDSMetrics, retry logic, and 4 metric types
+- Created MetricsCollector with RunContinuous, CollectAll, per-instance collection, and client caching
+- Integrated MetricsCollector into cmd/server/main.go with 15-minute interval
+
 **Files created:**
-- deployments/docker/migrations/005_metrics_hourly.sql
-- internal/metrics/store.go
+- internal/metrics/cloudwatch.go
+- internal/metrics/collector.go
 
 **Files modified:**
-- internal/models/models.go
+- cmd/server/main.go (added metrics import, globals, initialization, and goroutine startup)
+- go.mod (added github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.54.0 dependency)
 
-**Ready for:** Next Phase 5 plan (CloudWatch client and MetricsCollector)
+**Ready for:** Next Phase 5 plan (Idle period detection algorithms)
 
 **Phase 4 Execution Summary:**
 

@@ -19,6 +19,7 @@ import (
 	"snoozeql/internal/api/middleware"
 	"snoozeql/internal/config"
 	"snoozeql/internal/discovery"
+	"snoozeql/internal/metrics"
 	"snoozeql/internal/models"
 	"snoozeql/internal/provider"
 	awsprovider "snoozeql/internal/provider/aws"
@@ -36,6 +37,8 @@ var (
 	accountStore     *store.CloudAccountStore
 	eventStore       *store.EventStore
 	scheduleStore    *store.ScheduleStore
+	metricsStore     *metrics.MetricsStore
+	metricsCollector *metrics.MetricsCollector
 )
 
 // BulkOperationRequest represents a request to start/stop multiple instances
@@ -181,11 +184,24 @@ func main() {
 	eventStore = store.NewEventStore(db)
 	scheduleStore = store.NewScheduleStore(db)
 
+	// Initialize metrics store and collector
+	metricsStore = metrics.NewMetricsStore(db)
+	metricsCollector = metrics.NewMetricsCollector(
+		metricsStore,
+		instanceStore,
+		accountStore,
+		15, // 15-minute collection interval per CONTEXT.md
+	)
+
 	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, eventStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
 
 	// Start discovery in background
 	ctx := context.Background()
 	go discoveryService.RunContinuous(ctx)
+
+	// Start metrics collection in background
+	go metricsCollector.RunContinuous(ctx)
+	log.Printf("✓ Started metrics collector (15-minute interval)")
 
 	// Initialize router
 	r := chi.NewRouter()
