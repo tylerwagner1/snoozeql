@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Activity, Database, Clock, Lightbulb, Cloud, FileText } from 'lucide-react'
+import { Activity, Database, Clock, Lightbulb, Cloud, FileText, PiggyBank } from 'lucide-react'
 
 const Navigation = () => (
   <nav className="flex items-center space-x-1 md:space-x-2 bg-slate-800/30 p-1.5 rounded-full">
@@ -22,6 +22,10 @@ const Navigation = () => (
     <Link to="/recommendations" className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 hover:bg-blue-500/20 hover:text-blue-400 text-slate-300">
       <Lightbulb className="h-4 w-4" />
       <span className="hidden sm:inline">Recommendations</span>
+    </Link>
+    <Link to="/savings" className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 hover:bg-green-500/20 hover:text-green-400 text-slate-300">
+      <PiggyBank className="h-4 w-4" />
+      <span className="hidden sm:inline">Savings</span>
     </Link>
     <Link to="/audit-log" className="flex items-center space-x-1.5 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 hover:bg-blue-500/20 hover:text-blue-400 text-slate-300">
       <FileText className="h-4 w-4" />

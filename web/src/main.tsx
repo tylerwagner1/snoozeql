@@ -9,6 +9,7 @@ import InstanceDetailPage from './pages/InstanceDetailPage'
 import SchedulesPage from './pages/SchedulesPage'
 import RecommendationsPage from './pages/RecommendationsPage'
 import AuditLogPage from './pages/AuditLogPage'
+import SavingsPage from './pages/SavingsPage'
 import './index.css'
 
 const root = createRoot(document.getElementById('root')!)
@@ -39,6 +40,7 @@ root.render(
         <Route path="schedules" element={<SchedulesPage />} />
         <Route path="recommendations" element={<RecommendationsPage />} />
         <Route path="audit-log" element={<AuditLogPage />} />
+        <Route path="savings" element={<SavingsPage />} />
       </Route>
     </Routes>
   </BrowserRouter>,
