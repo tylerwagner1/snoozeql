@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Multi-Cloud Discovery** - Connect to AWS/GCP and display all database instances ✅ Complete (2026-02-21)
 - [x] **Phase 2: Manual Control & Audit** - Sleep/wake instances with confirmation and operation logging ✅ Complete (2026-02-23)
-- [ ] **Phase 3: Basic Scheduling** - Create time-based sleep/wake schedules
+- [x] **Phase 3: Basic Scheduling** - Create time-based sleep/wake schedules ✅ Complete (2026-02-23)
 - [ ] **Phase 4: Advanced Schedule Filtering** - Regex-based instance assignment with preview
 - [ ] **Phase 5: Activity Analysis** - Collect metrics and detect inactivity patterns
 - [ ] **Phase 6: Intelligent Recommendations** - Generate and apply activity-based schedule suggestions
@@ -101,13 +101,26 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — CRON utilities and WeeklyScheduleGrid component (Wave 1)
-- [ ] 03-02-PLAN.md — ScheduleModal with grid and CRON mode (Wave 2)
-- [ ] 03-03-PLAN.md — SchedulesPage integration and verification (Wave 3)
+- [x] 03-01-PLAN.md — CRON utilities and WeeklyScheduleGrid component (Wave 1)
+- [x] 03-02-PLAN.md — ScheduleModal with grid and CRON mode (Wave 2)
+- [x] 03-03-PLAN.md — SchedulesPage integration and verification (Wave 3)
+
+#### Phase 3 Completion Details
+
+**Completed:** 2026-02-23  
+**Status:** ✅ Complete  
+**Verification:** see [03-VERIFICATION.md](./phases/03-basic-scheduling/03-VERIFICATION.md)
+
+**Key Accomplishments:**
+- WeeklyScheduleGrid component with 7×24 drag-paintable cells
+- ScheduleModal with grid and CRON mode toggle
+- SchedulesPage integration with modal for create/edit
+- CRON conversion utilities (grid↔CRON, human-readable descriptions)
+- Human-verified complete end-to-end schedule creation flow
 
 ### Phase 4: Advanced Schedule Filtering
 **Goal**: Users can assign schedules to instances using flexible regex-based filters
-**Depends on**: Phase 3
+**Depends on**: Phase 3 ✅ (Phase 3 completed 2026-02-23)
 **Requirements**: SCH-02, SCH-03, SCH-04, SCH-05, SCH-06, SCH-07, SCH-08
 **Success Criteria** (what must be TRUE):
   1. User can create schedule filters based on instance name using regex patterns
@@ -116,10 +129,12 @@ Plans:
   4. User can combine filters with AND/OR operators
   5. User can preview which instances will match a filter before applying
   6. User can view all created schedules in a dedicated schedules tab
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Backend matcher and filter utilities (Wave 1)
+- [ ] 04-02-PLAN.md — FilterBuilder, FilterRule, FilterPreview components (Wave 2)
+- [ ] 04-03-PLAN.md — ScheduleModal integration and verification (Wave 3)
 
 ### Phase 5: Activity Analysis
 **Goal**: System collects and analyzes metrics to detect inactivity patterns
@@ -159,8 +174,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Multi-Cloud Discovery | 6/6 | Complete | 2026-02-21 ✅ |
 | 2. Manual Control & Audit | 5/5 | Complete | 2026-02-23 ✅ |
-| 3. Basic Scheduling | 0/3 | Planned | - |
-| 4. Advanced Schedule Filtering | 0/? | Not started | - |
+| 3. Basic Scheduling | 3/3 | Complete | 2026-02-23 ✅ |
+| 4. Advanced Schedule Filtering | 0/3 | Ready | - |
 | 5. Activity Analysis | 0/? | Not started | - |
 | 6. Intelligent Recommendations | 0/? | Not started | - |
 

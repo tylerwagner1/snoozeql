@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 3 - Basic Scheduling (plan 02 complete)
+**Current focus:** Phase 4 - Advanced Schedule Filtering (planning complete, ready for execution)
 
 ## Current Position
 
-Phase: 3 of 6 (Basic Scheduling)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-23 — Completed 03-02-PLAN.md (ScheduleModal with grid and CRON mode)
+Phase: 4 of 6 (Advanced Schedule Filtering)
+Plan: 0 of 3 in current phase (planned, not started)
+Status: Ready for execution
+Last activity: 2026-02-23 — Completed Phase 4 planning
 
-Progress: [██████████████████░] 11/17 plans complete
+Progress: [████████████████████] 3/6 phases complete
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 14
 - Average duration: ~15 min
-- Total execution time: ~2.9 hours
+- Total execution time: ~3.5 hours
 
 **By Phase:**
 
@@ -29,17 +29,37 @@ Progress: [██████████████████░] 11/17 plan
 |-------|-------|-------|----------|
 | 1 | 6/6 | 6 | ~16 min |
 | 2 | 5/5 | 5 | ~15 min |
-| 3 | 2/3 | 3 | - |
+| 3 | 3/3 | 3 | ~15 min |
+| 4 | 0/3 | - | - |
 
 **Recent Trend:**
-- Last 12 plans: 12 complete
+- Last 14 plans: 14 complete
 - Trend: Stable
 - Phase 1 complete: 2026-02-21
 - Phase 2 complete: 2026-02-23
+- Phase 3 complete: 2026-02-23
 
 ## Accumulated Context
 
 ### Decisions
+
+- [04-planning]: Filter builder uses visual chips for rules with AND/OR toggle
+- [04-planning]: Client-side preview for instant feedback, backend validates on save
+- [04-planning]: Filters stored in schedule.selectors array (existing model)
+- [04-planning]: Matcher types: exact, contains, prefix, suffix, regex
+
+- [03-03]: Schedule creation uses modal dialog for better UX
+- [03-03]: Schedule list shows active days and sleep hours summaries
+- [03-03]: Grid is source of truth, CRON mode is for power users
+
+- [03-02]: ScheduleModal uses Headless UI Dialog matching ConfirmDialog styling
+- [03-02]: Modal supports create and edit modes
+- [03-02]: Toggle between grid and CRON modes with data preservation
+- [03-02]: cronstrue for human-readable CRON descriptions
+
+- [03-01]: gridToCron handles overnight schedules (sleep crosses midnight)
+- [03-01]: formatGridSummary provides active days (Weekdays, Weekends, Every day)
+- [03-01]: Simple CRON format for Phase 3 (single contiguous window per day)
 
 - [02-05]: AuditLogPage uses client-side filtering (no additional API calls)
 - [02-05]: Event icons use moon/sun SVG with color coding
@@ -57,30 +77,25 @@ Progress: [██████████████████░] 11/17 plan
 - [02-01]: Use limit/offset pagination for events endpoint (50 rows default, 100 max)
 - [02-01]: Store Event metadata as JSONB in PostgreSQL
 
-- [01-01]: Use concrete types instead of interfaces for store injection in DiscoveryService to avoid circular imports
-- [01-01]: Connection status values: "connected" (success), "syncing" (running), "failed" (error), "unknown" (default)
-- [01-01]: Discovery service automatically updates account status to "syncing" before discovery and "connected"/"failed" after
+- [01-01]: Use concrete types instead of interfaces for store injection
+- [01-01]: Connection status values: "connected", "syncing", "failed", "unknown"
+- [01-01]: Discovery service automatically updates account status
 
-- [01-02]: Provider key format now includes account ID
-- [01-02]: GCP provider now accepts serviceAccountJSON parameter
-- [01-02]: Registry now has Unregister method for dynamic provider re-registration support
+- [01-02]: Provider key format includes account ID
+- [01-02]: GCP provider accepts serviceAccountJSON parameter
+- [01-02]: Registry has Unregister method for dynamic provider re-registration
 
-- [01-03]: Filter state uses URL params for better user experience
+- [01-03]: Filter state uses URL params
 - [01-03]: Status filter supports multiple value mappings
 
-- [01-04]: Connection status chips with colors for connected/syncing/failed/unknown states
+- [01-04]: Connection status chips with colors
 - [01-04]: Toast notifications using react-hot-toast
 
 - [01-05]: Dashboard stats cards are clickable with useNavigate
 - [01-05]: CTAs shown when no accounts exist
 
-- [03-02]: ScheduleModal uses Headless UI Dialog matching ConfirmDialog styling
-- [03-02]: Modal supports create and edit modes
-- [03-02]: Toggle between grid and CRON modes with data preservation
-
 - [Init]: Use existing Go/React/PostgreSQL stack
 - [Init]: Single-user POC scope (no RBAC complexity)
-- [Init]: Regex-based schedule assignment (user-requested flexible filtering)
 
 ### Pending Todos
 
@@ -88,7 +103,7 @@ None yet.
 
 ### Blockers/Concerns
 
-From research (deferred to Phase 3 for implementation):
+From Phase 3 research (deferred to future phases):
 - AWS 7-day auto-restart: implement re-stop mechanism
 - Instance state race conditions: implement proper state machine
 - Read replicas cannot be stopped: flag in discovery
@@ -117,32 +132,31 @@ From research (deferred to Phase 3 for implementation):
 - AuditLogPage with event filtering
 - Navigation link to audit log
 
-**Phase 3 - Basic Scheduling (in progress):**
+**Phase 3 - Basic Scheduling:**
 - WeeklyScheduleGrid component with 7×24 visual grid
 - Click-drag painting for scheduling multiple cells
 - Document-level mouseup listener for reliable drag termination
-- cronUtils.ts with grid↔CRON conversion utilities
+- cronUtils.ts with grid↔CRON conversion utilities (gridToCron, cronToGrid, formatGridSummary, describeCron)
 - Nighttime (overnight) schedule handling
 - Active days summary (Weekdays, Weekends, Every day)
 - ScheduleModal with create/edit modes
 - Grid and CRON mode toggle with data preservation
 - cronstrue integration for human-readable CRON descriptions
+- SchedulesPage integration with modal for create/edit
 
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 03-02-PLAN.md (ScheduleModal with grid and CRON mode)
+Stopped at: Phase 4 planning complete
 Resume file: None
 
-**Next Phase Readiness:**
-- Phase 3 plan 02 complete ✅
-- ScheduleModal component with grid integration ✅
-- CRON descriptions via cronstrue ✅
-- Ready for 03-03-PLAN.md (SchedulesPage integration)
+**Phase 4 Planning Summary:**
 
-**Phase 3 Goal:** Users can create time-based sleep/wake schedules
-**Phase 3 Success Criteria:**
-1. User can create a schedule specifying start time, end time, and days of week
-2. Created schedules appear in the schedules list
+3 plans created in 3 waves:
+- **Wave 1 (04-01):** Backend matcher.go + filterUtils.ts + preview API endpoint
+- **Wave 2 (04-02):** FilterBuilder, FilterRule, FilterPreview components
+- **Wave 3 (04-03):** ScheduleModal integration + SchedulesPage instance counts + verification
 
-**Ready for:** 03-03-PLAN.md (SchedulesPage integration with grid)
+**Ready for:** `/gsd-execute-phase 4`
+
+*`/new` first - fresh context window*
