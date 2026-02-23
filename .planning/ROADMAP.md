@@ -92,16 +92,18 @@ Plans:
 ---
 
 ### Phase 3: Basic Scheduling
-**Goal**: Users can create time-based sleep/wake schedules
-**Depends on**: Phase 2
+**Goal**: Users can create time-based sleep/wake schedules via visual weekly grid
+**Depends on**: Phase 2 ✅ (Phase 2 completed 2026-02-23)
 **Requirements**: SCH-01
 **Success Criteria** (what must be TRUE):
   1. User can create a schedule specifying start time, end time, and days of week
   2. Created schedules appear in the schedules list
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — CRON utilities and WeeklyScheduleGrid component (Wave 1)
+- [ ] 03-02-PLAN.md — ScheduleModal with grid and CRON mode (Wave 2)
+- [ ] 03-03-PLAN.md — SchedulesPage integration and verification (Wave 3)
 
 ### Phase 4: Advanced Schedule Filtering
 **Goal**: Users can assign schedules to instances using flexible regex-based filters
@@ -157,7 +159,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Multi-Cloud Discovery | 6/6 | Complete | 2026-02-21 ✅ |
 | 2. Manual Control & Audit | 5/5 | Complete | 2026-02-23 ✅ |
-| 3. Basic Scheduling | 0/? | Not started | - |
+| 3. Basic Scheduling | 0/3 | Planned | - |
 | 4. Advanced Schedule Filtering | 0/? | Not started | - |
 | 5. Activity Analysis | 0/? | Not started | - |
 | 6. Intelligent Recommendations | 0/? | Not started | - |
