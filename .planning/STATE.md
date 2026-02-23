@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 4 of 6 (Advanced Schedule Filtering)
-Plan: 1 of 3 in current phase (completed)
-Status: In progress
-Last activity: 2026-02-23 — Completed Plan 01: Backend matcher and filter utilities
+Plan: 3 of 3 in current phase (in progress)
+Status: Awaiting human verification
+Last activity: 2026-02-23 — Completed Plan 03: FilterBuilder integration + instance counts
 
 Progress: [████████████████████] 4/6 phases complete
 
@@ -181,13 +181,14 @@ From Phase 3 research (deferred to future phases):
 - Regex validation with inline error messages
 
 **Plan 01-03 (2026-02-23):**
-- Plan 01: Backend matcher and filter utilities complete
-- Plan 02: Filter components complete
+- Plan 01: Backend matcher and filter utilities complete ✅
+- Plan 02: Filter components complete ✅
+- Plan 03: ScheduleModal integration + instance counts complete ✅
 
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed Plan 01 - Backend matcher and filter utilities
+Stopped at: Completed Plan 03 - FilterBuilder integration + instance counts (awaiting verification)
 
 **Phase 4 Execution Summary:**
 
@@ -196,15 +197,19 @@ Stopped at: Completed Plan 01 - Backend matcher and filter utilities
 - **Wave 2 (04-02):** FilterBuilder, FilterRule, FilterPreview components ✅
 - **Wave 3 (04-03):** ScheduleModal integration + SchedulesPage instance counts + verification ⏸️
 
-**Status:** Plan 01 complete, proceeding to Plan 02.
+**Status:** Plan 03 execution complete, awaiting human verification at checkpoint.
 
 **To verify:**
 1. Start development servers: `go run cmd/server/main.go` and `npm run dev`
 2. Navigate to http://localhost:5173/schedules
-3. Test filter creation in ScheduleModal (click "Create Schedule")
-4. Test filter rules and AND/OR toggle
-5. Test regex validation (type invalid pattern like "[")
-6. Save a schedule with filters and verify instance count in list view
+3. Click "Create Schedule" to open ScheduleModal
+4. Verify FilterBuilder section appears below time selection
+5. Test adding filter rules with different field types (name, provider, region, engine, tag)
+6. Test AND/OR toggle for multiple rules
+7. Type invalid regex pattern like "["
+8. Save a schedule with filters
+9. Verify instance count column shows correct numbers in SchedulesPage
+10. Edit existing schedule to verify filters load correctly
 
 **Ready for:** Type "approved" to complete Phase 4
 
