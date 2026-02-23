@@ -122,6 +122,28 @@ type Saving struct {
 	EstimatedSavingsCents int    `json:"estimated_savings_cents" db:"estimated_savings_cents"`
 }
 
+// HourlyMetric represents an hourly aggregated metric from CloudWatch
+type HourlyMetric struct {
+	ID          string    `json:"id" db:"id"`
+	InstanceID  string    `json:"instance_id" db:"instance_id"`
+	MetricName  string    `json:"metric_name" db:"metric_name"` // CPUUtilization, DatabaseConnections, etc.
+	Hour        time.Time `json:"hour" db:"hour"`               // Truncated to hour in UTC
+	AvgValue    float64   `json:"avg_value" db:"avg_value"`
+	MaxValue    float64   `json:"max_value" db:"max_value"`
+	MinValue    float64   `json:"min_value" db:"min_value"`
+	SampleCount int       `json:"sample_count" db:"sample_count"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// MetricNames constants for supported CloudWatch metrics
+const (
+	MetricCPUUtilization      = "CPUUtilization"
+	MetricDatabaseConnections = "DatabaseConnections"
+	MetricReadIOPS            = "ReadIOPS"
+	MetricWriteIOPS           = "WriteIOPS"
+)
+
 // APIToken represents an API key
 type APIToken struct {
 	ID         string     `json:"id" db:"id"`
