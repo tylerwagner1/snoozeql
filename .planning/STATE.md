@@ -6,14 +6,14 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
 **Current focus:** v1.1 - Enhanced Insights & Savings (roadmap created, ready for phase planning)
-**Recent work:** Debugging Instance Details page 404 error, adding metrics display
+**Recent work:** Debugging - Instance Details page 404 error (UUID lookup), savings page 500 error (type assertion)
 
 ## Current Position
 
 Phase: 8 of 8 (Dashboard & Visualization)
 Plan: 4 of 4 in current phase (checkpoint: human-verify)
 Status: All tasks complete, checkpoint reached for human verification
-Last activity: 2026-02-24 - Completed debugging and fixes for Instance Details page
+Last activity: 2026-02-24 - Completed debugging fixes for savings page 500 error
 
 Progress: [██████████████████████████████████] 8/8 phases complete
 
@@ -116,6 +116,7 @@ Progress: [███████████████████████
 | Create `metrics_hourly` table in database | Table was referenced in code but missing from schema |
 | Return empty slice instead of nil for missing metrics | Consistent JSON serialization (empty array `[]` vs null) |
 | Add metrics display to InstanceDetailPage | Shows data used for recommendations (CPU, connections, IOPS stats) |
+| Rewrite GetDailySavings to use intermediate variable | Fix circular type assertion panic - build slice separately before assignment |
 
 **Phase 7 - Core Savings Calculation**
 

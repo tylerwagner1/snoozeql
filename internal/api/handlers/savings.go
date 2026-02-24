@@ -150,41 +150,45 @@ func (h *SavingsHandler) GetDailySavings(w http.ResponseWriter, r *http.Request)
 		ongoingCost = 0
 	}
 
-	// Build response
+	// Build response with proper slice initialization
+	// Use make() to ensure the slice is non-nil for proper type assertion
 	response := map[string]interface{}{
-		"daily_savings": make([]map[string]interface{}, len(dailySavings)),
+		"daily_savings": make([]map[string]interface{}, 0),
 		"ongoing_cost":  ongoingCost,
 	}
 
-	for i, ds := range dailySavings {
-		response["daily_savings"].(map[string][]map[string]interface{})["daily_savings"][i] = map[string]interface{}{
+	// Track today's date for checking if we need to add it
+	todayDate := startDate.Format("2006-01-02")
+	foundToday := false
+
+	// Initialize dailySavingsList as a slice for easier manipulation
+	dailySavingsList := make([]map[string]interface{}, 0)
+
+	for _, ds := range dailySavings {
+		entry := map[string]interface{}{
 			"date":            ds.Date,
 			"savings_cents":   ds.SavingsCents,
 			"stopped_minutes": ds.StoppedMinutes,
 		}
-	}
+		dailySavingsList = append(dailySavingsList, entry)
 
-	// Add today's ongoing cost if not already in the list
-	todayDate := startDate.Format("2006-01-02")
-	foundToday := false
-	for _, ds := range dailySavings {
+		// Check if this is today's date
 		if ds.Date == todayDate {
 			foundToday = true
-			break
 		}
 	}
 
-	// Add a placeholder for today to show ongoing cost
+	// Add a placeholder for today to show ongoing cost if not already present
 	if !foundToday && days >= 1 {
-		response["daily_savings"].(map[string][]map[string]interface{})["daily_savings"] = append(
-			response["daily_savings"].([]map[string]interface{}),
-			map[string]interface{}{
-				"date":            todayDate,
-				"savings_cents":   ongoingCost,
-				"stopped_minutes": 0,
-			},
-		)
+		dailySavingsList = append(dailySavingsList, map[string]interface{}{
+			"date":            todayDate,
+			"savings_cents":   ongoingCost,
+			"stopped_minutes": 0,
+		})
 	}
+
+	// Assign back to response
+	response["daily_savings"] = dailySavingsList
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
