@@ -18,32 +18,111 @@ interface CostDataPoint {
   costDollars: number
 }
 
-export function CostOverTimeChart({ instances }: { instances: Instance[] }) {
+interface CostOverTimeChartProps {
+  instances: Instance[]
+}
+
+enum TimeRange {
+  Daily = 'daily',
+  Weekly = 'weekly'
+}
+
+export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
+  const [timeRange, setTimeRange] = useState<TimeRange>(TimeRange.Weekly)
   const [costData, setCostData] = useState<CostDataPoint[]>([])
+
+  // Calculate estimated cost for a given time range
+  // Uses the formula: sum(hourly_cost * 24) for each running instance
+  const calculateEstimatedCost = (days: number): CostDataPoint[] => {
+    const data: CostDataPoint[] = []
+    const today = new Date()
+    
+    // Get all instances with their hourly costs
+    const instanceCosts = instances
+      .filter(inst => 
+        inst.status === 'available' || 
+        inst.status === 'running' || 
+        inst.status === 'starting'
+      )
+      .map(inst => ({
+        name: inst.name,
+        cost: inst.hourly_cost_cents
+      }))
+    
+    // Get total hourly cost
+    const totalHourlyCostCents = instanceCosts.reduce((sum, i) => sum + i.cost, 0)
+    
+    for (let day = days - 1; day >= 0; day--) {
+      const currentDay = new Date(today)
+      currentDay.setDate(today.getDate() - day)
+      
+      // Estimated cost: total hourly cost * 24 hours
+      const estimatedDailyCostCents = totalHourlyCostCents * 24
+      
+      data.push({
+        date: currentDay.toISOString().split('T')[0],
+        label: currentDay.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          weekday: day === days - 1 ? 'short' : undefined // Only show weekday for last day
+        }),
+        cost: estimatedDailyCostCents,
+        costDollars: estimatedDailyCostCents / 100,
+      })
+    }
+    
+    return data
+  }
 
   useEffect(() => {
     const fetchCostData = async () => {
+      const days = timeRange === TimeRange.Weekly ? 7 : 1
+      
       try {
-        // Fetch real savings data from API
+        // Fetch real savings data from API for 7 days
+        // For 24h view, we use the last 7 days of API data but only show 1 day
         const response = await api.getDailySavings(7)
         const dailySavings = response.daily_savings || []
         
-        // Generate data points for last 7 days
+        // Generate data points
         const data: CostDataPoint[] = []
         const today = new Date()
         
-        for (let day = 6; day >= 0; day--) {
+        for (let day = days - 1; day >= 0; day--) {
           const currentDay = new Date(today)
           currentDay.setDate(today.getDate() - day)
           const dateString = currentDay.toISOString().split('T')[0]
           
           // Find matching savings data for this day
           const savingsEntry = dailySavings.find(s => s.date === dateString)
-          const dailyCostCents = savingsEntry ? savingsEntry.savings_cents : 0
+          
+          let dailyCostCents: number
+          
+          if (savingsEntry) {
+            // Use real API data when available
+            dailyCostCents = savingsEntry.savings_cents
+          } else if (timeRange === TimeRange.Weekly) {
+            // For 7-day view, estimate based on current hourly cost
+            dailyCostCents = calculateEstimatedCost(7).find(d => d.date === dateString)?.cost || 0
+          } else {
+            // For 24h view, use current hourly cost * 24
+            const totalHourlyCostCents = instances
+              .filter(inst => 
+                inst.status === 'available' || 
+                inst.status === 'running' || 
+                inst.status === 'starting'
+              )
+              .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0)
+            dailyCostCents = totalHourlyCostCents * 24
+          }
           
           data.push({
             date: dateString,
-            label: currentDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            label: currentDay.toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric',
+              weekday: day === days - 1 ? 'short' : undefined
+            }),
             cost: dailyCostCents,
             costDollars: dailyCostCents / 100,
           })
@@ -51,56 +130,24 @@ export function CostOverTimeChart({ instances }: { instances: Instance[] }) {
         
         setCostData(data)
       } catch (err) {
-        // Fallback to mock data if API fails
-        const data = generateMockCostData(instances)
-        setCostData(data)
+        // Fallback to estimated data if API fails
+        setCostData(calculateEstimatedCost(timeRange === TimeRange.Weekly ? 7 : 1))
       }
     }
     
     if (instances.length > 0) {
       fetchCostData()
     } else {
-      // No instances, show empty state
       setCostData([])
     }
-  }, [instances])
-
-  // Fallback to mock data if API unavailable
-  const generateMockCostData = (instances: Instance[]): CostDataPoint[] => {
-    const data: CostDataPoint[] = []
-    const today = new Date()
-    
-    // Calculate total hourly cost from all running instances
-    const totalHourlyCostCents = instances
-      .filter(inst => inst.status === 'available' || inst.status === 'running' || inst.status === 'starting')
-      .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0)
-    
-    for (let day = 6; day >= 0; day--) {
-      const currentDay = new Date(today)
-      currentDay.setDate(today.getDate() - day)
-      
-      // Business hours (9-17) = full cost, nights (22-7) = minimal, other times = 20%
-      const businessHours = 8 // 9AM - 5PM
-      const offHours = 9 // 10PM - 7AM  
-      const transitionHours = 7 // remaining hours
-      
-      const dailyCost = (totalHourlyCostCents * businessHours) + 
-                        (totalHourlyCostCents * 0.2 * transitionHours) + 
-                        (totalHourlyCostCents * 0 * offHours)
-      
-      data.push({
-        date: currentDay.toISOString().split('T')[0],
-        label: currentDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        cost: dailyCost,
-        costDollars: dailyCost / 100,
-      })
-    }
-    
-    return data
-  }
+  }, [instances, timeRange])
 
   const currentHourlyCost = instances
-    .filter(inst => inst.status === 'available' || inst.status === 'running' || inst.status === 'starting')
+    .filter(inst => 
+      inst.status === 'available' || 
+      inst.status === 'running' || 
+      inst.status === 'starting'
+    )
     .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0) / 100
 
   const maxCost = costData.length > 0 
@@ -110,9 +157,34 @@ export function CostOverTimeChart({ instances }: { instances: Instance[] }) {
   return (
     <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-white">Cost Over Time (7 days)</h2>
-        <div className="text-sm text-slate-400">
-          Current: <span className="text-cyan-400 font-medium">${currentHourlyCost.toFixed(2)}/hr</span>
+        <h2 className="text-lg font-semibold text-white">Cost Over Time</h2>
+        <div className="flex items-center space-x-2">
+          <div className="text-sm text-slate-400">
+            Current: <span className="text-cyan-400 font-medium">${currentHourlyCost.toFixed(2)}/hr</span>
+          </div>
+          <div className="border-l border-slate-600 h-6 mx-2"></div>
+          <div className="flex bg-slate-900 rounded-lg p-1">
+            <button
+              onClick={() => setTimeRange(TimeRange.Daily)}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                timeRange === TimeRange.Daily
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              24h
+            </button>
+            <button
+              onClick={() => setTimeRange(TimeRange.Weekly)}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                timeRange === TimeRange.Weekly
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              7 days
+            </button>
+          </div>
         </div>
       </div>
       
