@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -64,6 +65,7 @@ type MetricValue struct {
 
 // GetRDSMetrics fetches all relevant metrics for an RDS instance
 // Returns metrics for the last hour, aggregated
+// Returns an error if ALL metrics fail to fetch (no data available from CloudWatch)
 func (c *CloudWatchClient) GetRDSMetrics(ctx context.Context, dbInstanceID string) (*RDSMetrics, error) {
 	endTime := time.Now().UTC()
 	startTime := endTime.Add(-1 * time.Hour)
@@ -73,32 +75,55 @@ func (c *CloudWatchClient) GetRDSMetrics(ctx context.Context, dbInstanceID strin
 		Timestamp:  endTime.Truncate(time.Hour),
 	}
 
+	var metricsCollected int
+
 	// Fetch each metric type
 	cpu, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricCPUUtilization, startTime, endTime)
 	if err == nil {
 		metrics.CPU = cpu
+		metricsCollected++
+	} else {
+		log.Printf("CloudWatch: no datapoints for %s CPUUtilization - checking if this is expected", dbInstanceID)
 	}
 
 	conns, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricDatabaseConnections, startTime, endTime)
 	if err == nil {
 		metrics.Connections = conns
+		metricsCollected++
+	} else {
+		log.Printf("CloudWatch: no datapoints for %s DatabaseConnections - checking if this is expected", dbInstanceID)
 	}
 
 	readIOPS, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricReadIOPS, startTime, endTime)
 	if err == nil {
 		metrics.ReadIOPS = readIOPS
+		metricsCollected++
+	} else {
+		log.Printf("CloudWatch: no datapoints for %s ReadIOPS - checking if this is expected", dbInstanceID)
 	}
 
 	writeIOPS, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricWriteIOPS, startTime, endTime)
 	if err == nil {
 		metrics.WriteIOPS = writeIOPS
+		metricsCollected++
+	} else {
+		log.Printf("CloudWatch: no datapoints for %s WriteIOPS - checking if this is expected", dbInstanceID)
 	}
 
 	freeMemory, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricFreeableMemory, startTime, endTime)
 	if err == nil {
 		metrics.FreeMemory = freeMemory
+		metricsCollected++
+	} else {
+		log.Printf("CloudWatch: no datapoints for %s FreeableMemory - checking if this is expected", dbInstanceID)
 	}
 
+	// If no metrics were collected, CloudWatch might not have data for this instance
+	if metricsCollected == 0 {
+		return nil, fmt.Errorf("no CloudWatch datapoints available for instance %s - check CloudWatch has data or instance is running", dbInstanceID)
+	}
+
+	// Return metrics even if some are nil - the collector will store what's available
 	return metrics, nil
 }
 
