@@ -68,6 +68,17 @@ const InstanceDetailPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Check if metrics are stale (no data or older than 30 min)
+  const isMetricsStale = () => {
+    if (metrics.length === 0) return true
+    const latestMetric = metrics.reduce((latest, m) => {
+      const mTime = new Date(m.hour).getTime()
+      return mTime > latest ? mTime : latest
+    }, 0)
+    const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000)
+    return latestMetric < thirtyMinutesAgo
+  }
+
   useEffect(() => {
     if (!id) return
     
@@ -216,7 +227,14 @@ const InstanceDetailPage = () => {
           </div>
 
           <div className="bg-white shadow-sm border rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Metrics</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Metrics</h2>
+              {isMetricsStale() && instance.status !== 'stopped' && (
+                <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                  Metrics unavailable
+                </span>
+              )}
+            </div>
             {metrics.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <MetricCard 
@@ -228,12 +246,12 @@ const InstanceDetailPage = () => {
                   samples={getMetricSamples(metrics, 'cpuutilization')}
                 />
                 <MetricCard 
-                  label="Memory Utilization" 
-                  value={getMetricValue(metrics, 'memoryutilization') || getMetricValue(metrics, 'memutilization')}
+                  label="Memory Available" 
+                  value={getMetricValue(metrics, 'freeablememory')}
                   unit="%"
-                  min={getMetricMin(metrics, 'memoryutilization') || getMetricMin(metrics, 'memutilization')}
-                  max={getMetricMax(metrics, 'memoryutilization') || getMetricMax(metrics, 'memutilization')}
-                  samples={getMetricSamples(metrics, 'memoryutilization') || getMetricSamples(metrics, 'memutilization')}
+                  min={getMetricMin(metrics, 'freeablememory')}
+                  max={getMetricMax(metrics, 'freeablememory')}
+                  samples={getMetricSamples(metrics, 'freeablememory')}
                 />
                 <MetricCard 
                   label="Database Connections" 
