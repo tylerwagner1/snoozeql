@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** - Phases 1-6 (shipped 2026-02-23)
-- ✅ **v1.1 Enhanced Insights & Savings** - Phases 7-8 (completed 2026-02-23)
+- ✅ **v1.1 Enhanced Insights & Savings** - Phases 7-9 (completed 2026-02-24)
 
 ## Phases
 
@@ -72,7 +72,7 @@ Plans:
 
 </details>
 
-### 🚧 v1.1 Enhanced Insights & Savings (In Progress)
+### ✅ v1.1 Enhanced Insights & Savings (Completed 2026-02-24)
 
 **Milestone Goal:** Extend the v1.0 foundation with cost savings tracking, usage analytics, and historical visualization to validate SnoozeQL's value and improve user confidence.
 
@@ -123,12 +123,12 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 09-PLAN.md — Complete savings removal and Docker rebuild
+- [x] 09-01-PLAN.md — Complete savings removal and Docker rebuild
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order. v1.0 (1-6) complete. v1.1 (7-8) in progress.
+Phases execute in numeric order. v1.0 (1-6) complete. v1.1 (7-9) complete.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -140,9 +140,9 @@ Phases execute in numeric order. v1.0 (1-6) complete. v1.1 (7-8) in progress.
 | 6. Intelligent Recommendations | v1.0 | 4/4 | Complete | 2026-02-23 |
 | 7. Core Savings Calculation & API | v1.1 | 3/3 | Complete | 2026-02-23 |
 | 8. Dashboard & Visualization | v1.1 | 4/4 | Complete | 2026-02-23 |
-| 9. Complete Savings Removal | v1.1 | 0/1 | Not Started | - |
+| 9. Complete Savings Removal | v1.1 | 1/1 | Complete | 2026-02-24 |
 
 ---
 
 *Roadmap created: 2026-02-23*
-*Last updated: 2026-02-24 (Phase 9 added: Complete Savings Removal)*
+*Last updated: 2026-02-24 (Phase 9 completed: Complete Savings Removal)*
