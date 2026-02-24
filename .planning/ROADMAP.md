@@ -38,10 +38,10 @@ Delivered: Savings tracking system (built, evaluated, removed), instance metrics
   1. FreeableMemory metric appears alongside CPU and Connections in metrics_hourly table
   2. Metrics collection runs every 15 minutes without errors
   3. New metrics data persists across application restarts
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 10-01: Add FreeableMemory to CloudWatch collector and verify storage
+- [ ] 10-01-PLAN.md — Add FreeableMemory to CloudWatch collector with memory percentage and UI badge
 
 #### Phase 11: Time-Series Visualization
 **Goal**: User can view metrics history on Instance Details page
