@@ -9,7 +9,6 @@ import {
 } from 'recharts'
 import { useState, useEffect } from 'react'
 import type { Instance } from '../lib/api'
-import api from '../lib/api'
 
 interface CostDataPoint {
   date: string
@@ -75,120 +74,35 @@ export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
   }
 
   useEffect(() => {
-    const fetchCostData = async () => {
-      const days = timeRange === TimeRange.Weekly ? 7 : 1
-      
-      try {
-        // Fetch real savings data from API for 7 days
-        const response = await api.getDailySavings(7)
-        const dailySavings = response.daily_savings || []
-        
-        const data: CostDataPoint[] = []
-        const today = new Date()
-        
-        for (let day = days - 1; day >= 0; day--) {
-          const currentDay = new Date(today)
-          currentDay.setDate(today.getDate() - day)
-          const dateString = currentDay.toISOString().split('T')[0]
-          
-          if (timeRange === TimeRange.Weekly) {
-            // 7-day view: one data point per day
-            const savingsEntry = dailySavings.find(s => s.date === dateString)
-            let dailyCostCents = savingsEntry ? savingsEntry.savings_cents : 0
-            
-            // If no savings data, estimate based on current hourly cost * 24
-            if (dailyCostCents === 0) {
-              const totalHourlyCostCents = instances
-                .filter(inst => 
-                  inst.status === 'available' || 
-                  inst.status === 'running' || 
-                  inst.status === 'starting'
-                )
-                .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0)
-              dailyCostCents = totalHourlyCostCents * 24
-            }
-            
-            data.push({
-              date: dateString,
-              label: currentDay.toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric',
-                weekday: day === days - 1 ? 'short' : undefined
-              }),
-              cost: dailyCostCents,
-              costDollars: dailyCostCents / 100,
-            })
-          } else {
-            // 24h view: one data point per hour (24 total)
-            const totalHourlyCostCents = instances
-              .filter(inst => 
-                inst.status === 'available' || 
-                inst.status === 'running' || 
-                inst.status === 'starting'
-              )
-              .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0)
-            
-            for (let hour = 0; hour < 24; hour++) {
-              const hourDate = new Date(currentDay)
-              hourDate.setHours(hour)
-              
-              // Cost for this hour = sum of all running instances * 1 hour
-              const hourlyCostCents = totalHourlyCostCents * 1
-              
-              data.push({
-                date: dateString,
-                label: hourDate.toLocaleTimeString('en-US', { 
-                  hour: 'numeric',
-                  hour12: true,
-                  minute: '2-digit'
-                }),
-                cost: hourlyCostCents,
-                costDollars: hourlyCostCents / 100,
-              })
-            }
-          }
-        }
-        
-        setCostData(data)
-      } catch (err) {
-        // Fallback: use estimated data
-        if (timeRange === TimeRange.Weekly) {
-          setCostData(calculateEstimatedCost(7))
-        } else {
-          // For 24h, estimate based on current hourly cost
-          const data: CostDataPoint[] = []
-          const totalHourlyCostCents = instances
-            .filter(inst => 
-              inst.status === 'available' || 
-              inst.status === 'running' || 
-              inst.status === 'starting'
-            )
-            .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0)
-          
-          const today = new Date()
-          for (let hour = 0; hour < 24; hour++) {
-            const hourDate = new Date(today)
-            hourDate.setHours(hour)
-            data.push({
-              date: today.toISOString().split('T')[0],
-              label: hourDate.toLocaleTimeString('en-US', { 
-                hour: 'numeric',
-                hour12: true,
-                minute: '2-digit'
-              }),
-              cost: totalHourlyCostCents,
-              costDollars: totalHourlyCostCents / 100,
-            })
-          }
-          setCostData(data)
-        }
-      }
-    }
-    
-    if (instances.length > 0) {
-      fetchCostData()
+    if (timeRange === TimeRange.Weekly) {
+      setCostData(calculateEstimatedCost(7))
     } else {
-      setCostData([])
+      // For 24h, estimate based on current hourly cost
+      const data: CostDataPoint[] = []
+      const totalHourlyCostCents = instances
+        .filter(inst => 
+          inst.status === 'available' || 
+          inst.status === 'running' || 
+          inst.status === 'starting'
+        )
+        .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0)
+      
+      const today = new Date()
+      for (let hour = 0; hour < 24; hour++) {
+        const hourDate = new Date(today)
+        hourDate.setHours(hour)
+        data.push({
+          date: today.toISOString().split('T')[0],
+          label: hourDate.toLocaleTimeString('en-US', { 
+            hour: 'numeric',
+            hour12: true,
+            minute: '2-digit'
+          }),
+          cost: totalHourlyCostCents,
+          costDollars: totalHourlyCostCents / 100,
+        })
+      }
+      setCostData(data)
     }
   }, [instances, timeRange])
 
