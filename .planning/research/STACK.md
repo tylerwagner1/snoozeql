@@ -1,338 +1,220 @@
-# Technology Stack: Cost Savings Tracking for SnoozeQL v1.1
+# Stack Research: v1.2 Metrics & Recommendations
 
-**Project:** SnoozeQL v1.1 - Cost Savings Tracking
-**Researched:** 2026-02-23
-**Confidence:** HIGH (leverages existing infrastructure patterns)
+**Researched:** 2026-02-24
+**Focus:** Stack additions for metrics visualization and recommendation improvements
 
-## Executive Summary
+## Summary
 
-SnoozeQL v1.0 already has the core data structures needed for cost tracking: `HourlyCostCents` on instances, `Saving` model with `StoppedMinutes` and `EstimatedSavingsCents`, and `Event` records for stop/start operations. The v1.1 cost tracking feature is primarily about **calculating and visualizing** data that the system already captures.
-
-**Key insight:** No new external libraries are required for core cost calculation. The existing Go backend can implement savings calculation using simple arithmetic from Event timestamps and instance costs. The frontend already uses Recharts for visualization.
+The v1.2 milestone requires minimal stack changes. The existing infrastructure—Go 1.24.0 with AWS SDK v2, React 18.2 with Recharts 2.10.0, and PostgreSQL with the `metrics_hourly` table—already supports the core requirements. The primary work is **adding one CloudWatch metric (FreeableMemory), building time-series chart components, and improving threshold-based idle detection**. No new libraries required.
 
 ---
 
-## 1. Cost Estimation Techniques
+## Existing Stack (No Changes Needed)
 
-### Recommended Approach: Event-Based Calculation
+### Backend - Fully Sufficient
 
-**Method:** Calculate savings from actual stop/start events by measuring stopped duration.
+| Component | Version | Current Capability | v1.2 Need |
+|-----------|---------|-------------------|-----------|
+| **Go** | 1.24.0 | All backend logic | No change |
+| **aws-sdk-go-v2/cloudwatch** | 1.54.0 | `GetMetricStatistics` for CPU, Connections, IOPS | Add FreeableMemory metric |
+| **pgx/v5** | 5.8.0 | Queries `metrics_hourly` table | Add time-range queries |
+| **Chi router** | 5.2.0 | REST API routing | Add metrics endpoint |
 
-```
-Savings = (StoppedDuration in hours) × (HourlyCostCents)
-```
+**Key finding:** The `MetricsCollector` in `internal/metrics/collector.go` already collects CPUUtilization, DatabaseConnections, ReadIOPS, and WriteIOPS. Adding FreeableMemory is a single-line addition to the `RDSMetrics` struct and `GetRDSMetrics` method.
 
-**Why this approach:**
-- **Accurate:** Based on actual stop/start events, not projections
-- **Simple:** No external API dependencies or pricing lookups
-- **Already supported:** `Event` model captures all start/stop actions with timestamps
-- **POC-appropriate:** Avoids complexity of billing API integration
+### Frontend - Fully Sufficient
 
-**Data flow:**
-1. `Event` records capture `stop` and `start` actions with `created_at` timestamps
-2. Calculate duration between stop → start pairs per instance
-3. Multiply stopped duration by `instance.HourlyCostCents`
-4. Aggregate into `Saving` records (daily rollup)
+| Component | Version | Current Capability | v1.2 Need |
+|-----------|---------|-------------------|-----------|
+| **React** | 18.2.0 | Component framework | No change |
+| **Recharts** | 2.10.0 | `AreaChart`, `LineChart`, `XAxis`, `Tooltip` | Use existing components for time-series |
+| **Tailwind CSS** | 3.4.0 | Styling | No change |
+| **lucide-react** | 0.300.0 | Icons | No change |
 
-### Alternative: Real Billing API Integration (NOT recommended for POC)
+**Key finding:** `ActivityGraph.tsx` already demonstrates time-series visualization with Recharts. The `InstanceDetailPage.tsx` displays metric cards but lacks time-series charts—this is the primary frontend addition.
 
-**AWS Pricing API:**
-- `github.com/aws/aws-sdk-go-v2/service/pricing` provides programmatic access
-- Requires parsing complex JSON pricing structures
-- Pricing varies by region, instance class, storage type, and reservation model
-- Adds significant complexity for marginal accuracy improvement
+### Database - Fully Sufficient
 
-**GCP Cloud Billing API:**
-- `cloud.google.com/billing` for programmatic access
-- Similar complexity to AWS
+| Table | Current Schema | v1.2 Need |
+|-------|---------------|-----------|
+| `metrics_hourly` | `instance_id`, `metric_name`, `hour`, `avg_value`, `max_value`, `min_value`, `sample_count` | Add `FreeableMemory` as new metric_name |
 
-**Verdict:** The existing `HourlyCostCents` field on instances is sufficient for POC. Real billing integration can be a future enhancement.
+**Key finding:** The schema is already designed for multiple metric types. Adding FreeableMemory requires no schema changes—just storing it with `metric_name = 'FreeableMemory'`.
 
 ---
 
-## 2. Recommended Libraries/Tools
+## Stack Additions
 
-### Go Backend (No New Dependencies Required)
+### Backend: Add FreeableMemory Metric Collection
 
-| Library | Status | Purpose |
-|---------|--------|---------|
-| **shopspring/decimal** | OPTIONAL | Precise decimal arithmetic for currency |
-| **stdlib time** | EXISTING | Duration calculations |
-| **pgx/v5** | EXISTING | PostgreSQL queries for aggregation |
+**Change Location:** `internal/metrics/cloudwatch.go` and `internal/models/models.go`
 
-**Recommendation:** Use integer cents throughout (already the pattern). `HourlyCostCents` avoids floating-point issues. Only add `shopspring/decimal` if converting to dollars for display causes rounding issues.
+| Component | Change | Rationale |
+|-----------|--------|-----------|
+| `RDSMetrics` struct | Add `FreeableMemory *MetricValue` field | Store memory utilization data |
+| `GetRDSMetrics()` | Add `FreeableMemory` fetch call | Collect from CloudWatch |
+| `models.go` | Add `MetricFreeableMemory = "FreeableMemory"` constant | Consistent naming |
 
-### React Frontend (Leverage Existing)
+**AWS CloudWatch FreeableMemory Details (Verified from official docs):**
+- **Namespace:** `AWS/RDS`
+- **Metric Name:** `FreeableMemory`
+- **Unit:** Bytes
+- **Applies to:** All RDS engines
+- **Description:** Amount of available random access memory. Reports `/proc/meminfo` MemAvailable for MariaDB, MySQL, Oracle, PostgreSQL.
 
-| Library | Version | Status | Purpose |
-|---------|---------|--------|---------|
-| **Recharts** | 2.10.0 | EXISTING | Charts and visualizations |
-| **lucide-react** | 0.300.0 | EXISTING | Icons for dashboard components |
-| **React Router** | 6.20.0 | EXISTING | Navigation between savings views |
-
-**Recommendation:** No new frontend dependencies. Recharts already supports all needed chart types (line, bar, area, pie) for cost visualization.
-
-### External Tools Considered (Not Recommended for POC)
-
-| Tool | What It Does | Why NOT Use |
-|------|--------------|-------------|
-| **Infracost** | Cloud cost estimation for Terraform | Focused on IaC, not runtime cost tracking |
-| **OpenCost** | Kubernetes cost monitoring | Focused on K8s workloads, not managed databases |
-| **AWS Cost Explorer API** | Actual billing data | Requires additional IAM permissions, complex integration |
-| **GCP Cloud Billing API** | Actual billing data | Same complexity concerns |
-
----
-
-## 3. Common Data Points for Accurate Estimation
-
-### Already Captured in SnoozeQL v1.0
-
-| Data Point | Model | Field | Notes |
-|------------|-------|-------|-------|
-| Instance class | `Instance` | `InstanceType` | e.g., `db.t3.micro` |
-| Hourly cost | `Instance` | `HourlyCostCents` | Already populated per-instance |
-| Region | `Instance` | `Region` | Affects pricing (not used yet) |
-| Stop events | `Event` | `event_type='stop'` | With `created_at` timestamp |
-| Start events | `Event` | `event_type='start'` | With `created_at` timestamp |
-| Instance status | `Instance` | `Status` | Current state |
-
-### Data Points to Add for v1.1
-
-| Data Point | Purpose | Implementation |
-|------------|---------|----------------|
-| **Stopped start time** | Calculate duration | Query `Event` for last `stop` event per instance |
-| **Daily aggregates** | Historical views | Populate `Saving` table with daily rollups |
-| **Projected vs actual** | Forecast accuracy | Compare schedule intent vs realized savings |
-
-### Data Points Deferred (Future Enhancement)
-
-| Data Point | Why Defer |
-|------------|-----------|
-| Storage costs | Typically constant (not affected by stop/start) |
-| Backup costs | Minor, constant cost |
-| IOPS costs | Provisioned IOPS continue during stop |
-| Multi-AZ pricing | Doubles compute cost but same calculation |
-| Reserved instance pricing | Would require billing API integration |
-
----
-
-## 4. Go Ecosystem for Cost Calculation
-
-### Custom Implementation (Recommended)
-
-The calculation logic is simple enough that custom implementation is cleaner than any library:
-
+**Implementation pattern (mirrors existing CPU collection):**
 ```go
-// internal/savings/calculator.go
-
-// CalculateDailySavings computes savings for a given instance and day
-func CalculateDailySavings(events []models.Event, instance models.Instance, date time.Time) int {
-    stoppedMinutes := 0
-    
-    // Find stop/start pairs within the date
-    // Calculate total stopped duration
-    
-    hoursStopped := float64(stoppedMinutes) / 60.0
-    savingsCents := int(hoursStopped * float64(instance.HourlyCostCents))
-    
-    return savingsCents
+// In cloudwatch.go GetRDSMetrics()
+freeMem, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricFreeableMemory, startTime, endTime)
+if err == nil {
+    metrics.FreeableMemory = freeMem
 }
 ```
 
-### Useful Patterns from Existing Code
+**Memory Utilization Calculation:**
+FreeableMemory is in bytes, not percentage. To display as utilization:
+```
+Memory Utilization % = 100 - (FreeableMemory / TotalMemory * 100)
+```
+Note: TotalMemory requires instance class lookup. For v1.2, display FreeableMemory directly (in GB/MB) or calculate percentage client-side if instance memory is known.
 
-The codebase already has good patterns to follow:
+### Backend: Time-Series Metrics API
 
-1. **Time duration parsing** in `internal/provider/aws/rds.go:parsePeriod()`
-2. **Model structures** in `internal/models/models.go` (Saving model ready to use)
-3. **Aggregation queries** can follow PostgreSQL patterns in `internal/store/postgres.go`
+**New Endpoint:** `GET /api/v1/instances/{id}/metrics/history`
 
-### Go Libraries If Needed
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `start` | ISO8601 | Start of time range (default: 7 days ago) |
+| `end` | ISO8601 | End of time range (default: now) |
+| `metrics` | string | Comma-separated list: `cpu,memory,connections,iops` |
 
-| Library | When to Use |
-|---------|-------------|
-| `github.com/shopspring/decimal` | If precise currency math becomes an issue |
-| `github.com/dustin/go-humanize` | For human-readable cost formatting ("$1.2K") |
+**Response Format:**
+```json
+{
+  "instance_id": "abc123",
+  "start": "2026-02-17T00:00:00Z",
+  "end": "2026-02-24T00:00:00Z",
+  "series": {
+    "CPUUtilization": [
+      {"hour": "2026-02-17T00:00:00Z", "avg": 2.3, "max": 5.1, "min": 0.8}
+    ],
+    "FreeableMemory": [...]
+  }
+}
+```
 
-**Current recommendation:** Don't add either for POC. Use integer cents and format in frontend.
+**Implementation:** Add handler in `internal/api/handlers/instances.go` that queries `MetricsStore.GetMetricsByInstance()`.
 
----
+### Frontend: Time-Series Chart Component
 
-## 5. Frontend Visualization
+**New Component:** `web/src/components/MetricsChart.tsx`
 
-### Existing Capability (Recharts 2.10.0)
-
-The Dashboard already demonstrates cost visualization with the "Cost Over Time (7 days)" chart:
+Uses existing Recharts components already imported in the codebase:
 
 ```tsx
-// Current pattern in Dashboard.tsx (lines 272-301)
-<div className="h-64 w-full flex items-end space-x-1 sm:space-x-2">
-  {costData.map((d, i) => {
-    const heightPercentage = (d.cost / maxCost) * 100
-    return (
-      <div key={i} className="flex-1 flex flex-col justify-end group relative">
-        <div 
-          className="bg-gradient-to-t from-blue-600 via-cyan-500 to-cyan-400..."
-          style={{ height: `${Math.max(heightPercentage, 0.5)}%` }}
-        />
-      </div>
-    )
-  })}
-</div>
+import { 
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid 
+} from 'recharts'
+
+interface MetricsChartProps {
+  data: Array<{hour: string, value: number}>
+  metricName: string
+  color: string
+  unit: string
+}
 ```
 
-### Recommended Chart Types for v1.1
+**Integration Point:** `InstanceDetailPage.tsx` currently shows static metric cards. Add collapsible chart section below each card or tabbed view for different metrics.
 
-| Visualization | Recharts Component | Use Case |
-|---------------|-------------------|----------|
-| Savings over time | `<LineChart>` | Historical trend |
-| Daily savings breakdown | `<BarChart>` | Per-day comparison |
-| Savings by instance | `<BarChart>` horizontal | Attribution |
-| Projected vs actual | `<ComposedChart>` | Line + area overlay |
-| Cumulative savings | `<AreaChart>` | Total savings growth |
+### Backend: Improved Idle Detection Thresholds
 
-### UI Components to Create
-
-```
-web/src/components/
-├── SavingsLineChart.tsx      # Time series savings trend
-├── SavingsBreakdown.tsx      # Per-instance savings list
-├── SavingsCard.tsx           # Summary stat card (like existing dashboard cards)
-└── ProjectionChart.tsx       # Expected vs actual comparison
-```
-
-### Dashboard Integration
-
-The existing `Dashboard.tsx` already shows:
-- Total savings stat card (line 180-189)
-- Cost over time chart (line 270-301)
-
-**v1.1 enhancement:** Replace mock `totalSavings` calculation with real API data:
-```tsx
-// Current (mock)
-const totalSavings = instances.reduce((sum, inst) => sum + (inst.hourly_cost_cents / 100) * 24 * 7, 0)
-
-// v1.1 (real API)
-const [savingsData, setSavingsData] = useState<SavingsSummary | null>(null)
-// ... fetch from /api/savings/summary
-```
-
----
-
-## 6. Migration Path: Incremental Implementation
-
-### Phase 1: Backend Savings Calculation (Day 1-2)
-
-1. **Create savings calculator service**
-   ```
-   internal/savings/
-   ├── calculator.go     # Core calculation logic
-   ├── aggregator.go     # Daily rollup logic
-   └── service.go        # Business logic orchestration
-   ```
-
-2. **Implement savings API endpoints** (extend existing `handlers/savings.go`)
-   - `GET /api/savings/summary` - Total savings stats
-   - `GET /api/savings/history` - Daily savings history
-   - `GET /api/savings/by-instance/{id}` - Per-instance breakdown
-
-3. **Populate Saving model** from Event data
-   - Background job to calculate daily aggregates
-   - Calculate current-day savings on-demand
-
-### Phase 2: Frontend Visualization (Day 2-3)
-
-1. **Create API client methods** in `lib/api.ts`
-2. **Build savings components** using existing Recharts patterns
-3. **Integrate into Dashboard** - replace mock data with real API
-
-### Phase 3: Historical Analysis (Day 3-4)
-
-1. **Add projected savings** (based on schedules)
-2. **Compare projected vs actual** 
-3. **Add per-instance savings attribution**
-
----
-
-## Database Schema (Already Exists)
-
-The `Saving` model in `internal/models/models.go` is ready:
-
+**Current Implementation (patterns.go):**
 ```go
-type Saving struct {
-    ID                    string `json:"id" db:"id"`
-    InstanceID            string `json:"instance_id" db:"instance_id"`
-    Date                  string `json:"date" db:"date"`
-    StoppedMinutes        int    `json:"stopped_minutes" db:"stopped_minutes"`
-    EstimatedSavingsCents int    `json:"estimated_savings_cents" db:"estimated_savings_cents"`
+type ActivityThresholds struct {
+    CPUPercent:        1.0,  // CPU < 1%
+    QueriesPerMin:     5.0,  // Queries < 5/min
+    MinIdleHours:      8,    // 8+ hours of low activity
+    MinDataHours:      24,   // 24+ hours of data required
+    MinDaysConsistent: 3,    // Pattern on at least 3 days
 }
 ```
 
-**Check:** Verify the PostgreSQL `savings` table exists and matches this schema.
+**v1.2 Enhancement:** Add memory threshold to idle detection
 
----
+| Threshold | Current | v1.2 Addition |
+|-----------|---------|---------------|
+| CPU | < 1% | No change |
+| Memory | N/A | FreeableMemory > 90% of total (very idle) |
+| Connections | Indirect via QueriesPerMin | < 2 active connections |
+| IOPS | Not used in idle calc | < 10 combined ReadIOPS+WriteIOPS |
 
-## API Design
-
-### Savings Summary
-```
-GET /api/savings/summary?period=7d
-
-Response:
-{
-  "total_savings_cents": 45230,
-  "period_start": "2026-02-16",
-  "period_end": "2026-02-23",
-  "instance_count": 5,
-  "total_stopped_hours": 840
-}
-```
-
-### Savings History
-```
-GET /api/savings/history?period=30d
-
-Response:
-{
-  "data": [
-    {"date": "2026-02-22", "savings_cents": 6500, "stopped_hours": 12},
-    {"date": "2026-02-23", "savings_cents": 7200, "stopped_hours": 14}
-  ]
-}
-```
-
-### Per-Instance Savings
-```
-GET /api/savings/by-instance/{id}?period=7d
-
-Response:
-{
-  "instance_id": "db-prod-1",
-  "total_savings_cents": 12500,
-  "daily_breakdown": [...]
+**Implementation:**
+```go
+// patterns.go
+type ActivityThresholds struct {
+    CPUPercent         float64 // CPU < X%
+    FreeableMemoryPct  float64 // FreeableMemory > X% of total = idle
+    MaxConnections     float64 // Connections < X = idle
+    MaxCombinedIOPS    float64 // ReadIOPS + WriteIOPS < X = idle
+    MinIdleHours       int
+    MinDataHours       int
+    MinDaysConsistent  int
 }
 ```
 
 ---
 
-## Confidence Assessment
+## What NOT to Add
 
-| Area | Confidence | Reason |
-|------|------------|--------|
-| Calculation approach | HIGH | Simple math from existing Event data |
-| Go implementation | HIGH | No new dependencies, follows existing patterns |
-| Frontend visualization | HIGH | Recharts already in use, proven patterns |
-| Data availability | HIGH | Events and instance costs already captured |
-| Accuracy | MEDIUM | Estimated costs may differ from actual billing |
+| Component | Reason |
+|-----------|--------|
+| **date-fns** | Use native Date APIs or existing formatters for chart timestamps |
+| **moment.js** | Heavy library, unnecessary for simple time formatting |
+| **Chart.js** | Already have Recharts, don't mix charting libraries |
+| **Recharts upgrade to 3.x** | v2.10.0 is stable and sufficient; major version bump adds risk |
+| **Enhanced Monitoring (RDS)** | Would provide more OS-level metrics but requires enabling per-instance, adds cost, overkill for POC |
+| **CloudWatch Logs Insights** | For log analysis, not metrics visualization |
+| **AWS Cost Explorer API** | Out of scope for metrics milestone |
+| **TanStack Query (React Query)** | Would improve caching but adds learning curve; existing fetch patterns work |
+| **D3.js directly** | Recharts wraps D3; don't need direct D3 usage |
 
 ---
 
-## Sources
+## Confidence
 
-- **Official:** AWS RDS Pricing (https://aws.amazon.com/rds/pricing/) - Verified 2026-02-23
-- **Official:** GCP Cloud Billing API (https://cloud.google.com/billing/docs/reference/rest) - Verified 2026-02-23
-- **Official:** Recharts documentation - Already in use, v2.10.0
-- **Open Source:** Infracost (https://github.com/infracost/infracost) - Reviewed for patterns, not recommended for this use case
-- **Open Source:** OpenCost (https://github.com/opencost/opencost) - Reviewed, K8s-focused
-- **Go Package:** shopspring/decimal (https://pkg.go.dev/github.com/shopspring/decimal) - Optional, v1.4.0
-- **Codebase:** SnoozeQL v1.0 - Reviewed existing models, API patterns, and frontend components
+**HIGH** - All additions are incremental extensions of existing patterns:
+
+| Area | Confidence | Reasoning |
+|------|------------|-----------|
+| FreeableMemory collection | HIGH | Same pattern as existing CPU/Connections collection; verified in AWS docs |
+| Time-series API | HIGH | `GetMetricsByInstance()` already exists in MetricsStore |
+| Recharts time-series | HIGH | `ActivityGraph.tsx` proves the pattern works |
+| Threshold improvements | HIGH | `patterns.go` already has threshold config struct |
+
+**Verification sources:**
+- AWS RDS CloudWatch Metrics official docs (fetched 2026-02-24)
+- Recharts GitHub repository (v3.7.0 latest, but v2.10.0 in project is stable)
+- Codebase review: `internal/metrics/`, `web/src/components/ActivityGraph.tsx`
+
+---
+
+## Implementation Checklist
+
+### Backend (Go)
+- [ ] Add `MetricFreeableMemory` constant to `internal/models/models.go`
+- [ ] Add `FreeableMemory *MetricValue` to `RDSMetrics` struct in `cloudwatch.go`
+- [ ] Fetch FreeableMemory in `GetRDSMetrics()` method
+- [ ] Store FreeableMemory in `collectInstance()` method
+- [ ] Add `GET /api/v1/instances/{id}/metrics/history` endpoint
+- [ ] Add memory threshold to `ActivityThresholds` struct
+- [ ] Update `findIdleSegments()` to consider memory in idle detection
+
+### Frontend (React/TypeScript)
+- [ ] Add `getInstanceMetricsHistory()` to `web/src/lib/api.ts`
+- [ ] Create `MetricsChart.tsx` component using Recharts LineChart
+- [ ] Add chart section to `InstanceDetailPage.tsx`
+- [ ] Add time range selector (24h, 7d, 14d)
+- [ ] Add metric toggle buttons (CPU, Memory, Connections, IOPS)
+
+### No New Dependencies Required
+The existing `package.json` and `go.mod` are sufficient for all v1.2 work.

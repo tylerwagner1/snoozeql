@@ -1,683 +1,663 @@
-# Domain Pitfalls: Cost Savings Tracking
+# Pitfalls Research: v1.2 Metrics & Recommendations
 
-**Domain:** Cloud infrastructure cost tracking (RDS/Cloud SQL stop/start savings)
-**Researched:** 2026-02-23
-**Confidence:** MEDIUM (based on existing codebase analysis, AWS documentation, and cloud cost management patterns)
+**Researched:** 2026-02-24
+**Focus:** Common mistakes when adding metrics visualization and recommendation features to existing database management app
 
----
+## Summary
 
-## Critical Pitfalls
-
-Mistakes that cause incorrect savings calculations, misleading dashboards, or system rewrites.
-
-### Pitfall 1: Ignoring the AWS 7-Day Auto-Restart
-
-**What goes wrong:** AWS RDS automatically restarts stopped instances after 7 consecutive days. If the savings calculation assumes an instance stayed stopped, it will drastically overcount savings for instances stopped longer than 7 days.
-
-**Why it happens:** Teams focus on stop events and assume instances stay stopped until explicitly started. AWS's documentation mentions this limitation, but it's often overlooked.
-
-**Consequences:** 
-- Savings reported could be 2-4x actual savings for long-stopped instances
-- Users lose trust in savings metrics when they see unexpectedly high bills
-- Entire dashboard credibility is undermined
-
-**Prevention:**
-```go
-// Track expected auto-restart time when stopping
-autoRestartAt := stopTime.Add(7 * 24 * time.Hour)
-
-// In savings calculation, cap stopped duration at 7 days
-maxStoppedDuration := 7 * 24 * time.Hour
-if actualStoppedDuration > maxStoppedDuration {
-    actualStoppedDuration = maxStoppedDuration
-}
-```
-
-**Detection:** Compare calculated savings vs actual billing. Large discrepancies after 7+ days indicate this issue.
-
-**SnoozeQL-specific:** PROJECT.md notes this as a known issue to address. Critical for v1.1 savings tracking accuracy.
+The primary risks for v1.2 are **CloudWatch API throttling** (hitting rate limits during metrics collection for many instances), **misleading idle detection** (simplistic thresholds missing edge cases like batch jobs or replica instances), and **time-series chart performance** (rendering thousands of data points causing UI lag). Integration pitfalls include metric data gaps during instance state transitions and recommendation grouping logic that creates schedules conflicting with existing ones.
 
 ---
 
-### Pitfall 2: Using Hardcoded Instance Pricing
+## Metrics Collection Pitfalls
 
-**What goes wrong:** The current codebase uses hardcoded approximate costs per instance type:
-```go
-func (p *RDSProvider) getInstanceCost(instanceClass string) int {
-    switch {
-    case containsPrefix(instanceStr, "db.r5."):
-        return 145  // cents per hour
-    case containsPrefix(instanceStr, "db.t3."):
-        return 25
-    // ...
-    default:
-        return 50
-    }
-}
-```
-These hardcoded values become stale as AWS updates pricing, and miss regional variations entirely.
+### Pitfall 1: CloudWatch API Throttling
 
-**Why it happens:** Real pricing APIs are complex (AWS Pricing API, Cost Explorer). Hardcoding seems "good enough" for POC.
+- **Risk:** CloudWatch GetMetricStatistics has a rate limit of 400 requests per second per account. With 100 instances × 4 metrics × 15-minute polling = 1,600 API calls/hour, which seems safe. But during catchup (e.g., after collector restart or backfill), parallel requests can hit throttling.
 
-**Consequences:**
-- US-East-1 vs EU-West-1 can differ by 10-20%
-- New instance types (db.r6g, db.t4g) may default to $0.50/hr regardless of actual cost
-- Reserved Instance vs On-Demand pricing ignored (could be 50%+ difference)
+- **Warning signs:**
+  - `LimitExceededException` errors in logs
+  - Incomplete metrics data for some instances
+  - Increasing latency in metrics collection jobs
+  - Gaps in time-series charts
 
-**Prevention for POC:**
-```go
-// Accept POC limitation but document it clearly
-type CostEstimate struct {
-    HourlyCostCents int
-    IsEstimate      bool    // Always true for POC
-    PricingSource   string  // "hardcoded_approximation"
-    LastUpdated     string  // "2026-02-01"
-}
+- **Prevention:**
+  ```go
+  // Existing code has retry with exponential backoff - good!
+  // Add rate limiting for batch operations
+  type RateLimitedCollector struct {
+      limiter *rate.Limiter  // e.g., 10 req/sec to stay safe
+  }
+  
+  // For catchup/backfill, process sequentially with pauses
+  func (c *MetricsCollector) BackfillMetrics(instanceID string, days int) {
+      for day := 0; day < days; day++ {
+          c.collectDayMetrics(instanceID, day)
+          time.Sleep(100 * time.Millisecond)  // Throttle self
+      }
+  }
+  ```
 
-// Show disclaimer in UI
-"Cost estimates are approximate. Actual billing may vary by region and pricing plan."
-```
-
-**For future:**
-- Integrate AWS Pricing API or Cost Explorer
-- Allow users to input their negotiated rates
-- Store pricing data with refresh mechanism
-
-**Detection:** Compare monthly estimated savings vs Cost Explorer reports.
+- **Phase to address:** Phase 1 (Metrics Collection) — verify existing retry logic handles throttling gracefully
 
 ---
 
-### Pitfall 3: Race Conditions in Event-Based Calculations
+### Pitfall 2: Missing FreeableMemory to Memory% Conversion
 
-**What goes wrong:** Stop/start events can arrive out of order, duplicate, or fail silently. Calculating savings from events without proper state management leads to incorrect durations.
+- **Risk:** CloudWatch reports `FreeableMemory` in bytes, not memory utilization percentage. The v1.2 spec says "Memory utilization" but CloudWatch doesn't provide that directly for RDS. Teams calculate it wrong or show raw bytes.
 
-**Example scenario:**
-```
-Event Log (order received):
-1. 10:00 - STOP event recorded
-2. 10:30 - START event recorded  
-3. 10:05 - Another STOP event (delayed duplicate)
+- **Warning signs:**
+  - Memory metric shows values like "34359738368" instead of "45%"
+  - Memory percentage shows 98%+ when instance is healthy
+  - Charts have wildly different Y-axis scales for CPU vs Memory
 
-Naive calculation: Instance was stopped twice! Double the savings!
-```
+- **Prevention:**
+  ```go
+  // Get instance memory capacity from RDS DescribeDBInstances
+  // or use lookup table by instance class
+  var instanceMemoryGB = map[string]float64{
+      "db.t3.micro":  1.0,
+      "db.t3.small":  2.0,
+      "db.t3.medium": 4.0,
+      "db.r5.large":  16.0,
+      // ... etc
+  }
+  
+  // Calculate percentage
+  memoryPercent := (1 - (freeableMemoryBytes / totalMemoryBytes)) * 100
+  ```
 
-**Why it happens:** Distributed systems, API retries, network delays, and lack of idempotency handling.
-
-**Consequences:**
-- Double-counted savings when duplicate events occur
-- Negative savings when events arrive out of order
-- Missing savings when start event fails to record
-
-**Prevention:**
-```go
-// Use state-based calculation, not event-based
-type InstanceStateLog struct {
-    InstanceID  string
-    State       string    // "running" | "stopped"
-    ObservedAt  time.Time
-    Source      string    // "api_poll" | "event"
-}
-
-// Calculate savings from state transitions, not events
-func CalculateSavings(states []InstanceStateLog) (time.Duration, error) {
-    // Sort by ObservedAt
-    // Deduplicate consecutive same states
-    // Calculate duration between state changes
-}
-```
-
-**Detection:** Implement audit logging comparing event-based vs state-based calculations.
+- **Phase to address:** Phase 1 (Metrics Collection) — critical before storing memory metrics
 
 ---
 
-### Pitfall 4: Timezone Chaos in Historical Calculations
+### Pitfall 3: Stopped Instance Metric Gaps
 
-**What goes wrong:** Timestamps stored without timezone awareness, or mixed UTC/local times, cause hours to be counted twice or skipped during DST transitions.
+- **Risk:** CloudWatch doesn't emit metrics for stopped instances. The current collector correctly skips stopped instances, but if an instance was stopped during the collection window, there's a gap. Time-series charts show jagged lines or misleading zero values.
 
-**Why it happens:** 
-- Go's `time.Now()` returns local time by default
-- PostgreSQL `timestamp` vs `timestamptz` confusion
-- Frontend displays local time but sends different format
+- **Warning signs:**
+  - Charts drop to zero during stopped periods (instead of showing no data)
+  - Analyzer interprets gaps as "no data" vs "instance stopped"
+  - Recommendations generated for already-stopped instances
 
-**Consequences:**
-- Spring forward: 1 hour of savings disappears
-- Fall back: 1 hour of savings counted twice
-- Cross-region deployments show wildly inconsistent numbers
+- **Prevention:**
+  ```typescript
+  // Chart: Don't connect data points across gaps
+  <LineChart connectNulls={false}>
+  
+  // API: Return explicit null for stopped periods
+  type MetricPoint struct {
+      Timestamp time.Time
+      Value     *float64  // nil = no data (stopped)
+      State     string    // "running", "stopped", "unknown"
+  }
+  
+  // UI: Show stopped state differently
+  {point.state === 'stopped' && (
+      <span className="text-slate-500">Instance stopped</span>
+  )}
+  ```
 
-**Prevention:**
-```go
-// ALWAYS use UTC internally
-stopTime := time.Now().UTC()
-
-// PostgreSQL: ALWAYS use TIMESTAMPTZ
-CREATE TABLE savings (
-    id UUID PRIMARY KEY,
-    stopped_at TIMESTAMPTZ NOT NULL,  -- NOT timestamp
-    started_at TIMESTAMPTZ,
-    -- ...
-);
-
-// Frontend: Convert to local only for display
-const localTime = new Date(utcTimestamp).toLocaleString()
-```
-
-**Detection:** Test savings calculations around DST transitions (March, November for US).
+- **Phase to address:** Phase 2 (Time-series Charts) — handle gaps explicitly in chart rendering
 
 ---
 
-### Pitfall 5: Accumulating Floating Point Errors in Cost Aggregations
+### Pitfall 4: 7-Day Retention vs 14-Day Analysis Window
 
-**What goes wrong:** Using `float64` for currency calculations accumulates rounding errors over time.
+- **Risk:** The v1.2 spec says "7-day retention" but the existing analyzer uses 14-day lookback. Reducing retention breaks pattern detection. Also, changing retention silently loses historical data that can't be recovered.
 
-**Example:**
-```go
-// Bad
-var totalSavings float64 = 0.0
-for _, saving := range dailySavings {
-    totalSavings += saving.Amount  // 0.1 + 0.2 != 0.3 in floating point
-}
+- **Warning signs:**
+  - Analyzer returns "insufficient data" after retention change
+  - Users complain recommendations stopped working
+  - Time-series charts suddenly have shorter history
 
-// After 10,000 additions, off by several dollars
-```
+- **Prevention:**
+  ```go
+  // Document the tradeoff clearly
+  // Option A: Keep 14-day retention (more storage, better analysis)
+  // Option B: 7-day retention (less storage, simpler patterns)
+  
+  // If reducing, warn and migrate:
+  func MigrateRetention(oldDays, newDays int) {
+      if newDays < oldDays {
+          log.Warn("Reducing retention will delete historical data",
+              "deleting_days", oldDays - newDays)
+      }
+      // Update analyzer config to match
+      analyzer.SetLookbackDays(newDays)
+  }
+  ```
 
-**Why it happens:** IEEE 754 floating point can't represent 0.1 exactly. Errors compound with each operation.
-
-**Consequences:**
-- Monthly totals don't match sum of daily totals
-- Rounding errors visible when comparing dashboard numbers
-- Audit failures when reconciling against billing
-
-**Prevention:**
-```go
-// Store as integer cents (already done in SnoozeQL!)
-type Saving struct {
-    EstimatedSavingsCents int  // Good!
-}
-
-// Aggregate as integers
-var totalCents int
-for _, saving := range dailySavings {
-    totalCents += saving.EstimatedSavingsCents
-}
-
-// Convert to dollars only for display
-displayDollars := float64(totalCents) / 100.0
-```
-
-**Detection:** Calculate totals both bottom-up and top-down; compare.
-
-**SnoozeQL-specific:** Already uses `int` for cents - maintain this pattern!
+- **Phase to address:** Phase 1 (Metrics Collection) — decide retention policy before implementation
 
 ---
 
-## Moderate Pitfalls
+### Pitfall 5: Hourly Aggregation Masks Spikes
 
-Mistakes that cause performance issues, poor UX, or tech debt.
+- **Risk:** Current metrics store aggregates to hourly buckets with avg/min/max. But for idle detection, a 10-minute burst activity during an otherwise idle hour could be masked. The instance shows avg CPU 2% but was actually at 80% briefly.
 
-### Pitfall 6: N+1 Queries for Per-Instance Savings
+- **Warning signs:**
+  - Instances marked idle but users report "it was doing something"
+  - Schedules stop instances mid-batch-job
+  - Disconnect between user perception and metrics
 
-**What goes wrong:** Dashboard loads savings for each instance in separate queries:
-```go
-// Bad: N+1 query pattern
-instances := store.ListInstances()
-for _, inst := range instances {
-    savings := store.GetSavingsByInstance(inst.ID)  // N queries
-}
-```
+- **Prevention:**
+  ```go
+  // Consider storing finer granularity OR additional signals
+  type HourlyMetric struct {
+      // Existing
+      AvgValue    float64
+      MaxValue    float64
+      MinValue    float64
+      SampleCount int
+      // Add: detect variability
+      StdDev      float64   // High stddev = variable workload
+  }
+  
+  // In idle detection, consider max, not just avg
+  isIdle := metrics.AvgCPU < threshold.CPUPercent && 
+            metrics.MaxCPU < threshold.CPUPercent * 2  // Allow some headroom
+  ```
 
-**Prevention:**
-```go
-// Good: Single query with aggregation
-SELECT 
-    instance_id,
-    SUM(estimated_savings_cents) as total_savings,
-    SUM(stopped_minutes) as total_stopped
-FROM savings
-WHERE date >= $1 AND date <= $2
-GROUP BY instance_id
-```
-
-**SnoozeQL-specific:** Current `ListInstances` query is efficient. Ensure savings queries follow same pattern.
-
----
-
-### Pitfall 7: Missing Indexes for Time-Range Queries
-
-**What goes wrong:** Historical savings queries scan entire tables because there's no index on date/time columns.
-
-**Prevention:**
-```sql
--- Critical indexes for savings queries
-CREATE INDEX idx_savings_date ON savings(date);
-CREATE INDEX idx_savings_instance_date ON savings(instance_id, date);
-CREATE INDEX idx_events_created ON events(created_at);
-CREATE INDEX idx_events_instance_created ON events(instance_id, created_at);
-```
-
-**Detection:** `EXPLAIN ANALYZE` on dashboard queries. Seq Scan on large tables = problem.
+- **Phase to address:** Phase 4 (Idle Detection) — consider max values in threshold logic
 
 ---
 
-### Pitfall 8: Recalculating Historical Data on Every Request
+## Visualization Pitfalls
 
-**What goes wrong:** Dashboard calculates last-30-days savings by querying all events and computing in real-time. Becomes slow as data grows.
+### Pitfall 6: Rendering Performance with Large Datasets
 
-**Prevention:**
-```go
-// Materialize daily aggregates
-type DailySaving struct {
-    Date                  string // YYYY-MM-DD
-    InstanceID            string
-    StoppedMinutes        int
-    EstimatedSavingsCents int
-}
+- **Risk:** 7 days × 24 hours × 4 metrics = 672 data points per instance. With 50 instances and multi-metric charts, React re-renders become slow. Recharts can struggle with >1000 points.
 
-// Background job aggregates previous day at midnight
-// Dashboard queries pre-aggregated data
-```
+- **Warning signs:**
+  - Chart hover/tooltip lags >200ms
+  - Browser devtools show long "Scripting" times
+  - Mobile devices freeze when viewing charts
+  - `ResponsiveContainer` causes layout thrashing
 
-**SnoozeQL-specific:** The `Saving` model already has this structure. Ensure aggregation job exists.
+- **Prevention:**
+  ```typescript
+  // Downsample for display
+  function downsampleMetrics(data: MetricPoint[], targetPoints: number) {
+      if (data.length <= targetPoints) return data;
+      const step = Math.ceil(data.length / targetPoints);
+      return data.filter((_, i) => i % step === 0);
+  }
+  
+  // Use memo to prevent re-renders
+  const chartData = useMemo(() => 
+      downsampleMetrics(rawData, 100),
+      [rawData]
+  );
+  
+  // Disable animations for large datasets
+  <AreaChart animationDuration={data.length > 100 ? 0 : 300}>
+  ```
 
----
-
-### Pitfall 9: Showing Too Much Data on Dashboard
-
-**What goes wrong:** Dashboard shows every instance, every day, every metric. Users are overwhelmed and miss important insights.
-
-**Example anti-patterns:**
-- Table with 500 rows for "instances with savings"
-- 30-day chart showing hourly data points (720 points)
-- All filters expanded by default
-
-**Prevention:**
-```typescript
-// Good dashboard hierarchy:
-// 1. Single headline number: "Total Saved: $1,234"
-// 2. Trend comparison: "↑ 12% vs last month"
-// 3. Top 5 contributors (expandable to see all)
-// 4. Drill-down on click
-
-// Chart data aggregation:
-// - 7 days: show daily
-// - 30 days: show daily
-// - 90 days: show weekly
-// - 1 year: show monthly
-```
-
-**SnoozeQL-specific:** Current dashboard has good hierarchy. Maintain for savings section.
+- **Phase to address:** Phase 2 (Time-series Charts) — test performance early with realistic data volumes
 
 ---
 
-### Pitfall 10: Showing Too Little Context
+### Pitfall 7: Timezone Confusion in Charts
 
-**What goes wrong:** Dashboard shows "$500 saved" but user doesn't know if that's good or bad, or what actions to take.
+- **Risk:** Metrics stored in UTC, displayed without timezone conversion. User in PST sees "idle from 22:00 to 06:00" but that's UTC — actually 14:00-22:00 local time, completely wrong.
 
-**Prevention:**
-```typescript
-// Add context to every number:
-<SavingsCard>
-  <MainNumber>$1,234</MainNumber>
-  <Context>
-    <Trend>+12% vs last month</Trend>
-    <Projection>On track for $3,700 this quarter</Projection>
-    <TopContributor>dev-db-1 contributed 45%</TopContributor>
-    <ActionHint>3 instances could save $200 more</ActionHint>
-  </Context>
-</SavingsCard>
-```
+- **Warning signs:**
+  - Recommendations suggest sleeping during business hours
+  - Time-series X-axis shows times that don't match user expectations
+  - Confusion between "hour 0" meaning midnight local vs midnight UTC
 
----
+- **Prevention:**
+  ```typescript
+  // Always convert to user timezone for display
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
+  const formatHour = (utcHour: Date) => {
+      return new Intl.DateTimeFormat('en-US', {
+          hour: 'numeric',
+          timeZone: userTimezone,
+      }).format(utcHour);
+  };
+  
+  // Label charts clearly
+  <XAxis 
+      tickFormatter={formatHour}
+  />
+  <ChartCaption>
+      All times shown in {userTimezone}
+  </ChartCaption>
+  ```
 
-### Pitfall 11: Not Handling Partial Days at Period Boundaries
-
-**What goes wrong:** Instance stopped at 11pm, woke at 2am next day. Which day gets the 3 hours of savings?
-
-**Naive approach:** Assign to stop day → only 1 hour counted
-**Another naive approach:** Assign to wake day → previous day gets 0
-
-**Prevention:**
-```go
-// Attribute savings to the day they occurred
-func AttributeSavingsToDay(stopTime, startTime time.Time) map[string]time.Duration {
-    result := make(map[string]time.Duration)
-    
-    current := stopTime
-    for current.Before(startTime) {
-        dayEnd := time.Date(current.Year(), current.Month(), current.Day()+1, 0, 0, 0, 0, time.UTC)
-        if dayEnd.After(startTime) {
-            dayEnd = startTime
-        }
-        
-        dayStr := current.Format("2006-01-02")
-        result[dayStr] += dayEnd.Sub(current)
-        
-        current = dayEnd
-    }
-    return result
-}
-```
+- **Phase to address:** Phase 2 (Time-series Charts) — ensure consistent timezone handling
 
 ---
 
-### Pitfall 12: Confusing "Instance Stopped" with "Saving Money"
+### Pitfall 8: Y-Axis Scale Inconsistency
 
-**What goes wrong:** Instance is stopped, but:
-- Storage charges continue ($0.10-0.23/GB-month for GP2/GP3)
-- Backup charges continue
-- Reserved Instance payment continues even when stopped
+- **Risk:** Auto-scaling Y-axis makes 2% CPU look as dramatic as 80% CPU depending on the data range. Users misinterpret small variations as significant.
 
-User sees "Savings: $50" but actual bill reduction is $35.
+- **Warning signs:**
+  - "Spike" in chart is actually 1% → 3% (trivial)
+  - Same chart looks different day-to-day
+  - Users make wrong decisions based on visual drama
 
-**Prevention for POC:**
-```typescript
-// Clear labeling
-<SavingsDisplay>
-  <Label>Compute Savings</Label>
-  <Value>$50.00</Value>
-  <Disclaimer>
-    Storage costs continue while stopped. 
-    Estimate does not include RI commitments.
-  </Disclaimer>
-</SavingsDisplay>
-```
+- **Prevention:**
+  ```typescript
+  // Fix scale for percentage metrics
+  <YAxis 
+      domain={[0, 100]}  // Always 0-100% for CPU/Memory
+      ticks={[0, 25, 50, 75, 100]}
+  />
+  
+  // Or use sensible fixed scale
+  <YAxis
+      domain={[0, 50]}  // For "mostly idle" instances
+      allowDataOverflow={true}  // Clip extreme values
+  />
+  
+  // Add reference lines for context
+  <ReferenceLine y={5} stroke="green" label="Idle threshold" />
+  ```
 
-**For future:** Integrate with Cost Explorer for actual savings.
-
----
-
-## Minor Pitfalls
-
-Annoyances that are easily fixable but commonly overlooked.
-
-### Pitfall 13: Currency Formatting Inconsistencies
-
-**What goes wrong:** Dashboard shows "$1234.5" in one place, "$1,234.50" in another, "1234.50 USD" in a third.
-
-**Prevention:**
-```typescript
-// Single formatting function used everywhere
-export function formatCurrency(cents: number): string {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(cents / 100);
-}
-```
+- **Phase to address:** Phase 2 (Time-series Charts) — establish consistent scale conventions
 
 ---
 
-### Pitfall 14: Zero Savings Edge Cases
+### Pitfall 9: Chart Empty States
 
-**What goes wrong:** Dashboard shows "$0.00 saved" for instances that:
-- Were never stopped
-- Are in free tier
-- Have $0 hourly cost (misconfigured)
+- **Risk:** Instance has no metrics yet (just discovered), chart shows blank area. User doesn't know if it's loading, broken, or just empty.
 
-Users confused about whether tracking is working.
+- **Warning signs:**
+  - White/blank chart areas
+  - Users refresh repeatedly thinking it's stuck
+  - Support tickets about "broken charts"
 
-**Prevention:**
-```typescript
-// Distinguish between "no savings" and "not applicable"
-{instance.wasEverStopped ? (
-    <Savings value={savings} />
-) : (
-    <NotApplicable>Never stopped during period</NotApplicable>
-)}
+- **Prevention:**
+  ```typescript
+  // Explicit states
+  {loading && <ChartSkeleton />}
+  {!loading && error && <ChartError message={error} />}
+  {!loading && !error && data.length === 0 && (
+      <ChartEmpty>
+          <p>No metrics available yet</p>
+          <p className="text-sm text-slate-500">
+              Metrics are collected every 15 minutes. 
+              Check back soon!
+          </p>
+      </ChartEmpty>
+  )}
+  {!loading && !error && data.length > 0 && (
+      <ActualChart data={data} />
+  )}
+  ```
 
-{instance.hourlyCostCents === 0 && (
-    <Warning>Cost not configured for this instance type</Warning>
-)}
-```
-
----
-
-### Pitfall 15: Not Showing Calculation Method
-
-**What goes wrong:** User sees "Saved: $127.50" but doesn't know how it was calculated. Can't verify against their own records.
-
-**Prevention:**
-```typescript
-// Provide calculation details on hover/expand
-<Tooltip>
-  Calculation: 85 hours × $1.50/hr = $127.50
-  <br />
-  Based on db.t3.medium on-demand pricing
-  <br />
-  Period: 2026-02-01 to 2026-02-23
-</Tooltip>
-```
+- **Phase to address:** Phase 2 (Time-series Charts) — handle all states explicitly
 
 ---
 
-## Integration Anti-Patterns
+## Recommendation Pitfalls
 
-Mistakes when integrating savings tracking with existing SnoozeQL systems.
+### Pitfall 10: Overly Simplistic Idle Detection
 
-### Pitfall 16: Breaking Existing Event Storage
+- **Risk:** Current threshold is "CPU < 1%". But database replicas often show 0% CPU while serving read traffic. Batch processing databases show 0% CPU 23 hours/day then spike. Simple thresholds miss these patterns.
 
-**What goes wrong:** Adding savings calculation hooks to event creation slows down or breaks the stop/start flow.
+- **Warning signs:**
+  - Recommendations to sleep read replicas (breaks failover)
+  - Recommendations ignore weekend-only or monthly jobs
+  - High false-positive rate for schedule suggestions
 
-**Example:**
-```go
-// Bad: Synchronous calculation during stop
-func (h *Handler) StopInstance(w http.ResponseWriter, r *http.Request) {
-    // ... stop instance ...
-    event := store.CreateEvent(...)
-    savingsService.CalculateAndStoreSavings(event)  // Slow! Blocks response!
-    // ... respond ...
-}
-```
+- **Prevention:**
+  ```go
+  // Enhanced detection criteria
+  type IdleDetection struct {
+      CPUThreshold         float64  // < 5%
+      ConnectionsThreshold int      // == 0 (not just low)
+      IOPSThreshold        float64  // < 10 combined
+      ConsecutiveHours     int      // 8+ hours of all criteria
+      ConsistentDays       int      // 3+ days with same pattern
+  }
+  
+  // Exclude replica instances
+  func ShouldAnalyze(instance Instance) bool {
+      if strings.Contains(instance.Name, "replica") ||
+         strings.Contains(instance.Name, "read") {
+          return false  // Skip replicas
+      }
+      return true
+  }
+  ```
 
-**Prevention:**
-```go
-// Good: Async calculation
-func (h *Handler) StopInstance(w http.ResponseWriter, r *http.Request) {
-    // ... stop instance ...
-    event := store.CreateEvent(...)
-    go savingsService.QueueSavingsCalculation(event.ID)  // Non-blocking
-    // ... respond immediately ...
-}
-
-// Or: Calculate savings from periodic aggregation, not events
-```
-
----
-
-### Pitfall 17: Duplicating Instance Data
-
-**What goes wrong:** Savings table stores instance details that are already in instances table. Data goes out of sync.
-
-**Prevention:**
-```sql
--- Good: Reference, don't duplicate
-CREATE TABLE savings (
-    id UUID PRIMARY KEY,
-    instance_id UUID REFERENCES instances(id),  -- FK only
-    date DATE NOT NULL,
-    stopped_minutes INT NOT NULL,
-    estimated_savings_cents INT NOT NULL
-    -- NO: instance_name, instance_type, hourly_cost
-);
-
--- Join when needed
-SELECT s.*, i.name, i.instance_type
-FROM savings s
-JOIN instances i ON s.instance_id = i.id
-```
-
-**Exception:** If instances can be deleted, store denormalized copy for historical reporting.
+- **Phase to address:** Phase 4 (Idle Detection) — refine detection algorithm before wide rollout
 
 ---
 
-### Pitfall 18: Tight Coupling with Scheduler
+### Pitfall 11: Recommendation-Schedule Conflicts
 
-**What goes wrong:** Savings calculation requires scheduler to be running. If scheduler fails, savings stop being calculated.
+- **Risk:** User has existing schedule for instance. New recommendation suggests different schedule. Confirming recommendation creates conflicting schedule, or worse, overrides existing one silently.
 
-**Prevention:**
-```go
-// Savings calculation should work independently
-// Option 1: Calculate from events table (event-sourced)
-// Option 2: Calculate from periodic instance status polling
-// Option 3: Calculate from AWS CloudTrail events
+- **Warning signs:**
+  - Instance has multiple active schedules
+  - Schedule conflicts causing unexpected wake/sleep
+  - Users lose custom schedules they created
 
-// Don't require scheduler to inject savings events
-```
+- **Prevention:**
+  ```go
+  // Check for existing schedules before creating recommendation
+  func (a *Analyzer) GenerateRecommendations() ([]Recommendation, error) {
+      for _, pattern := range patterns {
+          // Check if instance already has active schedule
+          existing := a.scheduleStore.GetSchedulesForInstance(pattern.InstanceID)
+          if len(existing) > 0 {
+              // Skip or flag for review
+              log.Info("Skipping instance with existing schedule",
+                  "instance", pattern.InstanceID,
+                  "existing_schedule", existing[0].Name)
+              continue
+          }
+      }
+  }
+  
+  // In UI, show existing schedule
+  {recommendation.hasExistingSchedule && (
+      <Warning>
+          This instance already has schedule "{existingSchedule.name}".
+          Confirming will create a new schedule that may conflict.
+      </Warning>
+  )}
+  ```
 
----
-
-## POC-Specific Pitfalls
-
-Mistakes that waste time during rapid POC development.
-
-### Pitfall 19: Building a Billing API Integration for POC
-
-**What goes wrong:** Team spends 2 weeks building AWS Cost Explorer integration when hardcoded estimates would suffice for validation.
-
-**Why it happens:** Engineers want "accurate" data. Perfectionism kills velocity.
-
-**Prevention:**
-```go
-// POC approach: Hardcode with clear disclaimers
-// Time: 2 hours
-
-// V2 approach: AWS Pricing API integration
-// Time: 2-3 days
-
-// V3 approach: Cost Explorer + reconciliation
-// Time: 1-2 weeks
-```
-
-**SnoozeQL-specific:** PROJECT.md correctly marks "Billing API integration" as out of scope.
+- **Phase to address:** Phase 5 (Grouped Recommendations) — check for conflicts in recommendation generation
 
 ---
 
-### Pitfall 20: Over-Engineering the Data Model
+### Pitfall 12: Grouped Recommendations Create Wrong Schedules
 
-**What goes wrong:** Designing for multi-currency, multi-cloud-account-per-instance, minute-level granularity when POC only needs daily USD estimates.
+- **Risk:** Grouping instances by "similar patterns" sounds good, but instances in same group may need slightly different schedules. Group schedule picks one time, suboptimal for others.
 
-**Prevention:**
-```go
-// POC model (sufficient)
-type Saving struct {
-    ID                    string
-    InstanceID            string
-    Date                  string  // YYYY-MM-DD
-    StoppedMinutes        int
-    EstimatedSavingsCents int     // USD cents, good enough
-}
+- **Warning signs:**
+  - Grouped schedule wakes instance 2 hours before it's needed
+  - Some instances in group have different timezone users
+  - Users want to modify just one instance in group
 
-// DON'T build for POC:
-// - Currency column
-// - Hourly granularity table
-// - Pricing version tracking
-// - Multi-tier pricing support
-```
+- **Prevention:**
+  ```go
+  // Allow per-instance overrides in group
+  type GroupedRecommendation struct {
+      GroupName     string
+      DefaultSchedule Schedule
+      Instances     []struct {
+          ID       string
+          Override *Schedule  // nil = use default
+      }
+  }
+  
+  // In UI, show individual instance details
+  <GroupRecommendation>
+      <h3>Suggested for 5 dev databases</h3>
+      <DefaultSchedule schedule={rec.defaultSchedule} />
+      <details>
+          <summary>View individual instances</summary>
+          {rec.instances.map(inst => (
+              <InstanceRow 
+                  instance={inst}
+                  onOverride={(schedule) => handleOverride(inst.id, schedule)}
+              />
+          ))}
+      </details>
+  </GroupRecommendation>
+  ```
 
----
-
-### Pitfall 21: Building Beautiful Charts Before Basic Numbers Work
-
-**What goes wrong:** Team builds animated D3 visualizations before the underlying calculation is correct.
-
-**Prevention:**
-```
-Phase 1: Show a single number on dashboard
-Phase 2: Verify number against manual calculation
-Phase 3: Add basic time series (Recharts is already in stack)
-Phase 4: Add interactivity (tooltips, drill-down)
-Phase 5: Polish (animations, responsive design)
-```
-
-**SnoozeQL-specific:** Recharts already integrated. Use existing patterns from ActivityGraph.
-
----
-
-### Pitfall 22: Not Validating Calculations with Real Data
-
-**What goes wrong:** Savings calculation works in tests but produces obviously wrong numbers in production (negative savings, billions of dollars).
-
-**Prevention:**
-```go
-// Add sanity checks
-func (s *SavingsService) CalculateDailySavings(instanceID string, date time.Time) (int, error) {
-    // ... calculation ...
-    
-    // Sanity checks
-    if savingsCents < 0 {
-        log.Warn("Negative savings calculated", "instance", instanceID, "date", date)
-        return 0, nil  // Or flag for review
-    }
-    
-    // Max sanity: No instance saves more than $1000/day
-    if savingsCents > 100000 {
-        return 0, fmt.Errorf("implausible savings: %d cents", savingsCents)
-    }
-    
-    return savingsCents, nil
-}
-```
+- **Phase to address:** Phase 5 (Grouped Recommendations) — design per-instance override UX
 
 ---
 
-## Phase-Specific Warnings
+### Pitfall 13: Stale Recommendations
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| SAV-01: Calculate savings | Pitfalls 1-5 (7-day restart, pricing, race conditions, timezone, float errors) | Use state-based calculation, integer cents, UTC timestamps |
-| SAV-02: Savings dashboard | Pitfalls 9-10 (too much/little data) | Follow existing dashboard patterns, show context |
-| SAV-03: Historical charts | Pitfalls 7-8 (indexes, recalculation) | Add indexes, pre-aggregate daily data |
-| SAV-04: Per-instance attribution | Pitfall 6 (N+1 queries) | Single aggregated query with GROUP BY |
-| SAV-05: Cost projection | Pitfall 2 (hardcoded pricing) | Accept POC limitation, add disclaimer |
+- **Risk:** Recommendation generated Monday based on last week's data. User reviews Friday. Data has changed — pattern no longer valid, but recommendation still shown.
 
----
+- **Warning signs:**
+  - Accepted recommendations create schedules that immediately cause issues
+  - "Detected pattern" in recommendation doesn't match current behavior
+  - Users don't trust recommendations
 
-## Mitigation Strategies Summary
+- **Prevention:**
+  ```go
+  // Add staleness check
+  type Recommendation struct {
+      GeneratedAt    time.Time
+      DataWindowEnd  time.Time
+      IsStale        bool  // Computed field
+  }
+  
+  func (r *Recommendation) CheckStaleness() bool {
+      // Stale if generated > 3 days ago
+      return time.Since(r.GeneratedAt) > 72 * time.Hour
+  }
+  
+  // In UI, warn about stale recommendations
+  {recommendation.isStale && (
+      <Warning>
+          This recommendation is based on data from {recommendation.dataWindowEnd}.
+          Consider regenerating recommendations.
+      </Warning>
+  )}
+  ```
 
-### For Calculation Accuracy
-
-1. **Use integer cents, not floats** - Already implemented in SnoozeQL
-2. **Store all timestamps in UTC with TIMESTAMPTZ** - Verify current schema
-3. **Account for AWS 7-day auto-restart** - Critical new logic needed
-4. **Calculate from state changes, not events** - More reliable than event-sourcing
-5. **Add sanity check bounds** - Catch implausible values early
-
-### For Performance
-
-1. **Pre-aggregate daily savings** - Background job, not real-time
-2. **Add time-range indexes** - On date and (instance_id, date) columns
-3. **Use GROUP BY for per-instance totals** - Single query, not N+1
-4. **Limit dashboard to recent data** - Lazy-load historical on demand
-
-### For UX
-
-1. **Single headline number first** - "You saved $X this month"
-2. **Always show context** - Trend, comparison, top contributors
-3. **Explain calculation method** - Tooltip with formula and assumptions
-4. **Handle edge cases gracefully** - Zero savings, never stopped, free tier
-
-### For POC Velocity
-
-1. **Accept hardcoded pricing for POC** - Add disclaimer, defer API integration
-2. **Use existing Recharts patterns** - Don't reinvent visualization
-3. **Validate with real data early** - Don't wait until "done" to test
-4. **Ship daily, not weekly** - Show progress, get feedback
+- **Phase to address:** Phase 3 (Recommendation Engine) — add staleness tracking
 
 ---
 
-## Sources
+### Pitfall 14: Recommendation Confidence Theater
 
-| Source | Confidence | Notes |
-|--------|------------|-------|
-| AWS RDS Documentation - Stop Instance | HIGH | Confirms 7-day auto-restart behavior |
-| AWS RDS Pricing Page | HIGH | Confirms storage charges continue when stopped |
-| SnoozeQL codebase analysis | HIGH | Existing patterns for events, models, handlers |
-| Cloud cost management patterns | MEDIUM | Based on common FinOps practices |
-| PostgreSQL timestamp best practices | HIGH | TIMESTAMPTZ vs timestamp well-documented |
-| IEEE 754 floating point limitations | HIGH | Standard computer science knowledge |
+- **Risk:** Showing "85% confidence" sounds precise but the confidence calculation is arbitrary (existing code adds 0.1 for this, 0.2 for that). Users trust it more than warranted.
+
+- **Warning signs:**
+  - All recommendations show 70-90% confidence (no real differentiation)
+  - Users skip review because "85% is good enough"
+  - Confidence doesn't correlate with actual success rate
+
+- **Prevention:**
+  ```go
+  // Either make confidence meaningful or simplify
+  // Option A: Calibrate to actual outcomes (requires tracking)
+  // Option B: Simple categories
+  type ConfidenceLevel string
+  const (
+      ConfidenceHigh   = "high"    // 5+ consistent days, clear pattern
+      ConfidenceMedium = "medium"  // 3-4 days, some variance
+      ConfidenceLow    = "low"     // Detectable pattern but uncertain
+  )
+  
+  // In UI, explain what confidence means
+  <ConfidenceBadge level="high">
+      <Tooltip>
+          Pattern detected consistently for 5+ days. 
+          High likelihood this schedule matches actual usage.
+      </Tooltip>
+  </ConfidenceBadge>
+  ```
+
+- **Phase to address:** Phase 3 (Recommendation Engine) — calibrate or simplify confidence display
 
 ---
 
-*Researched for SnoozeQL v1.1 - Cost Savings Tracking*
-*Last updated: 2026-02-23*
+## Integration Pitfalls
+
+### Pitfall 15: Existing 7-Day Auto-Restart Not Addressed
+
+- **Risk:** PROJECT.md notes "AWS 7-day auto-restart: implement re-stop mechanism" as deferred. If recommendations create 7-day sleep schedules, instances auto-restart and recommendation value is undermined.
+
+- **Warning signs:**
+  - Users report instances waking unexpectedly on day 7
+  - Savings less than projected
+  - Audit log shows no wake event but instance is running
+
+- **Prevention:**
+  ```go
+  // In schedule creation, warn about 7-day limit
+  func ValidateSchedule(schedule Schedule) error {
+      maxSleepDuration := calculateMaxSleepDuration(schedule)
+      if maxSleepDuration > 7 * 24 * time.Hour {
+          return fmt.Errorf(
+              "schedule would keep instance stopped for %v, "+
+              "but AWS auto-restarts after 7 days", 
+              maxSleepDuration)
+      }
+      return nil
+  }
+  
+  // Add disclaimer in recommendations
+  <RecommendationNote>
+      Note: AWS automatically restarts RDS instances after 7 consecutive days stopped.
+      This schedule includes wake cycles to prevent unexpected restarts.
+  </RecommendationNote>
+  ```
+
+- **Phase to address:** Phase 3 or Phase 5 — ensure schedules respect 7-day limit
+
+---
+
+### Pitfall 16: Instance State Race Conditions
+
+- **Risk:** PROJECT.md notes "Instance state race conditions: implement proper state machine" as deferred. Recommendations that trigger rapid stop/start could hit these race conditions.
+
+- **Warning signs:**
+  - API calls fail with "instance is not in valid state"
+  - Instance stuck in "stopping" for extended periods
+  - Duplicate events in audit log
+
+- **Prevention:**
+  ```go
+  // Before creating schedule from recommendation, verify instance state
+  func ConfirmRecommendation(rec Recommendation) error {
+      instance := instanceStore.Get(rec.InstanceID)
+      if instance.Status != "available" && instance.Status != "running" {
+          return fmt.Errorf(
+              "instance %s is in state %s, cannot create schedule",
+              rec.InstanceID, instance.Status)
+      }
+      // Proceed with schedule creation
+  }
+  
+  // In scheduler, add state verification
+  func (s *Scheduler) ExecuteStop(instanceID string) error {
+      instance := s.store.Get(instanceID)
+      if instance.Status != "available" && instance.Status != "running" {
+          log.Warn("Skipping stop, instance not in stoppable state",
+              "instance", instanceID, "state", instance.Status)
+          return nil  // Skip gracefully, don't error
+      }
+      return s.provider.Stop(instanceID)
+  }
+  ```
+
+- **Phase to address:** All phases — defensive coding around instance state
+
+---
+
+### Pitfall 17: API Endpoint Bloat
+
+- **Risk:** Adding metrics + recommendations features could add 6-10 new API endpoints. Without planning, naming becomes inconsistent and frontend has complex integration.
+
+- **Warning signs:**
+  - `/api/metrics`, `/api/instance-metrics`, `/api/instances/{id}/metrics` all exist
+  - Frontend imports from multiple endpoint files
+  - Swagger/OpenAPI doc becomes confusing
+
+- **Prevention:**
+  ```go
+  // Plan endpoints upfront
+  // Metrics:
+  //   GET /api/instances/{id}/metrics       - latest metrics
+  //   GET /api/instances/{id}/metrics/series?start=&end= - time series
+  
+  // Recommendations:
+  //   GET /api/recommendations              - list (existing)
+  //   POST /api/recommendations/generate    - trigger generation (existing)
+  //   GET /api/recommendations/{id}         - detail
+  //   POST /api/recommendations/{id}/confirm - accept (existing)
+  //   DELETE /api/recommendations/{id}      - dismiss (existing)
+  
+  // Don't add:
+  //   GET /api/metrics  (global, unused)
+  //   GET /api/recommendations/pending (use query param instead)
+  ```
+
+- **Phase to address:** Phase 1 — design API structure before implementation
+
+---
+
+### Pitfall 18: Memory Usage During Pattern Analysis
+
+- **Risk:** Loading 7 days × 24 hours × 4 metrics × 100 instances into memory for analysis = ~67,200 metric points. In Go that's manageable, but careless code can 10x memory usage.
+
+- **Warning signs:**
+  - Container OOM kills during recommendation generation
+  - Analysis takes >30 seconds
+  - GC pauses visible in logs
+
+- **Prevention:**
+  ```go
+  // Process instances in batches, not all at once
+  func (a *Analyzer) GenerateRecommendations() ([]Recommendation, error) {
+      instanceIDs := a.GetManagedInstanceIDs()
+      
+      var results []Recommendation
+      batchSize := 10
+      
+      for i := 0; i < len(instanceIDs); i += batchSize {
+          end := min(i + batchSize, len(instanceIDs))
+          batch := instanceIDs[i:end]
+          
+          batchResults := a.analyzeBatch(batch)
+          results = append(results, batchResults...)
+      }
+      return results, nil
+  }
+  
+  // Stream metrics from DB instead of loading all
+  func (s *MetricsStore) StreamMetrics(ctx context.Context, instanceID string, cb func(m HourlyMetric)) error {
+      rows, _ := s.db.Query(ctx, query, instanceID)
+      defer rows.Close()
+      for rows.Next() {
+          var m HourlyMetric
+          rows.Scan(&m)
+          cb(m)  // Process immediately, don't accumulate
+      }
+      return nil
+  }
+  ```
+
+- **Phase to address:** Phase 3 (Recommendation Engine) — profile memory during analysis
+
+---
+
+## Confidence
+
+**MEDIUM** - Based on:
+- Existing codebase analysis (HIGH confidence on current patterns)
+- CloudWatch documentation (HIGH confidence on API behavior)
+- Common time-series visualization issues (MEDIUM - general patterns, not SnoozeQL-specific)
+- Recommendation system anti-patterns (MEDIUM - based on typical FinOps tool challenges)
+
+**Verification needed:**
+- CloudWatch rate limits for specific account tier
+- Recharts performance thresholds with actual data volume
+- User expectations around recommendation freshness
+
+---
+
+## Phase-Specific Summary
+
+| Phase | High-Risk Pitfalls | Mitigation Priority |
+|-------|-------------------|---------------------|
+| Phase 1: Metrics Collection | #1 (throttling), #2 (memory %), #4 (retention) | Add rate limiting, fix memory calculation |
+| Phase 2: Time-series Charts | #6 (performance), #7 (timezone), #9 (empty states) | Test with realistic data, convert to local TZ |
+| Phase 3: Recommendation Engine | #13 (staleness), #14 (confidence), #18 (memory) | Add staleness tracking, simplify confidence |
+| Phase 4: Idle Detection | #5 (spikes masked), #10 (simplistic detection) | Use max values, require connections=0 |
+| Phase 5: Grouped Recommendations | #11 (conflicts), #12 (wrong schedules) | Check existing schedules, allow overrides |
+
+---
+
+*Researched for SnoozeQL v1.2 - Metrics & Recommendations*
+*Last updated: 2026-02-24*

@@ -1,411 +1,261 @@
-# Feature Landscape: Cost Savings Tracking
+# Features Research: v1.2 Metrics & Recommendations
 
-**Domain:** Cloud cost management / Database cost optimization dashboards
-**Researched:** 2026-02-23
-**Confidence:** HIGH (verified with AWS, GCP, and FinOps Foundation sources)
+**Researched:** 2026-02-24
+**Focus:** Metrics visualization and recommendation features
+**Confidence:** HIGH (AWS RDS documentation, existing codebase analysis, industry patterns)
 
-## Overview
+## Summary
 
-This research identifies the features required for SnoozeQL v1.1's cost savings tracking capabilities, aligned with requirements SAV-01 through SAV-05. The findings draw from industry leaders (AWS Cost Explorer, GCP Billing Reports, Kubecost, FinOps Foundation best practices) to define what users expect from cost optimization dashboards.
+Database metrics dashboards universally display time-series charts for CPU, connections, and IOPS with configurable time ranges (1h, 6h, 24h, 7d). Idle detection thresholds are simple and effective when based on CPU < X% AND connections = 0 patterns. Recommendation grouping by pattern similarity (similar idle windows across instances) is the standard approach for scaling recommendations to many instances.
 
----
+## Existing Implementation (Already Built)
 
-## 1. Core Dashboard Features
+Understanding what's already implemented to avoid duplicating work:
 
-Must-have components that users expect from any cost savings dashboard.
-
-### Summary Cards (Hero Metrics)
-
-| Feature | Why Expected | Complexity | Implementation Notes |
-|---------|--------------|------------|----------------------|
-| **Total Savings (Current Period)** | Primary value proposition - shows SnoozeQL's ROI | Low | Sum of `estimated_savings_cents` from savings table |
-| **Month-to-Date Savings** | Standard financial reporting period | Low | Filter savings by current month |
-| **Forecasted Savings** | Users want to predict future value | Medium | Project based on schedule patterns + historical data |
-| **Savings Trend Indicator** | Shows if savings are improving | Low | Compare current period vs previous period (% change) |
-| **Stopped Hours (Current Period)** | Validates that sleep is happening | Low | Sum of `stopped_minutes` / 60 |
-
-**AWS Cost Explorer Pattern:** Shows "Month-to-date costs" and "Forecasted month end costs" prominently at top with percentage change indicators.
-
-**Recommendation:** Use 4 summary cards: Total Savings, Month-to-Date, Forecasted, and Savings Trend (% change vs last period).
-
-### Primary Chart
-
-| Feature | Why Expected | Complexity | Implementation Notes |
-|---------|--------------|------------|-------|
-| **Time-series savings chart** | Visual trend analysis | Medium | Stacked bar chart showing daily/weekly/monthly savings |
-| **Actual vs Projected overlay** | Validates estimates | Medium | Two data series on same chart |
-| **Configurable time range** | Different analysis needs | Low | 7d, 30d, 90d, custom range selectors |
-
-**Recommendation:** Use Recharts (already in stack) for a stacked bar chart with daily granularity for short ranges, weekly/monthly for longer ranges.
-
-### Data Table
-
-| Feature | Why Expected | Complexity | Implementation Notes |
-|---------|--------------|------------|-------|
-| **Per-instance savings breakdown** | Attribution and accountability | Low | Table with instance name, savings, stopped hours |
-| **Sortable columns** | Find top savers | Low | Sort by savings, hours stopped, instance name |
-| **Drill-down to instance detail** | Investigation workflow | Low | Link to instance detail page |
+| Feature | Status | Location |
+|---------|--------|----------|
+| Metrics collection every 15 min | ✅ Built | `internal/metrics/collector.go` |
+| HourlyMetric model (avg, min, max, samples) | ✅ Built | `internal/models/models.go` |
+| Latest metrics cards on Instance Details | ✅ Built | `web/src/pages/InstanceDetailPage.tsx` |
+| API endpoint for instance metrics | ✅ Built | `GET /instances/:id/metrics` |
+| Activity pattern analysis | ✅ Built | `internal/analyzer/patterns.go` |
+| Idle window detection (8+ hours, 3+ days consistent) | ✅ Built | Thresholds: CPU < 1% |
+| Recommendation engine | ✅ Built | `internal/analyzer/recommendation.go` |
+| Recommendations UI with confirm/dismiss | ✅ Built | `RecommendationsPage.tsx` |
+| Activity graph for recommendations | ✅ Built | `ActivityGraph.tsx` (Recharts) |
 
 ---
 
-## 2. Key Metrics
-
-What to display and why, based on FinOps best practices and industry standards.
-
-### Primary Metrics (Must Display)
-
-| Metric | Definition | Why Important | Calculation |
-|--------|------------|---------------|-------------|
-| **Total Savings** | Money not spent due to stopped instances | Primary value metric | `hourly_cost_cents * stopped_minutes / 60` |
-| **Stopped Hours** | Total time instances were stopped | Validates system is working | Direct from events or savings table |
-| **Running Cost** | What would have been spent if always running | Baseline comparison | `hourly_cost_cents * total_hours` |
-| **Actual Cost** | What was actually spent | Reality check | `hourly_cost_cents * running_minutes / 60` |
-
-### Secondary Metrics (Should Display)
-
-| Metric | Definition | Why Important | Calculation |
-|--------|------------|---------------|-------------|
-| **Savings Percentage** | Savings as % of what would have spent | Easy to understand efficiency | `(savings / running_cost) * 100` |
-| **Cost per Instance** | Average hourly cost per instance | Identifies expensive instances | Sum costs / instance count |
-| **Schedule Effectiveness** | How well schedules match actual usage | Optimization feedback | Compare scheduled stop time vs actual idle time |
-
-### ROI Metrics (Optional but Valuable)
-
-| Metric | Definition | Why Important | Calculation |
-|--------|------------|---------------|-------------|
-| **Daily Average Savings** | Normalized daily savings | Consistent comparison | Total savings / days in period |
-| **Projected Annual Savings** | Extrapolated yearly value | Business justification | Daily average * 365 |
-
-**FinOps Foundation Guidance:** "Context relevant cost reporting data available to all Core Personas" - metrics should be understandable by both technical and finance users.
-
----
-
-## 3. User Workflows
-
-How users interact with cost data, based on observed patterns in AWS Cost Explorer and GCP Billing.
-
-### Workflow 1: Executive Summary (Daily Check)
-
-**User Goal:** "Is SnoozeQL saving me money?"
-
-**Steps:**
-1. View dashboard summary cards
-2. Check savings trend indicator (up/down vs last period)
-3. Glance at chart for anomalies
-4. Done (< 30 seconds)
-
-**Required Features:**
-- Summary cards with clear numbers
-- Percentage change indicator
-- Clean, scannable UI
-
-### Workflow 2: Cost Attribution (Monthly Review)
-
-**User Goal:** "Which instances are saving the most? Which aren't contributing?"
-
-**Steps:**
-1. View dashboard for overall picture
-2. View per-instance savings table
-3. Sort by savings to find top/bottom performers
-4. Drill into specific instances for detail
-5. Identify instances that should be stopped more
-
-**Required Features:**
-- Per-instance savings table (SAV-04)
-- Sorting and filtering
-- Instance detail page with savings history
-
-### Workflow 3: Trend Analysis (Optimization)
-
-**User Goal:** "Are my schedules optimized? How have savings changed over time?"
-
-**Steps:**
-1. Select longer time range (30d, 90d)
-2. Review historical chart
-3. Identify patterns (weekends vs weekdays, specific periods)
-4. Compare actual vs projected costs (SAV-02)
-5. Adjust schedules if needed
-
-**Required Features:**
-- Historical activity charts (SAV-03)
-- Actual vs projected comparison (SAV-02, SAV-05)
-- Time range selector
-
-### Workflow 4: Billing Forecast (Planning)
-
-**User Goal:** "What will my bill look like this month?"
-
-**Steps:**
-1. View current month's actual costs
-2. View projected costs for rest of month
-3. Compare to previous months
-4. Validate forecast accuracy
-
-**Required Features:**
-- Cost projection (SAV-05)
-- Comparison view (actual vs expected)
-- Historical monthly totals
-
----
-
-## 4. Historical Visualization Requirements
-
-Time-based charting requirements based on industry patterns.
-
-### Time Range Options
-
-| Range | Granularity | Use Case |
-|-------|-------------|----------|
-| **Last 7 days** | Daily | Recent activity, troubleshooting |
-| **Last 30 days** | Daily | Monthly review, trend analysis |
-| **Last 90 days** | Weekly | Quarterly review, pattern identification |
-| **Custom range** | Auto (daily/weekly/monthly) | Specific period analysis |
-
-**AWS Cost Explorer Pattern:** Uses daily granularity for ranges up to 62 days, then automatically switches to monthly granularity.
-
-### Chart Types
-
-| Chart Type | When to Use | Data |
-|------------|-------------|------|
-| **Stacked Bar** | Primary savings view | Daily/weekly savings by instance or schedule |
-| **Line Chart** | Trend comparison | Actual vs projected over time |
-| **Area Chart** | Cumulative view | Running total of savings |
-
-**Recommendation:** Primary chart should be a stacked bar chart (matches existing Dashboard.tsx pattern and Recharts capabilities).
-
-### Grouping Options
-
-| Group By | What It Shows | Priority |
-|----------|---------------|----------|
-| **Date** | Daily/weekly/monthly savings | Must have |
-| **Instance** | Per-instance attribution | Must have |
-| **Schedule** | Which schedules save most | Should have |
-| **Region** | Regional cost distribution | Nice to have |
-| **Engine** | Database type comparison | Nice to have |
-
----
-
-## 5. Per-Instance Savings Attribution
-
-How to show which instances saved money (SAV-04).
-
-### Attribution Model
-
-**Calculation:** For each instance, for each day:
-```
-daily_savings = hourly_cost_cents * stopped_minutes / 60 / 100 (convert to dollars)
-```
-
-**Data Source:** The `Saving` model already exists:
-```go
-type Saving struct {
-    ID                    string
-    InstanceID            string
-    Date                  string
-    StoppedMinutes        int
-    EstimatedSavingsCents int
-}
-```
-
-### Per-Instance View Requirements
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| **Instance Name** | Identifier | Must have |
-| **Total Savings** | Sum for selected period | Must have |
-| **Stopped Hours** | Sum for selected period | Must have |
-| **Hourly Rate** | Instance cost per hour | Should have |
-| **Savings Percentage** | % of potential cost saved | Should have |
-| **Savings Trend** | Sparkline or change indicator | Nice to have |
-
-### Attribution Accuracy Considerations
-
-1. **Start/Stop Event Tracking:** Use Event table to track exact times
-2. **Partial Hour Billing:** AWS bills per-second with 10-minute minimum; our calculation should align
-3. **Status Changes:** Account for instance status during calculations
-4. **Timezone Handling:** Store times in UTC, display in user's timezone
-
----
-
-## 6. Actual vs Projected Comparison (SAV-02, SAV-05)
-
-How existing tools show cost comparisons.
-
-### AWS Cost Explorer Pattern
-
-| Metric | Definition |
-|--------|------------|
-| **Actual Cost** | What you spent (from billing data) |
-| **Forecasted Cost** | ML-based projection of month-end cost |
-| **Comparison** | % difference from last period |
-
-### For SnoozeQL Context
-
-| Metric | Definition | Calculation |
-|--------|------------|-------------|
-| **Projected Cost (Without SnoozeQL)** | What costs would be if instances ran 24/7 | `hourly_cost * 24 * days` |
-| **Projected Cost (With Schedules)** | Expected cost based on schedule patterns | `hourly_cost * scheduled_running_hours` |
-| **Actual Cost** | What was actually spent based on events | `hourly_cost * actual_running_hours` |
-| **Savings** | Difference | `Projected - Actual` |
-
-### Visualization Approach
-
-**Recommendation:** Use a dual-series chart showing:
-1. **Projected without schedules** (light gray/dotted line) - baseline
-2. **Actual cost** (solid color) - reality
-3. **Savings** shown as the gap between the two
-
-This clearly demonstrates SnoozeQL's value.
-
----
-
-## 7. Export and Reporting Requirements
-
-Common requirements for reports, based on industry patterns.
-
-### Export Formats
-
-| Format | Use Case | Priority |
-|--------|----------|----------|
-| **CSV** | Spreadsheet analysis, import to other tools | Should have |
-| **PDF** | Management reports, documentation | Nice to have |
-| **API** | Integration with other systems | Already exists |
-
-### Export Contents
-
-| Data | Include | Notes |
-|------|---------|-------|
-| Instance ID | Yes | For joining with other data |
-| Instance Name | Yes | Human readable |
-| Date | Yes | Time series |
-| Stopped Minutes | Yes | Raw data |
-| Estimated Savings | Yes | Calculated value |
-| Hourly Cost | Yes | For verification |
-
-### Reporting Workflows
-
-| Report Type | Audience | Frequency | Content |
-|-------------|----------|-----------|---------|
-| **Daily Summary** | Ops | Daily | Top savers, anomalies |
-| **Weekly Digest** | Team | Weekly | Trend, total savings |
-| **Monthly Report** | Management | Monthly | ROI, total savings, comparison |
-
-**For POC scope:** CSV export is sufficient. PDF and automated reports are out of scope.
-
----
-
-## 8. Filtering and Sorting Requirements
-
-What filtering capabilities users need.
-
-### Filter Dimensions
-
-| Dimension | Priority | Already in SnoozeQL |
-|-----------|----------|---------------------|
-| **Time Range** | Must have | No (needs implementation) |
-| **Instance** | Must have | Yes (instance list exists) |
-| **Provider (AWS/GCP)** | Should have | Yes (in Instance model) |
-| **Region** | Should have | Yes (in Instance model) |
-| **Engine** | Nice to have | Yes (in Instance model) |
-| **Schedule** | Nice to have | Yes (in Schedule model) |
-| **Tags** | Nice to have | Yes (in Instance model) |
-
-### Sort Options for Tables
-
-| Column | Direction | Default |
-|--------|-----------|---------|
-| Savings | Desc | **Yes** (show top savers first) |
-| Instance Name | Asc/Desc | No |
-| Stopped Hours | Desc | No |
-| Date | Desc | No |
-
----
-
-## 9. Table Stakes vs Differentiators
-
-### Table Stakes (Must Have for v1.1)
-
-Features users expect. Missing = product feels incomplete.
-
-| Feature | Requirement ID | Notes |
-|---------|----------------|-------|
-| Total savings display | SAV-02 | Summary card |
-| Per-instance savings | SAV-04 | Attribution table |
-| Historical chart | SAV-03 | Time series visualization |
-| Actual vs projected | SAV-02 | Comparison view |
-| Time range selection | SAV-03 | 7d, 30d, 90d, custom |
+## Metrics Visualization
+
+### Table Stakes (Must Have)
+
+These features are expected by users viewing database metrics. Missing = product feels incomplete.
+
+- **Time-series chart on Instance Details** — Complexity: Medium
+  - Display CPU, Connections, IOPS as line/area charts over time
+  - Users expect to see trends, not just latest values
+  - Depends on: Existing metrics API, HourlyMetric data
+
+- **Time range selector (1h, 6h, 24h, 7d)** — Complexity: Low
+  - Standard ranges users expect for metrics exploration
+  - 7-day matches current retention period
+  - Depends on: API endpoint modification to accept time range
+
+- **Multiple metrics on single view** — Complexity: Low
+  - CPU, Connections, IOPS visible together (stacked or tabbed)
+  - Pattern: Separate charts or overlay with toggle
+  - Depends on: Chart component supporting multiple series
+
+- **Loading/empty states for charts** — Complexity: Low
+  - "No data yet" when metrics haven't been collected
+  - Skeleton loading while fetching
+  - Depends on: None
+
+- **Responsive charts** — Complexity: Low
+  - Charts resize with viewport (ResponsiveContainer pattern)
+  - Already implemented in ActivityGraph.tsx
+  - Depends on: Recharts (already in stack)
 
 ### Differentiators (Nice to Have)
 
-Features that set product apart. Not expected, but valued.
+Features that set product apart but aren't expected.
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| Savings forecasting | Predict future value | High | ML-based projection |
-| Schedule effectiveness scoring | Optimization feedback | Medium | Compare schedules |
-| Export to CSV | External analysis | Low | Simple implementation |
-| Per-schedule savings | Schedule attribution | Medium | Aggregate by schedule |
+- **Anomaly highlighting on charts** — Complexity: Medium
+  - Shade periods of high CPU or unusual connection spikes
+  - Visual indication of "interesting" periods
+  - Depends on: Threshold configuration
 
-### Anti-Features (Do NOT Build)
+- **Correlation view (CPU vs Connections)** — Complexity: Medium
+  - Dual-axis chart showing relationship
+  - Helps identify "truly idle" vs "idle but connected"
+  - Depends on: Chart component with dual Y-axis
 
-Features to explicitly NOT build for v1.1 POC.
+- **Metric comparison across instances** — Complexity: High
+  - Select 2-3 instances and compare metrics
+  - Useful for identifying outliers
+  - Depends on: New UI, API for batch metrics
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Real-time billing API integration | Complexity, API costs, out of scope | Use instance hourly cost estimation |
-| Multi-currency support | Complexity | Single currency (USD, configurable) |
-| PDF report generation | Heavyweight for POC | CSV export only |
-| Email reports | Requires notification infrastructure (out of scope) | Manual export |
-| Cost anomaly detection | ML complexity | Simple trend display |
+- **Export metrics as CSV** — Complexity: Low
+  - Download raw metric data for external analysis
+  - Depends on: API endpoint for CSV format
+
+### Anti-Features (Don't Build)
+
+Features to explicitly NOT build for v1.2 POC.
+
+- **Real-time streaming metrics** — Why not: Complexity, 15-min collection is sufficient for idle detection
+  - Instead: Poll API on user-initiated refresh
+
+- **Enhanced Monitoring (OS-level metrics)** — Why not: Requires Enhanced Monitoring setup per AWS, adds cost
+  - Instead: Stick with standard CloudWatch metrics
+
+- **Custom alerting/thresholds** — Why not: Requires notification infrastructure (out of scope)
+  - Instead: Visual display of current thresholds on chart
+
+- **Performance Insights integration** — Why not: Additional AWS cost, complexity
+  - Instead: Standard CloudWatch metrics sufficient for idle detection
 
 ---
 
-## 10. Implementation Recommendations
+## Recommendations
 
-### Phase 1: Core Savings Display (SAV-01, SAV-02)
+### Table Stakes (Must Have)
 
-1. **Savings Calculation Service**
-   - Calculate savings from Event records (stop/start events)
-   - Populate Saving table with daily aggregates
-   - API endpoint: `GET /api/v1/savings?from=DATE&to=DATE`
+- **Simple threshold-based idle detection** — Complexity: Low (already implemented partially)
+  - Current: CPU < 1%, 8+ hours, 3+ consistent days
+  - v1.2 goal: CPU < 5% AND connections = 0
+  - Depends on: patterns.go threshold adjustment
 
-2. **Summary Cards**
-   - Total savings (current month)
-   - Savings vs last month (% change)
-   - Total stopped hours
-   - Add to existing Dashboard.tsx
+- **Recommendation grouping by pattern** — Complexity: Medium
+  - Group instances with similar idle windows together
+  - "3 instances idle 10pm-6am weekdays" as single recommendation
+  - Depends on: Pattern clustering logic
 
-### Phase 2: Historical Charts (SAV-03)
+- **Per-instance override within group** — Complexity: Medium
+  - Accept recommendation for group but exclude specific instance
+  - "Apply to all except production-db"
+  - Depends on: UI for instance selection in group
 
-1. **Time Range Selector**
-   - 7d, 30d, 90d, custom
-   - Store in URL params for sharing
+- **Recommendation confidence score display** — Complexity: Low (already built)
+  - Show HIGH/MEDIUM/LOW confidence badge
+  - Already calculated in patterns.go
+  - Depends on: None (polish existing UI)
 
-2. **Savings Chart**
-   - Stacked bar chart using Recharts
-   - Daily granularity for <=30d, weekly for >30d
-   - Group by instance initially
+- **Estimated savings per recommendation** — Complexity: Low (already built)
+  - Calculate daily savings based on idle hours × hourly cost
+  - Already implemented in handlers/recommendations.go
+  - Depends on: None (verify accuracy)
 
-### Phase 3: Per-Instance Attribution (SAV-04)
+### Differentiators (Nice to Have)
 
-1. **Savings Table**
-   - Sortable by savings, instance name, stopped hours
-   - Link to instance detail page
-   - Filter by provider, region
+- **Recommendation history/audit** — Complexity: Medium
+  - Track which recommendations were confirmed, dismissed, and when
+  - "Last recommendation generated: 2 hours ago"
+  - Depends on: New table or status tracking
 
-2. **Instance Detail Enhancement**
-   - Add savings history section to InstanceDetailPage
-   - Show daily savings for that instance
+- **Bulk confirm/dismiss** — Complexity: Low
+  - Select multiple recommendations and confirm/dismiss at once
+  - Depends on: UI checkboxes, batch API endpoint
 
-### Phase 4: Cost Projection (SAV-05)
+- **Recommendation refresh scheduling** — Complexity: Low
+  - "Check for new patterns every 6 hours"
+  - Background job, not user-triggered
+  - Depends on: Scheduler infrastructure (already exists for metrics)
 
-1. **Projection Calculation**
-   - Based on schedule patterns
-   - Compare expected vs actual
+- **Pattern evolution tracking** — Complexity: High
+  - "This instance's idle pattern shifted from weekdays to all week"
+  - Useful for ongoing optimization
+  - Depends on: Historical pattern storage
 
-2. **Comparison View**
-   - Overlay on historical chart
-   - Clear visual of "what you saved"
+### Anti-Features (Don't Build)
+
+- **ML-based pattern detection** — Why not: Complex, training data needed, overkill for POC
+  - Instead: Simple threshold rules are effective and explainable
+
+- **Auto-apply recommendations** — Why not: User explicitly wants confirmation workflow
+  - Instead: Confirm/dismiss UI (already built)
+
+- **Cross-schedule conflict detection** — Why not: Edge case, adds complexity
+  - Instead: Show warning if instance already has schedule
+
+- **Recommendation re-generation for dismissed** — Why not: If user dismissed, respect that decision
+  - Instead: Clear dismissed after 30 days, or allow manual re-enable
+
+---
+
+## Idle Detection Thresholds
+
+### Table Stakes
+
+Current implementation uses CPU < 1% threshold. v1.2 requirement is simpler:
+
+| Threshold | Current | v1.2 Target | Notes |
+|-----------|---------|-------------|-------|
+| CPU | < 1% | < 5% | More lenient, catches more idle |
+| Connections | Not checked | = 0 | Critical: zero connections = truly idle |
+| IOPS | Not checked | Not needed | CPU + connections sufficient |
+| Duration | 8+ hours | 8+ hours | Keep same |
+| Consistency | 3+ days | 3+ days | Keep same |
+
+**Recommendation:** Add connections check to idle detection logic. Pattern: `CPU < 5% AND connections = 0` for `8+ hours` on `3+ consistent days`.
+
+### Complexity: Low
+
+Change in `internal/analyzer/patterns.go`:
+- Add connections check to `findIdleSegments()`
+- Currently only checks CPU values
+- ConnValues already populated in buckets
+
+---
+
+## Recommendation Grouping
+
+### Pattern Grouping Logic
+
+Group recommendations by similar idle windows:
+
+| Grouping Criteria | Example |
+|-------------------|---------|
+| Same start hour (±1h tolerance) | All instances sleeping at 10pm |
+| Same end hour (±1h tolerance) | All instances waking at 6am |
+| Same days of week | All weekday-idle instances grouped |
+
+**Already implemented in** `groupSimilarWindows()` in patterns.go.
+
+### UI Representation
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 3 instances idle weekdays 10pm-6am                          │
+│ ───────────────────────────────────────────────────────────│
+│ ☐ dev-postgres-01    $2.40/day savings                     │
+│ ☑ dev-postgres-02    $2.40/day savings                     │
+│ ☑ staging-mysql-01   $1.80/day savings                     │
+│                                                             │
+│ [Confirm Selected] [Dismiss All]                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Complexity:** Medium — requires grouped recommendation API response and new UI component.
+
+---
+
+## Feature Dependencies
+
+```
+Existing:
+  HourlyMetric collection → Activity patterns → Recommendations
+  
+v1.2 Additions:
+  Time-series charts ← HourlyMetric API (needs time range param)
+  Recommendation groups ← Pattern grouping (partially exists)
+  Per-instance overrides ← Group UI component (new)
+```
+
+### Dependency Order
+
+1. **Phase 1:** Add time range to metrics API + time-series chart component
+2. **Phase 2:** Add connections threshold to idle detection
+3. **Phase 3:** Expose grouped recommendations in API
+4. **Phase 4:** Per-instance override UI within groups
+
+---
+
+## MVP Recommendation
+
+For v1.2 MVP, prioritize:
+
+1. **Time-series chart on Instance Details** (table stakes, visible impact)
+2. **Connections threshold in idle detection** (core improvement)
+3. **Recommendation grouping display** (table stakes for scaling)
+4. **Per-instance override within group** (table stakes for usability)
+
+Defer to post-MVP:
+
+- Anomaly highlighting (differentiator, not expected)
+- Pattern evolution tracking (high complexity)
+- Export to CSV (low priority for POC)
 
 ---
 
@@ -413,22 +263,25 @@ Features to explicitly NOT build for v1.1 POC.
 
 ### High Confidence (Official Documentation)
 
-- AWS Cost and Usage Reports: https://docs.aws.amazon.com/cur/latest/userguide/what-is-cur.html
-- AWS Cost Explorer: https://docs.aws.amazon.com/cost-management/latest/userguide/ce-exploring-data.html
-- GCP Billing Reports: https://cloud.google.com/billing/docs/how-to/reports
-- AWS RDS Pricing: https://aws.amazon.com/rds/pricing/
+- AWS RDS CloudWatch Metrics: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-metrics.html
+- AWS CloudWatch monitoring for RDS: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/monitoring-cloudwatch.html
 
-### Medium Confidence (Industry Standards)
+### Medium Confidence (Codebase Analysis)
 
-- FinOps Foundation - Reporting & Analytics: https://www.finops.org/framework/capabilities/reporting-analytics/
-- IBM Kubecost - Cost monitoring patterns: https://www.apptio.com/products/kubecost/
+- Existing patterns.go thresholds and grouping logic
+- ActivityGraph.tsx Recharts implementation
+- RecommendationsPage.tsx workflow
 
-### Existing SnoozeQL Implementation
+### Feature Complexity Estimates
 
-- Dashboard.tsx - Current dashboard patterns
-- models.go - Saving, Event, Instance models
-- STACK.md - Recharts already available
+| Feature | Complexity | Effort |
+|---------|------------|--------|
+| Time-series chart | Medium | 1-2 days |
+| Time range selector | Low | 0.5 day |
+| Connections threshold | Low | 0.5 day |
+| Recommendation grouping API | Medium | 1 day |
+| Per-instance override UI | Medium | 1-2 days |
 
 ---
 
-*Feature landscape research: 2026-02-23*
+*Feature landscape research: 2026-02-24*
