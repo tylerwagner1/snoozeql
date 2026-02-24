@@ -52,6 +52,7 @@ type RDSMetrics struct {
 	Connections *MetricValue
 	ReadIOPS    *MetricValue
 	WriteIOPS   *MetricValue
+	FreeMemory  *MetricValue
 }
 
 // MetricValue holds a single metric's statistics
@@ -91,6 +92,11 @@ func (c *CloudWatchClient) GetRDSMetrics(ctx context.Context, dbInstanceID strin
 	writeIOPS, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricWriteIOPS, startTime, endTime)
 	if err == nil {
 		metrics.WriteIOPS = writeIOPS
+	}
+
+	freeMemory, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricFreeableMemory, startTime, endTime)
+	if err == nil {
+		metrics.FreeMemory = freeMemory
 	}
 
 	return metrics, nil

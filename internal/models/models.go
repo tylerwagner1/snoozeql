@@ -142,6 +142,7 @@ const (
 	MetricDatabaseConnections = "DatabaseConnections"
 	MetricReadIOPS            = "ReadIOPS"
 	MetricWriteIOPS           = "WriteIOPS"
+	MetricFreeableMemory      = "FreeableMemory"
 )
 
 // APIToken represents an API key

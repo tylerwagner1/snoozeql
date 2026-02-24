@@ -84,9 +84,14 @@ func (c *MetricsCollector) CollectAll(ctx context.Context) error {
 			continue
 		}
 
-		// Skip stopped instances (no metrics available per RESEARCH.md)
+		// Store zeros for stopped instances (shows "asleep" state in metrics)
 		if instance.Status != "available" && instance.Status != "running" {
-			skipped++
+			if err := c.storeZeroMetrics(ctx, instance); err != nil {
+				log.Printf("Failed to store zero metrics for stopped instance %s: %v", instance.Name, err)
+				failed++
+				continue
+			}
+			collected++
 			continue
 		}
 
@@ -145,6 +150,19 @@ func (c *MetricsCollector) collectInstance(ctx context.Context, client *CloudWat
 		}
 	}
 
+	if metrics.FreeMemory != nil {
+		// Calculate memory percentage from bytes
+		pct := CalculateMemoryPercentage(instance.InstanceType, metrics.FreeMemory.Avg)
+		if pct != nil {
+			memValue := &MetricValue{Avg: *pct, Max: *pct, Min: *pct}
+			if err := c.storeMetric(ctx, instance.ID, models.MetricFreeableMemory, metrics.Timestamp, memValue); err != nil {
+				log.Printf("Failed to store FreeableMemory metric for %s: %v", instance.Name, err)
+			}
+		} else {
+			log.Printf("Unknown instance class %s for %s - skipping memory percentage", instance.InstanceType, instance.Name)
+		}
+	}
+
 	return nil
 }
 
@@ -160,6 +178,24 @@ func (c *MetricsCollector) storeMetric(ctx context.Context, instanceID, metricNa
 		SampleCount: 1,
 	}
 	return c.metricsStore.UpsertHourlyMetric(ctx, m)
+}
+
+// storeZeroMetrics stores zero metrics for all metric types
+// Used for stopped instances to show "asleep" state
+func (c *MetricsCollector) storeZeroMetrics(ctx context.Context, instance models.Instance) error {
+	zeroValue := &MetricValue{Avg: 0, Max: 0, Min: 0}
+	timestamp := time.Now().UTC().Truncate(time.Hour)
+
+	for _, metricName := range []string{
+		models.MetricCPUUtilization,
+		models.MetricDatabaseConnections,
+		models.MetricFreeableMemory,
+	} {
+		if err := c.storeMetric(ctx, instance.ID, metricName, timestamp, zeroValue); err != nil {
+			return fmt.Errorf("failed to store zero %s: %w", metricName, err)
+		}
+	}
+	return nil
 }
 
 // getClient returns or creates a CloudWatch client for the instance's account/region
