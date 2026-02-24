@@ -7,11 +7,9 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
+import { useState, useEffect } from 'react'
 import type { Instance } from '../lib/api'
-
-interface CostOverTimeChartProps {
-  instances: Instance[]
-}
+import api from '../lib/api'
 
 interface CostDataPoint {
   date: string
@@ -20,9 +18,55 @@ interface CostDataPoint {
   costDollars: number
 }
 
-export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
-  // Generate cost data for last 7 days
-  const generateCostData = (): CostDataPoint[] => {
+export function CostOverTimeChart({ instances }: { instances: Instance[] }) {
+  const [costData, setCostData] = useState<CostDataPoint[]>([])
+
+  useEffect(() => {
+    const fetchCostData = async () => {
+      try {
+        // Fetch real savings data from API
+        const response = await api.getDailySavings(7)
+        const dailySavings = response.daily_savings || []
+        
+        // Generate data points for last 7 days
+        const data: CostDataPoint[] = []
+        const today = new Date()
+        
+        for (let day = 6; day >= 0; day--) {
+          const currentDay = new Date(today)
+          currentDay.setDate(today.getDate() - day)
+          const dateString = currentDay.toISOString().split('T')[0]
+          
+          // Find matching savings data for this day
+          const savingsEntry = dailySavings.find(s => s.date === dateString)
+          const dailyCostCents = savingsEntry ? savingsEntry.savings_cents : 0
+          
+          data.push({
+            date: dateString,
+            label: currentDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            cost: dailyCostCents,
+            costDollars: dailyCostCents / 100,
+          })
+        }
+        
+        setCostData(data)
+      } catch (err) {
+        // Fallback to mock data if API fails
+        const data = generateMockCostData(instances)
+        setCostData(data)
+      }
+    }
+    
+    if (instances.length > 0) {
+      fetchCostData()
+    } else {
+      // No instances, show empty state
+      setCostData([])
+    }
+  }, [instances])
+
+  // Fallback to mock data if API unavailable
+  const generateMockCostData = (instances: Instance[]): CostDataPoint[] => {
     const data: CostDataPoint[] = []
     const today = new Date()
     
@@ -35,18 +79,14 @@ export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
       const currentDay = new Date(today)
       currentDay.setDate(today.getDate() - day)
       
-      // Simulate cost variation based on time of day patterns
-      // In a real implementation, this would come from actual historical data
-      let dailyCost = 0
-      
       // Business hours (9-17) = full cost, nights (22-7) = minimal, other times = 20%
       const businessHours = 8 // 9AM - 5PM
       const offHours = 9 // 10PM - 7AM  
       const transitionHours = 7 // remaining hours
       
-      dailyCost = (totalHourlyCostCents * businessHours) + 
-                  (totalHourlyCostCents * 0.2 * transitionHours) + 
-                  (totalHourlyCostCents * 0 * offHours)
+      const dailyCost = (totalHourlyCostCents * businessHours) + 
+                        (totalHourlyCostCents * 0.2 * transitionHours) + 
+                        (totalHourlyCostCents * 0 * offHours)
       
       data.push({
         date: currentDay.toISOString().split('T')[0],
@@ -59,11 +99,13 @@ export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
     return data
   }
 
-  const costData = generateCostData()
-  const maxCost = Math.max(...costData.map(d => d.costDollars), 1)
   const currentHourlyCost = instances
     .filter(inst => inst.status === 'available' || inst.status === 'running' || inst.status === 'starting')
     .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0) / 100
+
+  const maxCost = costData.length > 0 
+    ? Math.max(...costData.map(d => d.costDollars), 1)
+    : 1
 
   return (
     <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700">
