@@ -108,7 +108,8 @@ func (e *EventStoreWithSavings) calculateAndPersistSavings(ctx context.Context, 
 
 	// Find the most recent stop/sleep event before this start event
 	var stopEvent *models.Event
-	for i := range stopEvents {
+	// Iterate in reverse to find the most recent stop event (latest event, first in reverse)
+	for i := len(stopEvents) - 1; i >= 0; i-- {
 		if stopEvents[i].EventType == "sleep" || stopEvents[i].EventType == "stop" {
 			stopEvent = &stopEvents[i]
 			break
