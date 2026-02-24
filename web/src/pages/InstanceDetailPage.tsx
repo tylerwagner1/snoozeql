@@ -229,7 +229,7 @@ const InstanceDetailPage = () => {
           <div className="bg-white shadow-sm border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Metrics</h2>
-              {isMetricsStale() && instance.status !== 'stopped' && (
+              {isMetricsStale() && (
                 <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
                   Metrics unavailable
                 </span>
