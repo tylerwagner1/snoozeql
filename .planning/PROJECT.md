@@ -8,14 +8,22 @@ A database lifecycle management application that helps users reduce cloud costs 
 
 Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
 
-## Current Milestone: v1.1 Enhanced Insights & Savings
+## Current State
 
-**Goal:** Extend the v1.0 foundation with cost savings tracking, usage analytics, and historical visualization to validate SnoozeQL's value and improve user confidence in recommendations.
+**v1.1 shipped 2026-02-24**
 
-**Target features:**
-- Cost savings dashboard with actual vs projected costs
-- Historical activity charts for usage patterns
-- Per-instance savings attribution
+SnoozeQL is fully functional with:
+- Go 1.24.0 backend (Chi router, PostgreSQL with pgx)
+- React 18.2 frontend (Vite, React Router DOM, Recharts)
+- AWS SDK v2 and Google Cloud API support
+- Docker/Docker Compose deployment
+- 9 phases, 33 plans shipped across v1.0 and v1.1
+
+**v1.1 shipped:** Cost savings tracking system built, evaluated, then removed per product direction change. Instance metrics display added to Instance Details page.
+
+## Next Milestone Goals
+
+To be defined with `/gsd-new-milestone`.
 
 ## Requirements
 
@@ -32,14 +40,17 @@ Minimize database costs by automatically sleeping instances during inactive peri
 - ✓ Activity analysis with idle period detection — v1.0
 - ✓ Intelligent schedule recommendations based on activity patterns — v1.0
 - ✓ Recommendation workflow (view → confirm → create schedule) — v1.0
+- ✓ SAV-01: System calculates cost savings from stop/start events — v1.1 (built, then removed)
+- ✓ SAV-02: Savings dashboard shows estimated vs projected costs — v1.1 (built, then removed)
+- ✓ SAV-03: Historical activity charts visualize usage patterns — v1.1 (built, then removed)
+- ✓ SAV-04: Per-instance savings attribution — v1.1 (built, then removed)
+- ✓ SAV-05: Cost projection compares expected vs actual — v1.1 (built, then removed)
+- ✓ AUD-01: All cost calculations logged — v1.1 (built, then removed)
+- ✓ AUD-02: System stores hourly rate at stop event time — v1.1 (built, then removed)
 
 ### Active
 
-- ✓ **SAV-01**: System calculates cost savings from stop/start events
-- ✓ **SAV-02**: Savings dashboard shows estimated vs projected costs
-- ✓ **SAV-03**: Historical activity charts visualize usage patterns over time
-- ✓ **SAV-04**: Per-instance savings attribution shows which instances saved money
-- ✓ **SAV-05**: Cost projection compares expected vs actual for billing forecasts
+(None — next milestone requirements to be defined)
 
 ### Out of Scope
 
@@ -51,28 +62,18 @@ Minimize database costs by automatically sleeping instances during inactive peri
 
 ## Context
 
-**Current State (v1.0 shipped 2026-02-23, v1.1 in planning):**
-
-SnoozeQL v1.0 is fully functional with:
-- Go 1.24.0 backend (Chi router, PostgreSQL with pgx)
-- React 18.2 frontend (Vite, React Router DOM, Recharts)
-- AWS SDK v2 and Google Cloud API support
-- Docker/Docker Compose deployment
-- 25/26 v1 requirements shipped (ACT-02 GCP deferred)
-
-**v1.1 scope:** Cost savings tracking, usage analytics, historical visualization
-
-**Known Issues (deferred to future):**
-- AWS 7-day auto-restart: implement re-stop mechanism (Phase 1)
-- Instance state race conditions: implement proper state machine (Phase 1)
-- GCP Cloud Monitoring metrics: defer until AWS validation proves value
-
 **Technical Environment:**
 
 - **Backend:** Go 1.24.0, Chi router, PostgreSQL with pgx
 - **Frontend:** React 18.2, Vite, React Router DOM, Recharts
 - **Cloud SDKs:** AWS SDK v2, Google Cloud API
 - **Deployment:** Docker/Docker Compose
+
+**Known Issues (deferred to future):**
+- AWS 7-day auto-restart: implement re-stop mechanism
+- Instance state race conditions: implement proper state machine
+- GCP Cloud Monitoring metrics: defer until AWS validation proves value
+- Minor tech debt from savings removal (orphaned files, ~70 lines total)
 
 ## Constraints
 
@@ -86,14 +87,16 @@ SnoozeQL v1.0 is fully functional with:
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Use existing discovery service pattern | Leverages working provider polling, only needs UI enhancements | Faster development, less risk |
-| Single-user POC scope | Hackathon constraints, no need for complex auth | Simplified implementation, faster delivery |
-| Cloud provider stop/start APIs | Requirement to achieve $0 cost during sleep | Direct cost savings, matches user intent |
-| Regex-based schedule assignment | User requested flexible filtering with wildcards | Powerful and familiar pattern |
-| Manual confirmation before applying recommendations | Prevents accidental schedule changes | Safety for user, clear workflow |
-| Activity metrics from CloudWatch/Cloud Monitoring | Standard provider metrics, well-documented | Reliable data source for analysis |
-| ROADMAP.md split (one line per completed milestone) | Constant context cost for large project | Scales to 100+ phases without overflow |
-| Decimal phase numbering (2.1, 2.2) | Clear insertion semantics | Easy to insert phases without renumbering |
+| Use existing discovery service pattern | Leverages working provider polling, only needs UI enhancements | ✓ Good |
+| Single-user POC scope | Hackathon constraints, no need for complex auth | ✓ Good |
+| Cloud provider stop/start APIs | Requirement to achieve $0 cost during sleep | ✓ Good |
+| Regex-based schedule assignment | User requested flexible filtering with wildcards | ✓ Good |
+| Manual confirmation before applying recommendations | Prevents accidental schedule changes | ✓ Good |
+| Activity metrics from CloudWatch/Cloud Monitoring | Standard provider metrics, well-documented | ✓ Good |
+| ROADMAP.md split (one line per completed milestone) | Constant context cost for large project | ✓ Good |
+| Decimal phase numbering (2.1, 2.2) | Clear insertion semantics | ✓ Good |
+| Integer cents for money calculations | Avoid float64 precision issues | ✓ Good |
+| Remove savings feature after evaluation | Product direction change after build | ✓ Executed cleanly |
 
 ---
-*Last updated: 2026-02-23 after v1.1 requirements defined*
+*Last updated: 2026-02-24 after v1.1 milestone complete*
