@@ -65,22 +65,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| METR-01 | TBD | Pending |
-| METR-02 | TBD | Pending |
-| METR-03 | TBD | Pending |
-| VIS-01 | TBD | Pending |
-| VIS-02 | TBD | Pending |
-| VIS-03 | TBD | Pending |
-| VIS-04 | TBD | Pending |
-| REC-01 | TBD | Pending |
-| REC-02 | TBD | Pending |
-| REC-03 | TBD | Pending |
+| METR-01 | Phase 10 | Pending |
+| METR-02 | Phase 10 | Pending |
+| METR-03 | Phase 12 | Pending |
+| VIS-01 | Phase 11 | Pending |
+| VIS-02 | Phase 11 | Pending |
+| VIS-03 | Phase 11 | Pending |
+| VIS-04 | Phase 11 | Pending |
+| REC-01 | Phase 13 | Pending |
+| REC-02 | Phase 14 | Pending |
+| REC-03 | Phase 14 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 ⚠️
+- Mapped to phases: 10 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-24 after initial definition*
+*Last updated: 2026-02-24 after roadmap creation*
