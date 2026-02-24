@@ -41,7 +41,7 @@ Delivered: Savings tracking system (built, evaluated, removed), instance metrics
 **Plans**: 1 plan
 
 Plans:
-- [ ] 10-01-PLAN.md — Add FreeableMemory to CloudWatch collector with memory percentage and UI badge
+- [x] 10-01-PLAN.md — Add FreeableMemory to CloudWatch collector with memory percentage and UI badge
 
 #### Phase 11: Time-Series Visualization
 **Goal**: User can view metrics history on Instance Details page

@@ -9,8 +9,8 @@ Requirements for Metrics & Recommendations milestone. Each maps to roadmap phase
 
 ### Metrics Collection
 
-- [ ] **METR-01**: System reliably collects CPU, Memory (FreeableMemory), and Connections from AWS CloudWatch every 15 minutes
-- [ ] **METR-02**: Collected metrics are stored in metrics_hourly table and persisted correctly
+- [x] **METR-01**: System reliably collects CPU, Memory (FreeableMemory), and Connections from AWS CloudWatch every 15 minutes
+- [x] **METR-02**: Collected metrics are stored in metrics_hourly table and persisted correctly
 - [ ] **METR-03**: Metrics retention is enforced at 7 days (cleanup removes older data)
 
 *Note: Collection infrastructure exists but needs verification. Memory is a new metric to add.*
@@ -65,8 +65,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| METR-01 | Phase 10 | Pending |
-| METR-02 | Phase 10 | Pending |
+| METR-01 | Phase 10 | Complete |
+| METR-02 | Phase 10 | Complete |
 | METR-03 | Phase 12 | Pending |
 | VIS-01 | Phase 11 | Pending |
 | VIS-02 | Phase 11 | Pending |
