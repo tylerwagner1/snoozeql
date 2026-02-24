@@ -21,9 +21,17 @@ SnoozeQL is fully functional with:
 
 **v1.1 shipped:** Cost savings tracking system built, evaluated, then removed per product direction change. Instance metrics display added to Instance Details page.
 
-## Next Milestone Goals
+## Current Milestone: v1.2 Metrics & Recommendations
 
-To be defined with `/gsd-new-milestone`.
+**Goal:** Metrics working flawlessly with time-series visualization, powering intelligent schedule recommendations.
+
+**Target features:**
+- CPU, Memory, Connections metrics collected every 15 min (AWS RDS)
+- 7-day retention for metrics data
+- Time-series charts on Instance Details page
+- Recommendation engine detects idle patterns via simple threshold
+- Grouped recommendations with per-instance overrides
+- User approval workflow creates and assigns schedules
 
 ## Requirements
 
@@ -50,7 +58,7 @@ To be defined with `/gsd-new-milestone`.
 
 ### Active
 
-(None — next milestone requirements to be defined)
+(v1.2 requirements to be defined after research)
 
 ### Out of Scope
 
@@ -99,4 +107,4 @@ To be defined with `/gsd-new-milestone`.
 | Remove savings feature after evaluation | Product direction change after build | ✓ Executed cleanly |
 
 ---
-*Last updated: 2026-02-24 after v1.1 milestone complete*
+*Last updated: 2026-02-24 after v1.2 milestone started*
