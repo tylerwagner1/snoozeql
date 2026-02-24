@@ -3,11 +3,68 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import type { Instance, HourlyMetric } from '../lib/api'
 
+// Metric Card Component
+const MetricCard = ({ label, value, unit, min, max, samples }: { 
+  label: string; 
+  value?: number; 
+  unit: string;
+  min?: number;
+  max?: number;
+  samples?: number;
+}) => {
+  const hasData = value !== undefined && value !== null;
+  
+  if (!hasData) return null;
+
+  return (
+    <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+      <p className="text-xs text-gray-500 uppercase">{label}</p>
+      <div className="flex items-baseline mt-1 space-x-1">
+        <p className="text-2xl font-bold text-gray-900">{value.toFixed(1)}</p>
+        <p className="text-sm text-gray-600">{unit}</p>
+      </div>
+      <div className="flex items-center mt-2 space-x-3 text-xs text-gray-500">
+        {min !== undefined && (
+          <span>Min: {min.toFixed(1)}{unit}</span>
+        )}
+        {max !== undefined && (
+          <span>Max: {max.toFixed(1)}{unit}</span>
+        )}
+        {samples !== undefined && (
+          <span className="text-gray-400">({samples} samples)</span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Helper functions for extracting metric values
+const getMetricValue = (metrics: HourlyMetric[], metricName: string): number | undefined => {
+  const metric = metrics.find(m => m.metric_name.toLowerCase() === metricName.toLowerCase());
+  return metric ? metric.avg_value : undefined;
+};
+
+const getMetricMin = (metrics: HourlyMetric[], metricName: string): number | undefined => {
+  const metric = metrics.find(m => m.metric_name.toLowerCase() === metricName.toLowerCase());
+  return metric ? metric.min_value : undefined;
+};
+
+const getMetricMax = (metrics: HourlyMetric[], metricName: string): number | undefined => {
+  const metric = metrics.find(m => m.metric_name.toLowerCase() === metricName.toLowerCase());
+  return metric ? metric.max_value : undefined;
+};
+
+const getMetricSamples = (metrics: HourlyMetric[], metricName: string): number | undefined => {
+  const metric = metrics.find(m => m.metric_name.toLowerCase() === metricName.toLowerCase());
+  return metric ? metric.sample_count : undefined;
+};
+
 const InstanceDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [instance, setInstance] = useState<Instance | null>(null)
   const [metrics, setMetrics] = useState<HourlyMetric[]>([])
+  const [idleTime, setIdleTime] = useState<string>('--')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,6 +79,26 @@ const InstanceDetailPage = () => {
         ])
         setInstance(instanceData)
         setMetrics(metricsData)
+        
+        // Calculate idle time from metrics (hours since last active)
+        if (metricsData.length > 0) {
+          // Get the oldest metric hour and calculate time since then
+          const oldestHour = metricsData.reduce((min, m) => {
+            const mTime = new Date(m.hour).getTime()
+            return mTime < min ? mTime : min
+          }, new Date().getTime())
+          
+          const hoursSinceIdle = Math.floor((Date.now() - oldestHour) / (1000 * 60 * 60))
+          if (hoursSinceIdle < 24) {
+            setIdleTime(`${hoursSinceIdle}h ${Math.floor((hoursSinceIdle * 60) % 60)}m`)
+          } else if (hoursSinceIdle < 168) { // less than a week
+            setIdleTime(`${Math.floor(hoursSinceIdle / 24)}d ${hoursSinceIdle % 24}h`)
+          } else {
+            setIdleTime(`${Math.floor(hoursSinceIdle / 24)}d`)
+          }
+        } else {
+          setIdleTime('--')
+        }
       } catch (err) {
         setError('Failed to load instance details')
         console.error(err)
@@ -141,39 +218,58 @@ const InstanceDetailPage = () => {
           <div className="bg-white shadow-sm border rounded-lg p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Metrics</h2>
             {metrics.length > 0 ? (
-              <div className="space-y-3">
-                {metrics.map((metric) => (
-                  <div key={metric.id} className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 capitalize">
-                          {metric.metric_name === 'cpuutilization' ? 'CPU Utilization' :
-                           metric.metric_name === 'databaseconnections' ? 'Database Connections' :
-                           metric.metric_name === 'readiops' ? 'Read IOPS' :
-                           metric.metric_name === 'writeiops' ? 'Write IOPS' :
-                           metric.metric_name}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Latest: {new Date(metric.hour).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-gray-900">
-                          {metric.avg_value.toFixed(1)}%
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Avg / Min: {metric.min_value.toFixed(1)}% / Max: {metric.max_value.toFixed(1)}%
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {metric.sample_count} samples
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <MetricCard 
+                  label="CPU Utilization" 
+                  value={getMetricValue(metrics, 'cpuutilization')}
+                  unit="%"
+                  min={getMetricMin(metrics, 'cpuutilization')}
+                  max={getMetricMax(metrics, 'cpuutilization')}
+                  samples={getMetricSamples(metrics, 'cpuutilization')}
+                />
+                <MetricCard 
+                  label="Memory Utilization" 
+                  value={getMetricValue(metrics, 'memoryutilization') || getMetricValue(metrics, 'memutilization')}
+                  unit="%"
+                  min={getMetricMin(metrics, 'memoryutilization') || getMetricMin(metrics, 'memutilization')}
+                  max={getMetricMax(metrics, 'memoryutilization') || getMetricMax(metrics, 'memutilization')}
+                  samples={getMetricSamples(metrics, 'memoryutilization') || getMetricSamples(metrics, 'memutilization')}
+                />
+                <MetricCard 
+                  label="Database Connections" 
+                  value={getMetricValue(metrics, 'databaseconnections')}
+                  unit=""
+                  min={getMetricMin(metrics, 'databaseconnections')}
+                  max={getMetricMax(metrics, 'databaseconnections')}
+                  samples={getMetricSamples(metrics, 'databaseconnections')}
+                />
+                <MetricCard 
+                  label="Read IOPS" 
+                  value={getMetricValue(metrics, 'readiops')}
+                  unit=""
+                  min={getMetricMin(metrics, 'readiops')}
+                  max={getMetricMax(metrics, 'readiops')}
+                  samples={getMetricSamples(metrics, 'readiops')}
+                />
+                <MetricCard 
+                  label="Write IOPS" 
+                  value={getMetricValue(metrics, 'writeiops')}
+                  unit=""
+                  min={getMetricMin(metrics, 'writeiops')}
+                  max={getMetricMax(metrics, 'writeiops')}
+                  samples={getMetricSamples(metrics, 'writeiops')}
+                />
+                <MetricCard 
+                  label="Total IOPS" 
+                  value={getMetricValue(metrics, 'totaliops')}
+                  unit=""
+                  min={getMetricMin(metrics, 'totaliops')}
+                  max={getMetricMax(metrics, 'totaliops')}
+                  samples={getMetricSamples(metrics, 'totaliops')}
+                />
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No metrics data available yet</p>
+              <p className="text-sm text-gray-500">No metrics data available yet. Metrics are collected every 15 minutes.</p>
             )}
           </div>
         </div>
@@ -195,7 +291,7 @@ const InstanceDetailPage = () => {
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-xs text-gray-500 uppercase">Idle Time</p>
                 <p className="text-sm font-medium text-gray-900 mt-1">
-                  {instance.status === 'stopped' ? 'N/A' : '2h 15m'}
+                  {instance.status === 'stopped' ? 'N/A' : idleTime}
                 </p>
               </div>
             </div>
