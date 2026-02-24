@@ -12,7 +12,7 @@ export function SavingsSummaryCards({ data, loading }: SavingsSummaryCardsProps)
     return (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-slate-800/50 rounded-xl p-5 border border-slate-700 animate-pulse">
+          <div key={i} className="bg-slate-800 rounded-xl p-5 border border-slate-700 animate-pulse">
             <div className="h-4 bg-slate-700 rounded w-24 mb-3" />
             <div className="h-8 bg-slate-700 rounded w-32 mb-2" />
             <div className="h-3 bg-slate-700 rounded w-20" />
@@ -23,7 +23,15 @@ export function SavingsSummaryCards({ data, loading }: SavingsSummaryCardsProps)
   }
 
   if (!data) {
-    return null
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-slate-800 rounded-xl p-5 border border-slate-700">
+            <p className="text-slate-400 text-center p-4">No data available</p>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   const cards = [
@@ -66,7 +74,7 @@ export function SavingsSummaryCards({ data, loading }: SavingsSummaryCardsProps)
       {cards.map((card) => (
         <div
           key={card.title}
-          className={`bg-slate-800/50 rounded-xl p-5 shadow-lg border border-slate-700 ${card.hoverBorder} transition-all group`}
+          className={`bg-slate-800 rounded-xl p-5 shadow-lg border border-slate-700 ${card.hoverBorder} transition-all group`}
         >
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm text-slate-400 font-medium">{card.title}</p>

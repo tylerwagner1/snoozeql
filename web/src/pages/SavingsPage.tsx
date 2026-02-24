@@ -19,6 +19,7 @@ export default function SavingsPage() {
   const [summary, setSummary] = useState<SavingsSummary | null>(null)
   const [dailySavings, setDailySavings] = useState<DailySavings[]>([])
   const [instanceSavings, setInstanceSavings] = useState<InstanceSavingsItem[]>([])
+  const [ongoingCost, setOngoingCost] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,15 +27,17 @@ export default function SavingsPage() {
       try {
         const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
 
-        const [summaryData, dailyData, byInstanceData] = await Promise.all([
+        const [summaryData, dailyData, byInstanceData, ongoingData] = await Promise.all([
           api.getSavingsSummary(days),
           api.getDailySavings(days),
           api.getSavingsByInstance(days, 10),
+          api.getOngoingCost(),
         ])
 
         setSummary(summaryData)
         setDailySavings(dailyData.daily_savings || [])
         setInstanceSavings(byInstanceData || [])
+        setOngoingCost(ongoingData.ongoing_cost_cents)
       } catch (err) {
         console.error('Failed to fetch savings data:', err)
         // Keep previous data on error to avoid flicker
@@ -56,13 +59,13 @@ export default function SavingsPage() {
   const projectedAlwaysOnCents = actualCostCents * 2
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-slate-900 min-h-screen p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Cost Savings</h1>
+          <h1 className="text-3xl font-bold text-white">Cost Over Time</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Track your database cost optimization with SnoozeQL
+            Track your database costs and savings with SnoozeQL
           </p>
         </div>
         <DateRangeSelector value={dateRange} onChange={setDateRange} />
@@ -72,7 +75,7 @@ export default function SavingsPage() {
       <SavingsSummaryCards data={summary} loading={loading} />
 
       {/* Savings Chart */}
-      <SavingsChart data={dailySavings} loading={loading} />
+      <SavingsChart data={dailySavings} ongoingCost={ongoingCost} loading={loading} />
 
       {/* Two-column layout for table and projection on larger screens */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -81,8 +84,7 @@ export default function SavingsPage() {
 
         {/* Cost Projection */}
         <CostProjection
-          actualCostCents={actualCostCents}
-          projectedAlwaysOnCents={projectedAlwaysOnCents}
+          ongoingCost={ongoingCost}
           loading={loading}
         />
       </div>

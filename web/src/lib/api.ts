@@ -278,11 +278,14 @@ const api = {
    getSavingsSummary: (days: number = 30) =>
      api.get<SavingsSummary>(`/savings?days=${days}`),
 
-   getDailySavings: (days: number = 30) =>
-     api.get<DailySavingsResponse>(`/savings/daily?days=${days}`),
+    getDailySavings: (days: number = 30) =>
+      api.get<DailySavingsResponse>(`/savings/daily?days=${days}`),
 
-   getSavingsByInstance: (days: number = 30, limit: number = 20) =>
-     api.get<InstanceSavingsItem[]>(`/savings/by-instance?days=${days}&limit=${limit}`),
+    getOngoingCost: () =>
+      api.get<{ ongoing_cost_cents: number; timestamp: string }>(`/savings/ongoing`),
+
+    getSavingsByInstance: (days: number = 30, limit: number = 20) =>
+      api.get<InstanceSavingsItem[]>(`/savings/by-instance?days=${days}&limit=${limit}`),
 
    getInstanceSavings: (instanceId: string, days: number = 30) =>
      api.get<InstanceSavingsDetail>(`/instances/${instanceId}/savings?days=${days}`),

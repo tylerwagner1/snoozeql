@@ -2,46 +2,45 @@ import { AlertTriangle } from 'lucide-react'
 import { formatCurrency } from '../../lib/formatters'
 
 interface CostProjectionProps {
-  actualCostCents: number
-  projectedAlwaysOnCents: number
+  ongoingCost: number | null
   loading: boolean
 }
 
 export function CostProjection({
-  actualCostCents,
-  projectedAlwaysOnCents,
+  ongoingCost,
   loading,
 }: CostProjectionProps) {
   if (loading) {
     return (
-      <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+      <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
         <div className="h-4 bg-slate-700 rounded w-36 mb-4 animate-pulse" />
         <div className="grid grid-cols-2 gap-6 mb-6">
-          <div className="h-24 bg-slate-700/50 rounded-lg animate-pulse" />
-          <div className="h-24 bg-slate-700/50 rounded-lg animate-pulse" />
+          <div className="h-24 bg-slate-700 rounded-lg animate-pulse" />
+          <div className="h-24 bg-slate-700 rounded-lg animate-pulse" />
         </div>
-        <div className="h-20 bg-slate-700/50 rounded-lg animate-pulse" />
+        <div className="h-20 bg-slate-700 rounded-lg animate-pulse" />
       </div>
     )
   }
 
-  const savingsCents = projectedAlwaysOnCents - actualCostCents
-  const savingsPercent =
-    projectedAlwaysOnCents > 0
-      ? ((savingsCents / projectedAlwaysOnCents) * 100).toFixed(1)
-      : '0'
-
-  // Handle case where no projection data available
-  if (projectedAlwaysOnCents === 0 && actualCostCents === 0) {
+  // Handle case where no ongoing cost data available
+  if (!ongoingCost || ongoingCost === 0) {
     return (
-      <div className="bg-slate-800/50 rounded-xl p-8 border border-slate-700 text-center">
-        <p className="text-slate-400">No cost projection data available.</p>
+      <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 text-center">
+        <p className="text-slate-400">No instance data available.</p>
         <p className="text-sm text-slate-500 mt-2">
-          Cost projections will appear after instances have been stopped and restarted.
+          Once instances are stopped and restarted with schedules, cost projections will appear.
         </p>
       </div>
     )
   }
+
+  // Calculate costs
+  // Projected "Always On" = ongoingCost * 2 (what we'd pay if running 24/7)
+  const projectedAlwaysOnCents = ongoingCost * 2
+  const actualCostCents = ongoingCost
+  const savingsCents = projectedAlwaysOnCents - actualCostCents
+  const savingsPercent = ((savingsCents / projectedAlwaysOnCents) * 100).toFixed(1)
 
   return (
     <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
@@ -69,7 +68,7 @@ export function CostProjection({
 
       {/* Savings Summary */}
       <div className="p-4 bg-green-900/30 rounded-lg border border-green-500/20 mb-4">
-        <p className="text-sm text-slate-400">You saved</p>
+        <p className="text-sm text-slate-400">You save by stopping instances</p>
         <p className="text-3xl font-bold text-green-400">
           {formatCurrency(savingsCents)}{' '}
           <span className="text-lg text-green-500">({savingsPercent}%)</span>
