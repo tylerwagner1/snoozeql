@@ -10,10 +10,10 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 8 of 8 (Dashboard & Visualization)
-Plan: 4 of 4 in current phase (checkpoint: human-verify)
-Status: All tasks complete, checkpoint reached for human verification
-Last activity: 2026-02-24 - Completed quick task #001: Simplify savings page - remove Top Savings and Cost Comparison cards
+Phase: quick
+Plan: 002 of X (remove savings page)
+Status: Complete - Plan executed successfully
+Last activity: 2026-02-24 - Completed quick task #002: Remove Savings page entirely
 
 Progress: [██████████████████████████████████] 8/8 phases complete
 
@@ -105,6 +105,15 @@ Progress: [███████████████████████
 - Removed InstanceSavingsTable and CostProjection components
 - Updated SpendingPage to fetch only summary, daily, and top savers data
 
+**Quick Task #002 - Remove Savings Page (2026-02-24):**
+- Removed SavingsPage import from web/src/main.tsx
+- Removed /savings route from Routes configuration
+- Removed PiggyBank icon import from Navigation.tsx
+- Removed Savings navigation link from Navigation.tsx
+- Deleted web/src/pages/SavingsPage.tsx
+- Deleted all components in web/src/components/savings/ directory
+- Application builds successfully without any savings-related code
+
 **Phase 8 Debugging & Fixes (2026-02-24):**
 - Instance Details page 404 error: Fixed by changing endpoint from `GetInstanceByProviderID` to `GetInstanceByID` (backend uses app-generated UUID, not provider ID)
 - Added metrics_hourly table to database (was missing from schema)
@@ -153,16 +162,23 @@ Progress: [███████████████████████
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 001 | Simplify savings page - remove Top Savings and Cost Comparison cards | 2026-02-24 | TBA | [001-simplify-savings-page](./quick/001-simplify-savings-page/) |
+| 002 | Remove Savings page entirely | 2026-02-24 | 0bdab629, 20cd9762 | [002-remove-savings-page](./quick/002-remove-savings-page/) |
 
-**Savings Page Updates:**
+**Quick Task #001 - Savings Page Simplification (2026-02-24):**
 - Removed "Top Savings Instances" card (InstanceSavingsTable)
 - Removed "Cost Comparison" card (CostProjection)
 - Simplified to 2 summary cards: Total Savings, Ongoing Savings
 - Added savings table at bottom showing top 5 saving instances
 
+**Quick Task #002 - Remove Savings Page (2026-02-24):**
+- Removed SavingsPage import and route from web/src/main.tsx
+- Removed PiggyBank import and Savings link from Navigation.tsx
+- Deleted SavingsPage.tsx and all components in web/src/components/savings/
+- Application builds successfully without savings feature
+
 ## Blockers/Concerns Carried Forward
 
-None - Phase 8 complete (all 4 plans executed). SavingsPage simplified with 2 summary cards, 1 chart, and 1 table.
+None - Phase 8 complete and quick task 002 executed successfully. All savings page code removed.
 
 **Debugging Session (2026-02-24):**
 - Fixed `/instances/{id}` endpoint to use `GetInstanceByID` for app-generated UUID lookups
@@ -172,7 +188,7 @@ None - Phase 8 complete (all 4 plans executed). SavingsPage simplified with 2 su
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed quick task #001: Simplify savings page
+Stopped at: Completed quick task #002: Remove Savings page
 Resume file: None
 
 ### Changes Made (2026-02-24)
@@ -195,9 +211,14 @@ Resume file: None
 - Created new `SavingsTable` component with simplified table layout
 - Updated to only fetch: summary, daily, and top savings data
 
+**Quick Task #002 (`web/src/main.tsx`, `web/src/components/Navigation.tsx`):**
+- Removed `SavingsPage` import and /savings route
+- Removed `PiggyBank` icon import and Savings navigation link
+- Deleted SavingsPage.tsx and all web/src/components/savings/ components
+
 ## Pending Actions
 
-- [ ] Human verification of simplified SavingsPage visual correctness (checkpoint:human-verify)
+None - All pending actions completed.
 
 ### Server Status
 
