@@ -110,6 +110,21 @@ Plans:
 - [x] 08-03-PLAN.md — CostProjection component with SAV-05 disclaimer
 - [x] 08-04-PLAN.md — SavingsPage integration, routing, navigation, visual verification
 
+#### Phase 9: Complete Savings Removal & Cache Validation
+**Goal**: Remove all savings-related code from frontend and backend, rebuild Docker containers with fresh artifacts
+**Depends on**: Phase 8, Quick Task #002
+**Requirements**: None (cleanup phase)
+**Success Criteria** (what must be TRUE):
+  1. No savings-related code in frontend (web/src/)
+  2. No savings endpoints registered in backend
+  3. No savings handlers, stores, or calculators in backend
+  4. Docker containers rebuilt with fresh artifacts
+  5. Navigation shows only: Dashboard, Accounts, Instances, Schedules, Recommendations, Audit Log
+**Plans**: 1 plan
+
+Plans:
+- [ ] 09-PLAN.md — Complete savings removal and Docker rebuild
+
 ## Progress
 
 **Execution Order:**
@@ -125,9 +140,9 @@ Phases execute in numeric order. v1.0 (1-6) complete. v1.1 (7-8) in progress.
 | 6. Intelligent Recommendations | v1.0 | 4/4 | Complete | 2026-02-23 |
 | 7. Core Savings Calculation & API | v1.1 | 3/3 | Complete | 2026-02-23 |
 | 8. Dashboard & Visualization | v1.1 | 4/4 | Complete | 2026-02-23 |
-| 9. v1.1 Milestone Complete | v1.1 | - | Complete | 2026-02-23 |
+| 9. Complete Savings Removal | v1.1 | 0/1 | Not Started | - |
 
 ---
 
 *Roadmap created: 2026-02-23*
-*Last updated: 2026-02-23 (Phase 8 complete, v1.1 milestone achieved)*
+*Last updated: 2026-02-24 (Phase 9 added: Complete Savings Removal)*

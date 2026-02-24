@@ -10,12 +10,14 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: quick
-Plan: 002 of X (remove savings page)
-Status: Complete - Plan executed successfully
-Last activity: 2026-02-24 - Completed quick task #002: Remove Savings page entirely
+Phase: 9 of 9 (Complete Savings Removal & Cache Validation)
+Plan: 0 of 1 (not started)
+Status: Planning complete, ready for execution
+Last activity: 2026-02-24 - Created Phase 9 plan for complete savings removal
 
-Progress: [██████████████████████████████████] 8/8 phases complete
+Progress: [████████████████████████████████░░] 8/9 phases complete
+
+**Next Phase:** Phase 9 - Complete Savings Removal & Cache Validation
 
 ## Performance Metrics
 
@@ -178,7 +180,16 @@ Progress: [███████████████████████
 
 ## Blockers/Concerns Carried Forward
 
-None - Phase 8 complete and quick task 002 executed successfully. All savings page code removed.
+**Issue discovered:** Quick Task #002 removed the savings page UI but left behind:
+- Frontend savings API methods and types in `web/src/lib/api.ts`
+- Backend savings endpoints, handlers, stores, and calculators
+- Docker frontend container serving stale build artifacts (old JS bundle)
+
+**Resolution:** Phase 9 created to complete the removal and rebuild Docker containers.
+
+### Roadmap Evolution
+
+- Phase 9 added (2026-02-24): Complete Savings Removal & Cache Validation - systematically remove all remaining savings code and rebuild Docker containers
 
 **Debugging Session (2026-02-24):**
 - Fixed `/instances/{id}` endpoint to use `GetInstanceByID` for app-generated UUID lookups
