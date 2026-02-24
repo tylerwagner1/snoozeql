@@ -25,7 +25,6 @@ import (
 	"snoozeql/internal/provider"
 	awsprovider "snoozeql/internal/provider/aws"
 	gcpprovider "snoozeql/internal/provider/gcp"
-	"snoozeql/internal/savings"
 	"snoozeql/internal/store"
 
 	"github.com/go-chi/chi/v5"
@@ -38,10 +37,8 @@ var (
 	instanceStore       *store.InstanceStore
 	accountStore        *store.CloudAccountStore
 	eventStore          *store.EventStore
-	decoratedEventStore *savings.EventStoreWithSavings
 	scheduleStore       *store.ScheduleStore
 	recommendationStore *store.RecommendationStore
-	savingsStore        *store.SavingsStore
 	metricsStore        *metrics.MetricsStore
 	metricsCollector    *metrics.MetricsCollector
 )
@@ -189,19 +186,6 @@ func main() {
 	eventStore = store.NewEventStore(db)
 	scheduleStore = store.NewScheduleStore(db)
 	recommendationStore = store.NewRecommendationStore(db)
-	savingsStore = store.NewSavingsStore(db)
-
-	// Initialize savings calculator
-	savingsCalculator := savings.NewSavingsCalculator()
-
-	// Initialize decorated EventStore with automatic savings calculation
-	decoratedEventStore = savings.NewEventStoreWithSavings(
-		eventStore,
-		savingsCalculator,
-		savingsStore,
-		instanceStore,
-		db,
-	)
 
 	// Initialize metrics store and collector first (before analyzer)
 	metricsStore = metrics.NewMetricsStore(db)
@@ -220,7 +204,7 @@ func main() {
 	}
 	analyzer := analyzer.NewAnalyzer(providerRegistry, recommendationStore, metricsStore, thresholdConfig)
 
-	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, decoratedEventStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
+	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, eventStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
 
 	// Start discovery in background
 	ctx := context.Background()
@@ -662,19 +646,6 @@ func main() {
 			r.Post("/recommendations/{id}/ignore", func(w http.ResponseWriter, r *http.Request) {
 				id := chi.URLParam(r, "id")
 				recommendationHandler.DismissRecommendation(w, r, id)
-			})
-
-			// Savings
-			savingsHandler := handlers.NewSavingsHandler(
-				savingsStore, instanceStore, eventStore, savingsCalculator,
-			)
-			r.Get("/savings", savingsHandler.GetSavingsSummary)
-			r.Get("/savings/daily", savingsHandler.GetDailySavings)
-			r.Get("/savings/by-instance", savingsHandler.GetSavingsByInstance)
-			r.Get("/savings/ongoing", savingsHandler.GetOngoingCost)
-			r.Get("/instances/{id}/savings", func(w http.ResponseWriter, r *http.Request) {
-				id := chi.URLParam(r, "id")
-				savingsHandler.GetInstanceSavings(w, r, id)
 			})
 
 			// Metrics
