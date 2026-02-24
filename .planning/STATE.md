@@ -13,7 +13,7 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 8 of 8 (Dashboard & Visualization)
 Plan: 4 of 4 in current phase (checkpoint: human-verify)
 Status: All tasks complete, checkpoint reached for human verification
-Last activity: 2026-02-24 - Completed debugging fixes for savings page 500 error
+Last activity: 2026-02-24 - Completed quick task #001: Simplify savings page - remove Top Savings and Cost Comparison cards
 
 Progress: [██████████████████████████████████] 8/8 phases complete
 
@@ -94,9 +94,16 @@ Progress: [███████████████████████
 - Savings API methods: getSavingsSummary, getDailySavings, getSavingsByInstance, getInstanceSavings
 - Currency formatter: formatCurrency using Intl.NumberFormat (centsToDollars)
 - DateRangeSelector component: 7d/30d/90d tab navigation
-- Three main visualization components: SavingsSummaryCards, SavingsChart, InstanceSavingsTable
-- All components handle loading and empty states gracefully
+- Core visualization components: SavingsSummaryCards (2 cards), SavingsChart, SavingsTable
 - **Phase 8 Plan 04 (08-04):** SavingsPage integration with all components, route registration (/savings), Navigation.tsx link with PiggyBank icon
+
+**Quick Task #001 - Simplify Savings Page (2026-02-24):**
+- Removed "Top Savings Instances" card from SavingsPage
+- Removed "Cost Comparison" card from SavingsPage  
+- Created simplified SavingsTable component for displaying top savings
+- Updated SavingsPage.tsx to use SavingsSummaryCards (2 cards: Total, Ongoing) and SavingsChart
+- Removed InstanceSavingsTable and CostProjection components
+- Updated SpendingPage to fetch only summary, daily, and top savers data
 
 **Phase 8 Debugging & Fixes (2026-02-24):**
 - Instance Details page 404 error: Fixed by changing endpoint from `GetInstanceByProviderID` to `GetInstanceByID` (backend uses app-generated UUID, not provider ID)
@@ -141,9 +148,21 @@ Progress: [███████████████████████
 | SavingsPage imports and assembles all Phase 8 visualization components | Complete dashboard integration |
 | Navigation.tsx added PiggyBank icon for Savings link | Clear visual indicator for savings-related navigation |
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Simplify savings page - remove Top Savings and Cost Comparison cards | 2026-02-24 | TBA | [001-simplify-savings-page](./quick/001-simplify-savings-page/) |
+
+**Savings Page Updates:**
+- Removed "Top Savings Instances" card (InstanceSavingsTable)
+- Removed "Cost Comparison" card (CostProjection)
+- Simplified to 2 summary cards: Total Savings, Ongoing Savings
+- Added savings table at bottom showing top 5 saving instances
+
 ## Blockers/Concerns Carried Forward
 
-None - Phase 8 complete (all 4 plans executed). SavingsPage integrated with all visualization components, route registration complete, Navigation link added.
+None - Phase 8 complete (all 4 plans executed). SavingsPage simplified with 2 summary cards, 1 chart, and 1 table.
 
 **Debugging Session (2026-02-24):**
 - Fixed `/instances/{id}` endpoint to use `GetInstanceByID` for app-generated UUID lookups
@@ -153,7 +172,7 @@ None - Phase 8 complete (all 4 plans executed). SavingsPage integrated with all 
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed Instance Details page debugging and metrics display
+Stopped at: Completed quick task #001: Simplify savings page
 Resume file: None
 
 ### Changes Made (2026-02-24)
@@ -170,9 +189,15 @@ Resume file: None
 - Added metrics state and API call to load metrics
 - Added Metrics section displaying CPU, connections, IOPS with avg/min/max values
 
+**Quick Task #001 (`web/src/pages/SavingsPage.tsx` & components):**
+- Removed `InstanceSavingsTable` component import and usage
+- Removed `CostProjection` component import and usage  
+- Created new `SavingsTable` component with simplified table layout
+- Updated to only fetch: summary, daily, and top savings data
+
 ## Pending Actions
 
-- [ ] Human verification of SavingsPage visual correctness (checkpoint:human-verify)
+- [ ] Human verification of simplified SavingsPage visual correctness (checkpoint:human-verify)
 
 ### Server Status
 

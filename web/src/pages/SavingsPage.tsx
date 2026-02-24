@@ -4,8 +4,7 @@ import type { SavingsSummary, InstanceSavingsItem } from '../lib/api'
 import { DateRangeSelector, DateRange } from '../components/savings/DateRangeSelector'
 import { SavingsSummaryCards } from '../components/savings/SavingsSummaryCards'
 import { SavingsChart } from '../components/savings/SavingsChart'
-import { InstanceSavingsTable } from '../components/savings/InstanceSavingsTable'
-import { CostProjection } from '../components/savings/CostProjection'
+import { SavingsTable } from '../components/savings/SavingsTable'
 
 interface DailySavings {
   date: string
@@ -18,8 +17,7 @@ export default function SavingsPage() {
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState<SavingsSummary | null>(null)
   const [dailySavings, setDailySavings] = useState<DailySavings[]>([])
-  const [instanceSavings, setInstanceSavings] = useState<InstanceSavingsItem[]>([])
-  const [ongoingCost, setOngoingCost] = useState<number | null>(null)
+  const [topSavers, setTopSavers] = useState<InstanceSavingsItem[]>([])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -27,17 +25,15 @@ export default function SavingsPage() {
       try {
         const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
 
-        const [summaryData, dailyData, byInstanceData, ongoingData] = await Promise.all([
+        const [summaryData, dailyData, topSaversData] = await Promise.all([
           api.getSavingsSummary(days),
           api.getDailySavings(days),
-          api.getSavingsByInstance(days, 10),
-          api.getOngoingCost(),
+          api.getSavingsByInstance(days, 5),
         ])
 
         setSummary(summaryData)
         setDailySavings(dailyData.daily_savings || [])
-        setInstanceSavings(byInstanceData || [])
-        setOngoingCost(ongoingData.ongoing_cost_cents)
+        setTopSavers(topSaversData || [])
       } catch (err) {
         console.error('Failed to fetch savings data:', err)
         // Keep previous data on error to avoid flicker
@@ -66,19 +62,10 @@ export default function SavingsPage() {
       <SavingsSummaryCards data={summary} loading={loading} />
 
       {/* Savings Chart */}
-      <SavingsChart data={dailySavings} ongoingCost={ongoingCost} loading={loading} />
+      <SavingsChart data={dailySavings} loading={loading} />
 
-      {/* Two-column layout for table and projection on larger screens */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Instance Savings Table */}
-        <InstanceSavingsTable data={instanceSavings} loading={loading} />
-
-        {/* Cost Projection */}
-        <CostProjection
-          ongoingCost={ongoingCost}
-          loading={loading}
-        />
-      </div>
+      {/* Top Savings Table */}
+      <SavingsTable data={topSavers} loading={loading} />
     </div>
   )
 }

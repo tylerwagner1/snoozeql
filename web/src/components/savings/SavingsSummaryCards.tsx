@@ -1,4 +1,4 @@
-import { TrendingDown, Clock, DollarSign } from 'lucide-react'
+import { TrendingDown, Clock } from 'lucide-react'
 import { formatCurrency } from '../../lib/formatters'
 import type { SavingsSummary } from '../../lib/api'
 
@@ -10,8 +10,8 @@ interface SavingsSummaryCardsProps {
 export function SavingsSummaryCards({ data, loading }: SavingsSummaryCardsProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[1, 2].map((i) => (
           <div key={i} className="bg-slate-800 rounded-xl p-5 border border-slate-700 animate-pulse">
             <div className="h-4 bg-slate-700 rounded w-24 mb-3" />
             <div className="h-8 bg-slate-700 rounded w-32 mb-2" />
@@ -24,8 +24,8 @@ export function SavingsSummaryCards({ data, loading }: SavingsSummaryCardsProps)
 
   if (!data) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[1, 2].map((i) => (
           <div key={i} className="bg-slate-800 rounded-xl p-5 border border-slate-700">
             <p className="text-slate-400 text-center p-4">No data available</p>
           </div>
@@ -55,22 +55,10 @@ export function SavingsSummaryCards({ data, loading }: SavingsSummaryCardsProps)
       hoverBorder: 'hover:border-blue-500/50',
       subtitleColor: 'text-blue-400',
     },
-    {
-      title: 'Top Savers',
-      value: data.top_savers && data.top_savers.length > 0 ? data.top_savers.length.toString() : '0',
-      subtitle: data.top_savers && data.top_savers.length > 0 
-        ? `Best: ${formatCurrency(data.top_savers[0]?.savings_cents || 0)}`
-        : 'No savings yet',
-      icon: DollarSign,
-      gradient: 'from-purple-500 to-pink-600',
-      shadow: 'shadow-purple-500/20',
-      hoverBorder: 'hover:border-purple-500/50',
-      subtitleColor: 'text-purple-400',
-    },
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {cards.map((card) => (
         <div
           key={card.title}

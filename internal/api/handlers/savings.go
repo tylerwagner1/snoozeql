@@ -72,18 +72,26 @@ func (h *SavingsHandler) GetSavingsSummary(w http.ResponseWriter, r *http.Reques
 		if instance.Status != "stopped" && instance.Status != "stopping" {
 			continue
 		}
-		// Get the latest stop event for this instance
+
+		// Calculate ongoing savings based on when the instance was stopped
+		// Priority 1: Get the stop event timestamp
+		// Priority 2: Use the instance's created_at if it was created in stopped state
+		var stoppedAt time.Time
+
 		events, err := h.eventStore.ListEventsByInstance(r.Context(), instance.ID)
-		if err != nil {
-			continue
+		if err == nil {
+			// Find the most recent sleep/stop event (events are sorted by created_at DESC)
+			for i := 0; i < len(events); i++ {
+				if events[i].EventType == "sleep" || events[i].EventType == "stop" {
+					stoppedAt = events[i].CreatedAt
+					break
+				}
+			}
 		}
 
-		var stoppedAt time.Time
-		for _, event := range events {
-			if event.EventType == "sleep" {
-				stoppedAt = event.CreatedAt
-				break
-			}
+		// If no stop event found, use instance created_at as estimate
+		if stoppedAt.IsZero() {
+			stoppedAt = instance.CreatedAt
 		}
 
 		if !stoppedAt.IsZero() {
@@ -291,12 +299,12 @@ func (h *SavingsHandler) GetInstanceSavings(w http.ResponseWriter, r *http.Reque
 	ongoingSavings := 0
 	instance, err := h.instanceStore.GetInstanceByID(r.Context(), id)
 	if err == nil && instance != nil {
-		// Get the latest stop event
+		// Get the latest stop event (events are sorted by created_at DESC)
 		events, err := h.eventStore.ListEventsByInstance(r.Context(), id)
 		if err == nil {
 			var stoppedAt time.Time
 			for _, event := range events {
-				if event.EventType == "sleep" {
+				if event.EventType == "sleep" || event.EventType == "stop" {
 					stoppedAt = event.CreatedAt
 					break
 				}
