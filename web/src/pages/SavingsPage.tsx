@@ -49,15 +49,6 @@ export default function SavingsPage() {
     fetchData()
   }, [dateRange])
 
-  // Calculate projection data from summary
-  // Projected cost = actual cost + savings (what we would have paid without SnoozeQL)
-  const actualCostCents = summary
-    ? summary.total_savings_cents // This is what we saved, not what we paid
-    : 0
-  // For now, show savings as the "actual" and 2x savings as "projected"
-  // In a real implementation, this would come from billing data
-  const projectedAlwaysOnCents = actualCostCents * 2
-
   return (
     <div className="space-y-6 bg-slate-900 min-h-screen p-6">
       {/* Header */}

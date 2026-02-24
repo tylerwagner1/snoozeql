@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -167,11 +168,26 @@ func (h *RecommendationHandler) GetRecommendation(w http.ResponseWriter, r *http
 func (h *RecommendationHandler) GenerateRecommendations(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	// Check for 24 hours of data requirement first with clear error message
+	if err := h.checkDataSufficiency(ctx); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":      "Insufficient data",
+			"message":    err.Error(),
+			"suggestion": "GenerateRecommendations requires at least 24 hours of activity data per instance. Wait for data collection or check metrics_hourly table.",
+		})
+		return
+	}
+
 	recs, err := h.analyzer.GenerateRecommendations(ctx)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "Failed to generate recommendations",
+			"message": err.Error(),
+		})
 		return
 	}
 
@@ -183,12 +199,56 @@ func (h *RecommendationHandler) GenerateRecommendations(w http.ResponseWriter, r
 		}
 	}
 
+	// Check if any recommendations were generated
+	if created == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNoContent)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"created": 0,
+			"message": "No new recommendations generated. All instances either have insufficient data or already have pending recommendations.",
+		})
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"created": created,
 		"message": fmt.Sprintf("Generated %d new recommendations", created),
 	})
+}
+
+// checkDataSufficiency verifies that at least one instance has 24+ hours of data
+func (h *RecommendationHandler) checkDataSufficiency(ctx context.Context) error {
+	instances, err := h.analyzer.GetInstanceIDs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list instances: %w", err)
+	}
+
+	// Check each instance for sufficient data
+	dataError := ""
+	for _, instanceID := range instances {
+		hasSufficient, err := h.analyzer.HasDataSufficient(ctx, instanceID)
+		if err != nil {
+			// Track the error for the final message
+			if dataError == "" {
+				dataError = err.Error()
+			}
+			// Continue checking other instances even if one fails
+			continue
+		}
+		if hasSufficient {
+			// At least one instance has enough data
+			return nil
+		}
+	}
+
+	// If we got here, either no instances had enough data or there was a data access error
+	if dataError != "" {
+		return fmt.Errorf("metrics data unavailable: %s", dataError)
+	}
+
+	return fmt.Errorf("no instances have 24+ hours of activity data. Please wait for metrics collection to accumulate data.")
 }
 
 // DismissRecommendation dismisses a schedule recommendation

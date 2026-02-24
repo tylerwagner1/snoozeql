@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -38,7 +37,7 @@ func (s *SavingsStore) UpsertDailySaving(ctx context.Context, instanceID string,
 // GetSavingsByInstance returns savings records for a specific instance within a date range
 func (s *SavingsStore) GetSavingsByInstance(ctx context.Context, instanceID string, startDate time.Time, endDate time.Time) ([]models.Saving, error) {
 	query := `
-		SELECT id, instance_id, date, stopped_minutes, estimated_savings_cents, hourly_rate_cents
+		SELECT id, instance_id, date, stopped_minutes, estimated_savings_cents
 		FROM savings
 		WHERE instance_id = $1 AND date >= $2 AND date <= $3
 		ORDER BY date DESC`
@@ -52,20 +51,15 @@ func (s *SavingsStore) GetSavingsByInstance(ctx context.Context, instanceID stri
 	var savings []models.Saving
 	for rows.Next() {
 		var saving models.Saving
-		var hourlyRateCents sql.NullInt64
 		err := rows.Scan(
 			&saving.ID,
 			&saving.InstanceID,
 			&saving.Date,
 			&saving.StoppedMinutes,
 			&saving.EstimatedSavingsCents,
-			&hourlyRateCents,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan saving: %w", err)
-		}
-		if hourlyRateCents.Valid {
-			saving.HourlyRateCents = int(hourlyRateCents.Int64)
 		}
 		savings = append(savings, saving)
 	}
@@ -95,15 +89,14 @@ func (s *SavingsStore) GetTotalSavings(ctx context.Context, startDate time.Time,
 
 // GetDailySavings returns daily savings breakdown for a time range
 type DailySaving struct {
-	Date            string
-	SavingsCents    int
-	StoppedMinutes  int
-	HourlyRateCents sql.NullInt64
+	Date           string
+	SavingsCents   int
+	StoppedMinutes int
 }
 
 func (s *SavingsStore) GetDailySavings(ctx context.Context, startDate time.Time, endDate time.Time) ([]DailySaving, error) {
 	query := `
-		SELECT date::text, estimated_savings_cents, stopped_minutes, hourly_rate_cents
+		SELECT date::text, estimated_savings_cents, stopped_minutes
 		FROM savings
 		WHERE date >= $1 AND date <= $2
 		ORDER BY date DESC`
@@ -117,7 +110,7 @@ func (s *SavingsStore) GetDailySavings(ctx context.Context, startDate time.Time,
 	var savings []DailySaving
 	for rows.Next() {
 		var d DailySaving
-		err := rows.Scan(&d.Date, &d.SavingsCents, &d.StoppedMinutes, &d.HourlyRateCents)
+		err := rows.Scan(&d.Date, &d.SavingsCents, &d.StoppedMinutes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan daily saving: %w", err)
 		}
@@ -131,14 +124,13 @@ func (s *SavingsStore) GetDailySavings(ctx context.Context, startDate time.Time,
 	return savings, nil
 }
 
-// GetTopSavers returns instances with highest savings in a time range
+// GetTopSaver represents an instance with savings data for top savers
 type TopSaver struct {
-	InstanceID      string
-	Name            string
-	SavingsCents    int
-	StoppedMinutes  int
-	StoppedHours    float64
-	HourlyRateCents int
+	InstanceID     string
+	Name           string
+	SavingsCents   int
+	StoppedMinutes int
+	StoppedHours   float64
 }
 
 func (s *SavingsStore) GetTopSavers(ctx context.Context, startDate time.Time, endDate time.Time, limit int) ([]TopSaver, error) {
@@ -147,8 +139,7 @@ func (s *SavingsStore) GetTopSavers(ctx context.Context, startDate time.Time, en
 			s.instance_id,
 			i.name,
 			SUM(s.estimated_savings_cents) as total_savings,
-			SUM(s.stopped_minutes) as total_stopped_minutes,
-			AVG(s.hourly_rate_cents)::int as avg_hourly_rate
+			SUM(s.stopped_minutes) as total_stopped_minutes
 		FROM savings s
 		JOIN instances i ON s.instance_id = i.id
 		WHERE s.date >= $1 AND s.date <= $2
@@ -165,7 +156,7 @@ func (s *SavingsStore) GetTopSavers(ctx context.Context, startDate time.Time, en
 	var savers []TopSaver
 	for rows.Next() {
 		var saver TopSaver
-		err := rows.Scan(&saver.InstanceID, &saver.Name, &saver.SavingsCents, &saver.StoppedMinutes, &saver.HourlyRateCents)
+		err := rows.Scan(&saver.InstanceID, &saver.Name, &saver.SavingsCents, &saver.StoppedMinutes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan top saver: %w", err)
 		}
@@ -187,4 +178,20 @@ func (s *SavingsStore) RefreshSavingsSummary(ctx context.Context) error {
 		return fmt.Errorf("failed to refresh savings summary: %w", err)
 	}
 	return nil
+}
+
+// GetOngoingCost returns the current hourly cost of all running instances
+func (s *SavingsStore) GetOngoingCost(ctx context.Context) (int, error) {
+	query := `
+		SELECT COALESCE(SUM(hourly_cost_cents), 0)
+		FROM instances
+		WHERE status IN ('available', 'running', 'starting')`
+
+	var total int
+	err := s.db.db.QueryRowContext(ctx, query).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query ongoing cost: %w", err)
+	}
+
+	return total, nil
 }

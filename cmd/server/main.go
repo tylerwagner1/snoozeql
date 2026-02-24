@@ -203,15 +203,7 @@ func main() {
 		db,
 	)
 
-	// Initialize recommendation analyzer
-	thresholdConfig := analyzer.ThresholdConfig{
-		DefaultInactivityHours: 8,
-		DetectionDays:          7,
-		ConfidenceMinimum:      0.5,
-	}
-	analyzer := analyzer.NewAnalyzer(providerRegistry, recommendationStore, metricsStore, thresholdConfig)
-
-	// Initialize metrics store and collector
+	// Initialize metrics store and collector first (before analyzer)
 	metricsStore = metrics.NewMetricsStore(db)
 	metricsCollector = metrics.NewMetricsCollector(
 		metricsStore,
@@ -219,6 +211,14 @@ func main() {
 		accountStore,
 		15, // 15-minute collection interval per CONTEXT.md
 	)
+
+	// Initialize recommendation analyzer
+	thresholdConfig := analyzer.ThresholdConfig{
+		DefaultInactivityHours: 8,
+		DetectionDays:          7,
+		ConfidenceMinimum:      0.5,
+	}
+	analyzer := analyzer.NewAnalyzer(providerRegistry, recommendationStore, metricsStore, thresholdConfig)
 
 	discoveryService = discovery.NewDiscoveryService(providerRegistry, instanceStore, accountStore, decoratedEventStore, cfg.Discovery_enabled, cfg.Discovery_interval, []string{})
 
@@ -326,7 +326,7 @@ func main() {
 				log.Printf("DEBUG: Get instance by ID: %s", instanceID)
 
 				ctx := r.Context()
-				instance, err := instanceStore.GetInstanceByProviderID(ctx, "", instanceID)
+				instance, err := instanceStore.GetInstanceByID(ctx, instanceID)
 				if err != nil {
 					log.Printf("ERROR: Instance not found: %s", instanceID)
 					w.Header().Set("Content-Type", "application/json")
@@ -671,9 +671,31 @@ func main() {
 			r.Get("/savings", savingsHandler.GetSavingsSummary)
 			r.Get("/savings/daily", savingsHandler.GetDailySavings)
 			r.Get("/savings/by-instance", savingsHandler.GetSavingsByInstance)
+			r.Get("/savings/ongoing", savingsHandler.GetOngoingCost)
 			r.Get("/instances/{id}/savings", func(w http.ResponseWriter, r *http.Request) {
 				id := chi.URLParam(r, "id")
 				savingsHandler.GetInstanceSavings(w, r, id)
+			})
+
+			// Metrics
+			r.Get("/instances/{id}/metrics", func(w http.ResponseWriter, r *http.Request) {
+				instanceID := chi.URLParam(r, "id")
+				log.Printf("DEBUG: Get metrics for instance: %s", instanceID)
+
+				ctx := r.Context()
+				metrics, err := metricsStore.GetLatestMetrics(ctx, instanceID)
+				if err != nil {
+					log.Printf("ERROR: Failed to get metrics for instance %s: %v", instanceID, err)
+					// Return empty array on error (not 404 - instance exists, just no metrics)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode([]models.HourlyMetric{})
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(metrics)
 			})
 
 			// Events/Audit Log

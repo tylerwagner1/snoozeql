@@ -120,7 +120,6 @@ type Saving struct {
 	Date                  string `json:"date" db:"date"`
 	StoppedMinutes        int    `json:"stopped_minutes" db:"stopped_minutes"`
 	EstimatedSavingsCents int    `json:"estimated_savings_cents" db:"estimated_savings_cents"`
-	HourlyRateCents       int    `json:"hourly_rate_cents" db:"hourly_rate_cents"`
 }
 
 // HourlyMetric represents an hourly aggregated metric from CloudWatch

@@ -35,13 +35,27 @@ export function SavingsChart({ data, ongoingCost, loading }: SavingsChartProps) 
     )
   }
 
+  // Current ongoing cost in dollars
+  const currentOngoingCost = ongoingCost ? ongoingCost / 100 : 0
+
+  // Handle empty data - show current ongoing cost
   if (data.length === 0) {
     return (
-      <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 text-center">
-        <p className="text-slate-400">No savings data yet.</p>
-        <p className="text-sm text-slate-500 mt-2">
-          Savings are calculated when instances are stopped via schedules or manual actions.
-        </p>
+      <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+        <h2 className="text-lg font-semibold text-white mb-4">Cost Over Time</h2>
+        <div className="mb-4 p-4 bg-green-900/20 rounded-lg border border-green-500/30">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-slate-300">Current ongoing cost:</span>
+            <span className="text-2xl font-bold text-green-400">{formatCurrency(ongoingCost!)}</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">Cost of running {ongoingCost !== null && ongoingCost > 0 ? "instances" : "no instances"} per hour</p>
+        </div>
+        <div className="bg-slate-700/50 rounded-lg p-4 text-center">
+          <p className="text-slate-400">No historical savings data yet.</p>
+          <p className="text-sm text-slate-500 mt-2">
+            Savings will appear when instances are stopped via schedules or manual actions.
+          </p>
+        </div>
       </div>
     )
   }
@@ -53,9 +67,6 @@ export function SavingsChart({ data, ongoingCost, loading }: SavingsChartProps) 
     savingsCents: d.savings_cents,
     stoppedHours: Math.round(d.stopped_minutes / 60 * 10) / 10,
   }))
-
-  // Current ongoing cost in dollars
-  const currentOngoingCost = ongoingCost ? ongoingCost / 100 : 0
 
   return (
     <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">

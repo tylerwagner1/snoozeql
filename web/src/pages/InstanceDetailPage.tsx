@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../lib/api'
-import type { Instance } from '../lib/api'
+import type { Instance, HourlyMetric } from '../lib/api'
 
 const InstanceDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [instance, setInstance] = useState<Instance | null>(null)
+  const [metrics, setMetrics] = useState<HourlyMetric[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -15,8 +16,12 @@ const InstanceDetailPage = () => {
     
     const fetchInstance = async () => {
       try {
-        const data = await api.getInstance(id)
-        setInstance(data)
+        const [instanceData, metricsData] = await Promise.all([
+          api.getInstance(id),
+          api.getInstanceMetrics(id)
+        ])
+        setInstance(instanceData)
+        setMetrics(metricsData)
       } catch (err) {
         setError('Failed to load instance details')
         console.error(err)
@@ -130,6 +135,45 @@ const InstanceDetailPage = () => {
               </div>
             ) : (
               <p className="text-sm text-gray-500">No tags configured</p>
+            )}
+          </div>
+
+          <div className="bg-white shadow-sm border rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Metrics</h2>
+            {metrics.length > 0 ? (
+              <div className="space-y-3">
+                {metrics.map((metric) => (
+                  <div key={metric.id} className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 capitalize">
+                          {metric.metric_name === 'cpuutilization' ? 'CPU Utilization' :
+                           metric.metric_name === 'databaseconnections' ? 'Database Connections' :
+                           metric.metric_name === 'readiops' ? 'Read IOPS' :
+                           metric.metric_name === 'writeiops' ? 'Write IOPS' :
+                           metric.metric_name}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Latest: {new Date(metric.hour).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-gray-900">
+                          {metric.avg_value.toFixed(1)}%
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Avg / Min: {metric.min_value.toFixed(1)}% / Max: {metric.max_value.toFixed(1)}%
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {metric.sample_count} samples
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No metrics data available yet</p>
             )}
           </div>
         </div>

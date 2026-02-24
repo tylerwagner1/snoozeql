@@ -10,7 +10,7 @@ RUN go mod download
 COPY . .
 
 # Build the application with CGO disabled
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /snoozeql ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=mod -a -installsuffix cgo -o /snoozeql ./cmd/server
 
 # Runtime stage
 FROM alpine:latest

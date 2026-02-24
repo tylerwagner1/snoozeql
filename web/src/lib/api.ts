@@ -163,6 +163,20 @@ export interface InstanceSavingsDetail {
   }>
 }
 
+// Interface for hourly metrics
+export interface HourlyMetric {
+  id: string
+  instance_id: string
+  metric_name: string
+  hour: string
+  avg_value: number
+  max_value: number
+  min_value: number
+  sample_count: number
+  created_at: string
+  updated_at: string
+}
+
 const api = {
   async get<T>(path: string): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -287,8 +301,11 @@ const api = {
     getSavingsByInstance: (days: number = 30, limit: number = 20) =>
       api.get<InstanceSavingsItem[]>(`/savings/by-instance?days=${days}&limit=${limit}`),
 
-   getInstanceSavings: (instanceId: string, days: number = 30) =>
-     api.get<InstanceSavingsDetail>(`/instances/${instanceId}/savings?days=${days}`),
- }
+    getInstanceSavings: (instanceId: string, days: number = 30) =>
+      api.get<InstanceSavingsDetail>(`/instances/${instanceId}/savings?days=${days}`),
+
+    getInstanceMetrics: (instanceId: string) =>
+      api.get<HourlyMetric[]>(`/instances/${instanceId}/metrics`),
+  }
 
 export default api

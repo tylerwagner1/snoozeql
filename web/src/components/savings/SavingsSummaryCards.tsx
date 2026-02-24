@@ -57,8 +57,8 @@ export function SavingsSummaryCards({ data, loading }: SavingsSummaryCardsProps)
     },
     {
       title: 'Top Savers',
-      value: data.top_savers.length > 0 ? data.top_savers.length.toString() : '0',
-      subtitle: data.top_savers.length > 0 
+      value: data.top_savers && data.top_savers.length > 0 ? data.top_savers.length.toString() : '0',
+      subtitle: data.top_savers && data.top_savers.length > 0 
         ? `Best: ${formatCurrency(data.top_savers[0]?.savings_cents || 0)}`
         : 'No savings yet',
       icon: DollarSign,

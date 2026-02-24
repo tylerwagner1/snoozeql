@@ -38,8 +38,10 @@ const RecommendationsPage = () => {
       toast.success(result.message)
       const updated = await api.getRecommendations('pending')
       setRecommendations(updated || [])
-    } catch (err) {
-      toast.error('Failed to generate recommendations')
+    } catch (err: any) {
+      // Extract error message from API response if available
+      const errorMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to generate recommendations'
+      toast.error(errorMessage)
     } finally {
       setGenerating(false)
     }

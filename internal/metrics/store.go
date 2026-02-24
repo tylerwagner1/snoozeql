@@ -90,7 +90,7 @@ func (s *MetricsStore) GetLatestMetrics(ctx context.Context, instanceID string) 
 	}
 	defer rows.Close()
 
-	var metrics []models.HourlyMetric
+	metrics := make([]models.HourlyMetric, 0)
 	for rows.Next() {
 		var m models.HourlyMetric
 		err := rows.Scan(
@@ -123,5 +123,8 @@ func (s *MetricsStore) HasSufficientData(ctx context.Context, instanceID string)
 
 	var sufficient bool
 	err := s.db.QueryRow(ctx, query, instanceID).Scan(&sufficient)
-	return sufficient, err
+	if err != nil {
+		return false, fmt.Errorf("failed to check data sufficiency for instance %s: %w", instanceID, err)
+	}
+	return sufficient, nil
 }

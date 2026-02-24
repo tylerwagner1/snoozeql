@@ -143,20 +143,47 @@ func (h *SavingsHandler) GetDailySavings(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Get ongoing cost (current cost of running instances)
+	ongoingCost, err := h.savingsStore.GetOngoingCost(r.Context())
+	if err != nil {
+		// If we can't get ongoing cost, just continue with 0
+		ongoingCost = 0
+	}
+
 	// Build response
-	response := map[string][]map[string]interface{}{
+	response := map[string]interface{}{
 		"daily_savings": make([]map[string]interface{}, len(dailySavings)),
+		"ongoing_cost":  ongoingCost,
 	}
 
 	for i, ds := range dailySavings {
-		response["daily_savings"][i] = map[string]interface{}{
+		response["daily_savings"].(map[string][]map[string]interface{})["daily_savings"][i] = map[string]interface{}{
 			"date":            ds.Date,
 			"savings_cents":   ds.SavingsCents,
 			"stopped_minutes": ds.StoppedMinutes,
 		}
-		if ds.HourlyRateCents.Valid {
-			response["daily_savings"][i]["hourly_rate_cents"] = ds.HourlyRateCents.Int64
+	}
+
+	// Add today's ongoing cost if not already in the list
+	todayDate := startDate.Format("2006-01-02")
+	foundToday := false
+	for _, ds := range dailySavings {
+		if ds.Date == todayDate {
+			foundToday = true
+			break
 		}
+	}
+
+	// Add a placeholder for today to show ongoing cost
+	if !foundToday && days >= 1 {
+		response["daily_savings"].(map[string][]map[string]interface{})["daily_savings"] = append(
+			response["daily_savings"].([]map[string]interface{}),
+			map[string]interface{}{
+				"date":            todayDate,
+				"savings_cents":   ongoingCost,
+				"stopped_minutes": 0,
+			},
+		)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -281,10 +308,9 @@ func (h *SavingsHandler) GetInstanceSavings(w http.ResponseWriter, r *http.Reque
 	savingsArray := make([]map[string]interface{}, len(savingsRecords))
 	for i, s := range savingsRecords {
 		savingsArray[i] = map[string]interface{}{
-			"date":              s.Date,
-			"stopped_minutes":   s.StoppedMinutes,
-			"savings_cents":     s.EstimatedSavingsCents,
-			"hourly_rate_cents": s.HourlyRateCents,
+			"date":            s.Date,
+			"stopped_minutes": s.StoppedMinutes,
+			"savings_cents":   s.EstimatedSavingsCents,
 		}
 	}
 
@@ -308,4 +334,22 @@ func (h *SavingsHandler) PostBackfill(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "backfill_started"})
+}
+
+// GetOngoingCost returns the current hourly cost of all running instances
+func (h *SavingsHandler) GetOngoingCost(w http.ResponseWriter, r *http.Request) {
+	ongoingCost, err := h.savingsStore.GetOngoingCost(r.Context())
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to get ongoing cost"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"ongoing_cost_cents": ongoingCost,
+		"timestamp":          time.Now().UTC().Format(time.RFC3339),
+	})
 }

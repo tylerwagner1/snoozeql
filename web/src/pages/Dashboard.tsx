@@ -5,6 +5,7 @@ import api, { Instance, CloudAccount } from '../lib/api'
 import type { RecommendationEnriched, Event } from '../lib/api'
 import { RecommendationCard } from '../components/RecommendationCard'
 import { RecommendationModal } from '../components/RecommendationModal'
+import { CostOverTimeChart } from '../components/CostOverTimeChart'
 import toast from 'react-hot-toast'
 
 const Dashboard = () => {
@@ -54,41 +55,6 @@ const Dashboard = () => {
     return matchesSearch && matchesFilter
   })
 
-  const generateCostData = () => {
-    const data = []
-    const today = new Date()
-    
-    for (let day = 0; day < 7; day++) {
-      const currentDay = new Date(today)
-      currentDay.setDate(today.getDate() - (6 - day))
-      
-      for (let hour = 0; hour < 24; hour++) {
-        const date = new Date(currentDay)
-        date.setHours(hour)
-        
-        let hourlyCost = 0
-        instances.forEach(inst => {
-          if (hour >= 9 && hour < 17) {
-            hourlyCost += inst.hourly_cost_cents
-          } else if (hour >= 22 || hour < 7) {
-            hourlyCost += 0
-          } else {
-            hourlyCost += inst.hourly_cost_cents * 0.2
-          }
-        })
-        
-        data.push({
-          label: hour === 0 ? '12AM' : hour < 12 ? `${hour}AM` : hour === 12 ? '12PM' : `${hour - 12}PM`,
-          cost: hourlyCost
-        })
-      }
-    }
-    
-    return data
-  }
-
-  const costData = generateCostData()
-  const maxCost = Math.max(...costData.map(d => d.cost), 100)
   const totalSavings = instances.reduce((sum, inst) => sum + (inst.hourly_cost_cents / 100) * 24 * 7, 0)
   const runningCount = filteredInstances.filter(i => i.status === 'available' || i.status === 'running' || i.status === 'starting').length
   const sleepingCount = filteredInstances.filter(i => i.status === 'stopped' || i.status === 'stopping').length
@@ -101,8 +67,9 @@ const Dashboard = () => {
       toast.success(result.message)
       const updated = await api.getRecommendations('pending')
       setRecommendations(updated || [])
-    } catch (err) {
-      toast.error('Failed to generate recommendations')
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to generate recommendations'
+      toast.error(errorMessage)
     } finally {
       setGenerating(false)
     }
@@ -267,38 +234,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700">
-        <h2 className="text-lg font-semibold text-white mb-4">Cost Over Time (7 days)</h2>
-        <div className="h-64 w-full flex items-end space-x-1 sm:space-x-2">
-          {costData.map((d, i) => {
-            const heightPercentage = (d.cost / maxCost) * 100
-            return (
-              <div key={i} className="flex-1 flex flex-col justify-end group relative">
-                <div 
-                  className="bg-gradient-to-t from-blue-600 via-cyan-500 to-cyan-400 rounded-t-sm transition-all duration-300 hover:from-blue-500 hover:via-cyan-400 hover:to-cyan-300"
-                  style={{ height: `${Math.max(heightPercentage, 0.5)}%` }}
-                >
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-slate-700 z-10">
-                    ${Math.round(d.cost / 100)}/hr
-                  </div>
-                </div>
-                {i % 24 === 0 && (
-                  <div className="text-[10px] text-center text-slate-400 mt-2 truncate w-full">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i / 24]}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        <div className="flex justify-between mt-4 text-xs text-slate-500 px-2">
-          <span>00:00</span>
-          <span>06:00</span>
-          <span>12:00</span>
-          <span>18:00</span>
-          <span>24:00</span>
-        </div>
-      </div>
+      <CostOverTimeChart instances={instances} />
 
       <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700">
         <h2 className="text-lg font-semibold text-white mb-4">Recent Activity</h2>

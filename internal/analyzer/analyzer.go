@@ -217,32 +217,36 @@ func (a *Analyzer) ThresholdConfig() ThresholdConfig {
 
 // AnalyzeInstanceActivity analyzes an instance's activity patterns from stored metrics
 func (a *Analyzer) AnalyzeInstanceActivity(ctx context.Context, instanceID string) (*ActivityPattern, error) {
-	// Check for sufficient data first
+	// Check for sufficient data first (24+ hours required per CONTEXT.md)
 	hasSufficient, err := a.metricsStore.HasSufficientData(ctx, instanceID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check data sufficiency: %w", err)
+		return nil, fmt.Errorf("failed to check data sufficiency for instance %s: %w", instanceID, err)
 	}
 
 	if !hasSufficient {
 		return &ActivityPattern{
 			InstanceID:        instanceID,
 			HasSufficientData: false,
+			DataHours:         0, // Unknown since we couldn't query
 			AnalyzedAt:        time.Now(),
 		}, nil
 	}
 
-	// Get last 14 days of metrics
+	// Get last 14 days of metrics for analysis
 	end := time.Now().UTC()
 	start := end.AddDate(0, 0, -14)
 
 	metrics, err := a.metricsStore.GetMetricsByInstance(ctx, instanceID, start, end)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get metrics: %w", err)
+		return nil, fmt.Errorf("failed to get metrics for instance %s in period %s to %s: %w", instanceID, start.Format(time.RFC3339), end.Format(time.RFC3339), err)
 	}
 
 	// Analyze patterns using default thresholds from CONTEXT.md
 	thresholds := DefaultThresholds()
 	pattern := AnalyzeActivityPattern(metrics, thresholds)
+
+	// Set data hours in pattern for clearer debugging
+	pattern.DataHours = len(metrics)
 
 	return pattern, nil
 }
@@ -339,4 +343,33 @@ type DetectedPattern struct {
 	DetectionDays   int      `json:"detection_days"`
 	Days            []string `json:"days,omitempty"`
 	ConfidenceScore float64  `json:"confidence_score"`
+}
+
+// GetInstanceIDs returns all managed instance IDs
+// Used by the API handler to check data sufficiency before generating recommendations
+func (a *Analyzer) GetInstanceIDs(ctx context.Context) ([]string, error) {
+	instances, err := a.provider.ListAllDatabases(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list instances: %w", err)
+	}
+
+	var ids []string
+	for _, instance := range instances {
+		if instance.Managed {
+			ids = append(ids, instance.ID)
+		}
+	}
+
+	return ids, nil
+}
+
+// HasDataSufficient checks if an instance has at least 24 hours of data
+// Used by the API handler to provide clear error messages
+func (a *Analyzer) HasDataSufficient(ctx context.Context, instanceID string) (bool, error) {
+	hasSufficient, err := a.metricsStore.HasSufficientData(ctx, instanceID)
+	if err != nil {
+		// If table doesn't exist, that's a different error
+		return false, fmt.Errorf("metrics table not available: %v", err)
+	}
+	return hasSufficient, nil
 }

@@ -6,13 +6,14 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
 **Current focus:** v1.1 - Enhanced Insights & Savings (roadmap created, ready for phase planning)
+**Recent work:** Debugging Instance Details page 404 error, adding metrics display
 
 ## Current Position
 
 Phase: 8 of 8 (Dashboard & Visualization)
 Plan: 4 of 4 in current phase (checkpoint: human-verify)
 Status: All tasks complete, checkpoint reached for human verification
-Last activity: 2026-02-23 - Completed Phase 8 (all plans)
+Last activity: 2026-02-24 - Completed debugging and fixes for Instance Details page
 
 Progress: [██████████████████████████████████] 8/8 phases complete
 
@@ -97,7 +98,24 @@ Progress: [███████████████████████
 - All components handle loading and empty states gracefully
 - **Phase 8 Plan 04 (08-04):** SavingsPage integration with all components, route registration (/savings), Navigation.tsx link with PiggyBank icon
 
+**Phase 8 Debugging & Fixes (2026-02-24):**
+- Instance Details page 404 error: Fixed by changing endpoint from `GetInstanceByProviderID` to `GetInstanceByID` (backend uses app-generated UUID, not provider ID)
+- Added metrics_hourly table to database (was missing from schema)
+- Added `/api/v1/instances/{id}/metrics` endpoint to fetch latest metrics for an instance
+- Updated GetLatestMetrics to return empty slice instead of nil when no metrics exist
+- Added metrics display to InstanceDetailPage.tsx showing CPU, connections, IOPS with stats
+- Added `HourlyMetric` interface and `getInstanceMetrics` API method to frontend
+
 ### Decisions Made
+
+**Phase 8 Debugging & Fixes (2026-02-24):**
+
+| Decision | Rationale |
+|----------|-----------|
+| Use `GetInstanceByID` instead of `GetInstanceByProviderID` for `/instances/{id}` | Frontend uses app-generated UUID (`id` column), not provider identifier (`provider_id` column) |
+| Create `metrics_hourly` table in database | Table was referenced in code but missing from schema |
+| Return empty slice instead of nil for missing metrics | Consistent JSON serialization (empty array `[]` vs null) |
+| Add metrics display to InstanceDetailPage | Shows data used for recommendations (CPU, connections, IOPS stats) |
 
 **Phase 7 - Core Savings Calculation**
 
@@ -126,11 +144,30 @@ Progress: [███████████████████████
 
 None - Phase 8 complete (all 4 plans executed). SavingsPage integrated with all visualization components, route registration complete, Navigation link added.
 
+**Debugging Session (2026-02-24):**
+- Fixed `/instances/{id}` endpoint to use `GetInstanceByID` for app-generated UUID lookups
+- Created missing `metrics_hourly` table for metrics storage
+- Added metrics display to Instance Detail page showing CPU, connections, IOPS
+
 ## Session Continuity
 
-Last session: 2026-02-23T21:48:00Z
-Stopped at: Completed Phase 8 (all 4 plans)
+Last session: 2026-02-24
+Stopped at: Completed Instance Details page debugging and metrics display
 Resume file: None
+
+### Changes Made (2026-02-24)
+
+**Backend (`cmd/server/main.go`):**
+- Line 329: Changed `instanceStore.GetInstanceByProviderID(ctx, "", instanceID)` to `instanceStore.GetInstanceByID(ctx, instanceID)`
+- Added new metrics endpoint at line 683-702 for `/instances/{id}/metrics`
+
+**Frontend (`web/src/lib/api.ts`):**
+- Added `HourlyMetric` interface (lines 171-181)
+- Added `getInstanceMetrics` API method (line 293)
+
+**Frontend (`web/src/pages/InstanceDetailPage.tsx`):**
+- Added metrics state and API call to load metrics
+- Added Metrics section displaying CPU, connections, IOPS with avg/min/max values
 
 ## Pending Actions
 
@@ -140,6 +177,12 @@ Resume file: None
 
 | Service | URL | Status |
 |---------|-----|--------|
-| Go Backend API | http://localhost:8080 | ✅ Running |
+| Go Backend API | http://localhost:8080 | ✅ Running (with metrics endpoint fix) |
 | Next.js Frontend | http://localhost:3002 | ✅ Running |
-| PostgreSQL Database | localhost:5432 | ✅ Running |
+| PostgreSQL Database | localhost:5432 | ✅ Running (metrics_hourly table created) |
+
+### Database Changes
+
+| Table | Change |
+|-------|--------|
+| metrics_hourly | Created new table with columns: id, instance_id, metric_name, hour, avg_value, max_value, min_value, sample_count, created_at, updated_at |
