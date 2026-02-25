@@ -72,18 +72,20 @@ Plans:
 
 **Delivered:** RetentionCleaner service with batched deletes (1000 rows/batch), 7-day retention, 7-min startup delay, 24h interval, settings-based last-run tracking.
 
-#### Phase 13: Idle Detection
+#### Phase 13: Idle Detection ✓ COMPLETE
 **Goal**: Idle detection accurately identifies truly inactive instances
 **Depends on**: Phase 10 (needs Memory metric for complete picture)
 **Requirements**: REC-01
 **Success Criteria** (what must be TRUE):
-  1. Instance only flagged idle when CPU < 5% AND connections = 0
-  2. Instances with active connections never flagged as idle
-  3. Recommendations use compound threshold for pattern detection
+  1. Instance only flagged idle when CPU < 5% AND connections = 0 ✓
+  2. Instances with active connections never flagged as idle ✓
+  3. Recommendations use compound threshold for pattern detection ✓
 **Plans**: 1 plan
 
 Plans:
-- [ ] 13-01-PLAN.md — Update ActivityThresholds and findIdleSegments with compound threshold
+- [x] 13-01-PLAN.md — Update ActivityThresholds and findIdleSegments with compound threshold
+
+**Delivered:** Compound idle threshold: CPU < 5% AND connections = 0 via ConnectionsThreshold field, DefaultThresholds() with CPUPercent: 5.0, findIdleSegments() compound check.
 
 #### Phase 14: Grouped Recommendations
 **Goal**: Recommendations show patterns and savings clearly
@@ -109,9 +111,9 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 10. Metrics Collection Enhancement | 1/1 | Complete | 2026-02-24 |
 | 11. Time-Series Visualization | 2/2 | Complete | 2026-02-25 |
 | 12. Metrics Retention | 1/1 | Complete | 2026-02-25 |
-| 13. Idle Detection | 0/1 | Ready to plan | - |
+| 13. Idle Detection | 1/1 | Complete | 2026-02-25 |
 | 14. Grouped Recommendations | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-24*
-*Last updated: 2026-02-25 - Phase 12 completed (7-day retention automated)*
+*Last updated: 2026-02-25 - Phase 13 completed (idle detection compound threshold)*
