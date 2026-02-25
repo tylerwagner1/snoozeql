@@ -1,18 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 13-idle-detection
 source: 13-01-SUMMARY.md
 started: 2026-02-25T00:00:00Z
-updated: 2026-02-25T00:00:04Z
+updated: 2026-02-25T00:00:05Z
 ---
 
 ## Current Test
 
-number: 3
-name: Recommendations Use Compound Threshold
-expected: |
-  Idle pattern detection uses compound threshold (CPU < 5% AND connections < 2) for accurate recommendations
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -26,14 +22,14 @@ result: pass
 
 ### 3. Recommendations Use Compound Threshold
 expected: Idle pattern detection uses compound threshold (CPU < 5% AND connections < 2) for accurate recommendations
-result: [pending]
+result: pass
 
 ## Summary
 
 total: 3
-passed: 2
+passed: 3
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 
 ## Gaps
