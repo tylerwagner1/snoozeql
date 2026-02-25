@@ -95,11 +95,11 @@ Plans:
   1. Similar idle patterns are grouped in recommendations view
   2. Each recommendation shows estimated daily savings in dollars
   3. User can see which instances share similar idle patterns
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 14-01: Add grouping and savings to recommendations API
-- [ ] 14-02: Update recommendations UI with groups and savings
+- [ ] 14-01-PLAN.md — Add pattern signature generation and grouping logic to recommendations API
+- [ ] 14-02-PLAN.md — Update recommendations UI with grouped display and expand/collapse
 
 ## Progress
 
