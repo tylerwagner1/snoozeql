@@ -6,18 +6,18 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
 **Current focus:** Phase 11 - Time-Series Visualization
-**Recent work:** Phase 10 (Metrics Collection Enhancement) completed, Quick 001-01 (Test Metrics Button) completed
+**Recent work:** Phase 11 Plan 01 (Metrics History API) completed
 
 ## Current Position
 
 Phase: 11 of 14 (Time-Series Visualization)
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-02-24 — Phase 10 completed
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-25 — Completed 11-01-PLAN.md (Metrics History API)
 
-Progress: [█████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 14% (1/7 plans)
+Progress: [███████░░░░░░░░░░░░░░░░░░░░░░░░░░░] 21% (2/7 plans)
 
-**Next Action:** `/gsd-discuss-phase 11` to gather context, or `/gsd-plan-phase 11` to plan directly
+**Next Action:** Ready for 11-02-PLAN.md (MetricsChart Component)
 
 ## Quick Tasks Completed
 
@@ -74,6 +74,12 @@ Progress: [█████░░░░░░░░░░░░░░░░░░
 - Button shows loading state, disabled for non-AWS instances
 - Public CollectInstance() method exposed on MetricsCollector
 
+**Phase 11-01: Metrics History API (Complete):**
+- Added GET /instances/{id}/metrics/history endpoint
+- Supports time ranges: 1h, 6h, 24h, 7d (default: 24h)
+- Added frontend getMetricsHistory() API method
+- Returns empty array on error (consistent with /metrics)
+
 ### Key Decisions
 
 All key decisions documented in PROJECT.md.
@@ -87,12 +93,12 @@ Minimal tech debt from savings removal:
 
 ## Blockers/Concerns
 
-None — ready for Phase 11.
+None — ready for next plan (11-02: MetricsChart component).
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Completed quick-001-01 (Test Metrics Button)
+Last session: 2026-02-25
+Stopped at: Completed 11-01-PLAN.md (Metrics History API)
 Resume file: None
 
 ### Archive References
@@ -102,3 +108,7 @@ Resume file: None
 - `.planning/milestones/v1.1-ROADMAP.md` — Full v1.1 phase details
 - `.planning/milestones/v1.1-REQUIREMENTS.md` — v1.1 requirements
 - `.planning/milestones/v1.1-MILESTONE-AUDIT.md` — v1.1 audit report
+
+---
+
+*Last updated: 2026-02-25 - Phase 11 Plan 01 completed*
