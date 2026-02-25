@@ -669,9 +669,44 @@ func main() {
 				json.NewEncoder(w).Encode(metrics)
 			})
 
+			r.Get("/instances/{id}/metrics/history", func(w http.ResponseWriter, r *http.Request) {
+				instanceID := chi.URLParam(r, "id")
+				rangeParam := r.URL.Query().Get("range")
+
+				// Calculate duration based on range
+				var duration time.Duration
+				switch rangeParam {
+				case "1h":
+					duration = time.Hour
+				case "6h":
+					duration = 6 * time.Hour
+				case "7d":
+					duration = 7 * 24 * time.Hour
+				default: // "24h" is default
+					duration = 24 * time.Hour
+				}
+
+				start := time.Now().Add(-duration)
+				end := time.Now()
+
+				ctx := r.Context()
+				metrics, err := metricsStore.GetMetricsByInstance(ctx, instanceID, start, end)
+				if err != nil {
+					log.Printf("ERROR: Failed to get metrics history: %v", err)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode([]models.HourlyMetric{})
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(metrics)
+			})
+
 			r.Post("/instances/{id}/collect-metrics", func(w http.ResponseWriter, r *http.Request) {
 				instanceID := chi.URLParam(r, "id")
-				log.Printf("DEBUG: Collect metrics for instance: %s", instanceID)
+				log.Printf("DEBUG: Test metrics for instance: %s", instanceID)
 
 				ctx := r.Context()
 				instance, err := instanceStore.GetInstanceByID(ctx, instanceID)
@@ -691,18 +726,19 @@ func main() {
 					return
 				}
 
-				// Call metrics collector for single instance
-				if err := metricsCollector.CollectInstance(ctx, *instance); err != nil {
-					log.Printf("ERROR: Failed to collect metrics for %s: %v", instanceID, err)
+				// Fetch metrics without storing (for test/preview only)
+				testMetrics, err := metricsCollector.FetchInstanceMetrics(ctx, *instance)
+				if err != nil {
+					log.Printf("ERROR: Failed to fetch metrics for %s: %v", instanceID, err)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(fmt.Sprintf(`{"error":"Failed to collect metrics: %v"}`, err)))
+					w.Write([]byte(fmt.Sprintf(`{"error":"Failed to fetch metrics: %v"}`, err)))
 					return
 				}
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(map[string]string{"success": "true", "message": "Metrics collected"})
+				json.NewEncoder(w).Encode(testMetrics)
 			})
 
 			// Events/Audit Log
