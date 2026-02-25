@@ -2,7 +2,7 @@
 status: verified
 trigger: "User reported Test Metrics button missing from Actions section on instance details page for AWS instance 15728f75-8407-4e44-83a5-b8c6793ee79f. Debug session shows button exists in code but may be hidden/disabled."
 created: "2026-02-24T00:00:00Z"
-updated: "2026-02-24T00:00:00Z"
+updated: "2026-02-24T00:00:01Z"
 
 ## Current Focus
 
