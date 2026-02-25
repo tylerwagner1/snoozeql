@@ -10,7 +10,7 @@ import (
 // ActivityThresholds defines the thresholds for "low activity" per CONTEXT.md
 type ActivityThresholds struct {
 	CPUPercent           float64 // CPU < 5%
-	ConnectionsThreshold float64 // Connections must be exactly 0 for idle
+	ConnectionsThreshold float64 // Connections < 2 for idle
 	QueriesPerMin        float64 // Queries < 5/min (approximated from connections/IOPS)
 	MinIdleHours         int     // 8+ hours of low activity
 	MinDataHours         int     // 24+ hours of data required
@@ -21,7 +21,7 @@ type ActivityThresholds struct {
 func DefaultThresholds() ActivityThresholds {
 	return ActivityThresholds{
 		CPUPercent:           5.0, // Near-zero activity (CPU < 5%)
-		ConnectionsThreshold: 0,   // Connections must be exactly 0 for idle
+		ConnectionsThreshold: 2,   // Connections < 2 for idle (allows 1 connection)
 		QueriesPerMin:        5.0, // Queries < 5/min
 		MinIdleHours:         8,   // 8+ hours total low activity
 		MinDataHours:         24,  // 24+ hours of data required
@@ -181,8 +181,8 @@ func findIdleSegments(hours map[int]*HourBucket, thresholds ActivityThresholds) 
 				conns = average(bucket.ConnValues)
 			}
 
-			// Check if this hour is "idle" per REC-01: CPU < 5% AND connections = 0
-			isIdle = cpu < thresholds.CPUPercent && conns <= thresholds.ConnectionsThreshold
+			// Check if this hour is "idle" per REC-01: CPU < 5% AND connections < 2
+			isIdle = cpu < thresholds.CPUPercent && conns < thresholds.ConnectionsThreshold
 		}
 
 		if isIdle {
