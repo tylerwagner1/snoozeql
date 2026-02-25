@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import api from '../lib/api'
 import type { Instance, HourlyMetric } from '../lib/api'
 
@@ -145,12 +146,15 @@ const InstanceDetailPage = () => {
     if (!id) return
     setCollecting(true)
     try {
-      await api.collectInstanceMetrics(id)
+      const result = await api.collectInstanceMetrics(id)
+      toast.success(`Metrics collection: ${result.message || 'Success'}`)
       // Refresh metrics after collection
       const metricsData = await api.getInstanceMetrics(id)
       setMetrics(metricsData)
-    } catch (err) {
-      console.error('Failed to collect metrics:', err)
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Failed to collect metrics'
+      console.error('Failed to collect metrics:', message)
+      toast.error(message)
     } finally {
       setCollecting(false)
     }
