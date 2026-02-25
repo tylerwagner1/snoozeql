@@ -10,14 +10,14 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 12 of 14 (Metrics Retention) - COMPLETE
+Phase: 13 of 14 (Idle Detection) - COMPLETE
 Plan: 1 of 1 complete
 Status: Phase complete
-Last activity: 2026-02-25 — Completed 12-01-PLAN.md (Metrics Retention)
+Last activity: 2026-02-25 — Completed 13-01-PLAN.md (Idle Detection)
 
-Progress: [████████████████████████░░░░░░░░] 71% (5/7 plans)
+Progress: [█████████████████████████████░░░] 79% (6/8 plans)
 
-**Next Action:** Phase 13 - Idle Detection (compound threshold for CPU + connections)
+**Next Action:** Phase 14 - Grouped Recommendations
 
 ## Quick Tasks Completed
 
@@ -38,7 +38,7 @@ Progress: [███████████████████████
 |-----------|--------|-------|--------|
 | v1.0 MVP | 1-6 | 24 | Shipped 2026-02-23 |
 | v1.1 Enhanced Insights | 7-9 | 9 | Shipped 2026-02-24 |
-| v1.2 Metrics & Recommendations | 10-14 | 2/7 | In progress (Phase 12 complete) |
+| v1.2 Metrics & Recommendations | 10-14 | 3/7 | In progress (Phase 13 complete) |
 
 ## Accumulated Context
 
@@ -89,7 +89,24 @@ Progress: [███████████████████████
 - 7-minute startup delay followed by 24-hour interval cleanup
 - Requirements METR-03 satisfied
 
-### Phase 13: Idle Detection (Next - not started)
+### Phase 13: Idle Detection (Complete)
+
+**Phase 13: Idle Detection (Complete):**
+- Added ConnectionsThreshold field to ActivityThresholds struct
+- Updated DefaultThresholds() with CPUPercent: 5.0, ConnectionsThreshold: 0
+- Modified findIdleSegments() to check CPU < 5% AND connections == 0
+- REC-01 requirement satisfied - compound threshold prevents false positives
+- Requirements REC-01 satisfied
+
+**Decisions:**
+
+| Decision | Rationale |
+|----------|-----------|
+| CPUPercent: 5.0 | Requirement REC-01 specifies CPU < 5% for idle flag |
+| ConnectionsThreshold: 0 | Requirement REC-01 specifies connections = 0 for idle flag |
+| Use <= for connections check | Ensures negative connection edge case handled properly |
+
+### Phase 14: Grouped Recommendations (Next)
 
 ### Key Decisions
 
@@ -102,6 +119,14 @@ Progress: [███████████████████████
 | UTC timestamps for comparisons | Per RESEARCH.md pitfalls |
 | Subquery pattern for batched deletes | PostgreSQL standard approach |
 
+### Phase 13: Idle Detection
+
+| Decision | Rationale |
+|----------|-----------|
+| CPUPercent: 5.0 | Requirement REC-01 specifies CPU < 5% for idle flag |
+| ConnectionsThreshold: 0 | Requirement REC-01 specifies connections = 0 for idle flag |
+| Use <= for connections check | Ensures negative connection edge case handled properly |
+
 ### Tech Debt
 
 Minimal tech debt from savings removal:
@@ -111,12 +136,12 @@ Minimal tech debt from savings removal:
 
 ## Blockers/Concerns
 
-None — ready for Phase 13.
+None — Phase 13 complete, ready for Phase 14.
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed Phase 12 (12-01), metrics retention automated
+Stopped at: Completed Phase 13 (13-01), idle detection compound threshold
 Resume file: None
 
 ## Accumulated Context
@@ -142,4 +167,4 @@ Resume file: None
 
 ---
 
-*Last updated: 2026-02-25 - Phase 12 completed, 7-day retention automated*
+*Last updated: 2026-02-25 - Phase 13 completed, idle detection compound threshold*
