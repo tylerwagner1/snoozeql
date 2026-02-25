@@ -214,6 +214,11 @@ func main() {
 	go metricsCollector.RunContinuous(ctx)
 	log.Printf("✓ Started metrics collector (15-minute interval)")
 
+	// Start metrics retention cleanup in background
+	retentionCleaner := metrics.NewRetentionCleaner(metricsStore, db)
+	go retentionCleaner.RunContinuous(ctx)
+	log.Printf("✓ Started metrics retention cleaner (7-day retention, 24h interval)")
+
 	// Initialize router
 	r := chi.NewRouter()
 
