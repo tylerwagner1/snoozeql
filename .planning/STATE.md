@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 13 - Idle Detection (next)
+**Current focus:** Phase 14 - Grouped Recommendations (complete)
 **Recent work:** Phase 12 (Metrics Retention) completed
 
 ## Current Position
@@ -17,7 +17,7 @@ Last activity: 2026-02-25 — Completed 14-01-PLAN.md (Backend), 14-02-PLAN.md (
 
 Progress: [████████████████████████████████████] 100% (8/8 plans)
 
-**Next Action:** Complete Plan 14-02 (Frontend UI)
+**Next Action:** Phase 15 (if any) or v1.2 release
 
 ## Quick Tasks Completed
 
