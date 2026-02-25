@@ -726,19 +726,29 @@ func main() {
 					return
 				}
 
-				// Fetch metrics without storing (for test/preview only)
-				testMetrics, err := metricsCollector.FetchInstanceMetrics(ctx, *instance)
+				// Collect metrics (stores to DB) then return latest
+				err = metricsCollector.CollectInstance(ctx, *instance)
 				if err != nil {
-					log.Printf("ERROR: Failed to fetch metrics for %s: %v", instanceID, err)
+					log.Printf("ERROR: Failed to collect metrics for %s: %v", instanceID, err)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(fmt.Sprintf(`{"error":"Failed to fetch metrics: %v"}`, err)))
+					w.Write([]byte(fmt.Sprintf(`{"error":"Failed to collect metrics: %v"}`, err)))
+					return
+				}
+
+				// Fetch the just-collected metrics
+				latestMetrics, err := metricsStore.GetLatestMetrics(ctx, instanceID)
+				if err != nil {
+					log.Printf("ERROR: Failed to get metrics after collection: %v", err)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode([]models.HourlyMetric{})
 					return
 				}
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(testMetrics)
+				json.NewEncoder(w).Encode(latestMetrics)
 			})
 
 			// Events/Audit Log
