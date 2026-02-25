@@ -142,15 +142,19 @@ const InstanceDetailPage = () => {
     }
   }
 
+  // State for modal
+  const [showMetrics, setShowMetrics] = useState(false)
+
   const handleCollectMetrics = async () => {
     if (!id) return
     setCollecting(true)
     try {
-      const result = await api.collectInstanceMetrics(id)
-      toast.success(`Metrics collection: ${result.message || 'Success'}`)
+      await api.collectInstanceMetrics(id)
       // Refresh metrics after collection
       const metricsData = await api.getInstanceMetrics(id)
       setMetrics(metricsData)
+      // Show the metrics in a modal
+      setShowMetrics(true)
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Failed to collect metrics'
       console.error('Failed to collect metrics:', message)
@@ -158,6 +162,103 @@ const InstanceDetailPage = () => {
     } finally {
       setCollecting(false)
     }
+  }
+
+  const MetricModal = () => {
+    if (!showMetrics) return null
+    
+    // Group metrics by metric_name
+    const metricsByType: Record<string, HourlyMetric> = {}
+    metrics.forEach(m => {
+      metricsByType[m.metric_name] = m
+    })
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-gray-900">Current Metrics</h3>
+              <button
+                onClick={() => setShowMetrics(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {metrics.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No metrics data available</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {metricsByType['cpu_utilization'] && (
+                  <MetricCard
+                    label="CPU Utilization"
+                    value={metricsByType['cpu_utilization'].avg_value}
+                    unit="%"
+                    min={metricsByType['cpu_utilization'].min_value}
+                    max={metricsByType['cpu_utilization'].max_value}
+                    samples={metricsByType['cpu_utilization'].sample_count}
+                  />
+                )}
+                {metricsByType['memory_utilization'] && (
+                  <MetricCard
+                    label="Memory Utilization"
+                    value={metricsByType['memory_utilization'].avg_value}
+                    unit="%"
+                    min={metricsByType['memory_utilization'].min_value}
+                    max={metricsByType['memory_utilization'].max_value}
+                    samples={metricsByType['memory_utilization'].sample_count}
+                  />
+                )}
+                {metricsByType['disk_total_iops'] && (
+                  <MetricCard
+                    label="Disk IOPS"
+                    value={metricsByType['disk_total_iops'].avg_value}
+                    unit="IOPS"
+                    min={metricsByType['disk_total_iops'].min_value}
+                    max={metricsByType['disk_total_iops'].max_value}
+                    samples={metricsByType['disk_total_iops'].sample_count}
+                  />
+                )}
+                {metricsByType['network_in'] && (
+                  <MetricCard
+                    label="Network In"
+                    value={metricsByType['network_in'].avg_value}
+                    unit="Mbps"
+                    min={metricsByType['network_in'].min_value}
+                    max={metricsByType['network_in'].max_value}
+                    samples={metricsByType['network_in'].sample_count}
+                  />
+                )}
+                {metricsByType['network_out'] && (
+                  <MetricCard
+                    label="Network Out"
+                    value={metricsByType['network_out'].avg_value}
+                    unit="Mbps"
+                    min={metricsByType['network_out'].min_value}
+                    max={metricsByType['network_out'].max_value}
+                    samples={metricsByType['network_out'].sample_count}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="p-4 border-t bg-gray-50">
+            <p className="text-xs text-gray-500 text-center">
+              Metrics are collected every 15 minutes
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (loading) return <div className="p-8 text-center text-gray-500">Loading instance...</div>
@@ -358,18 +459,19 @@ const InstanceDetailPage = () => {
                   >
                     {collecting ? 'Collecting...' : 'Test Metrics'}
                   </button>
-                <button
-                  onClick={() => navigate('/instances')}
-                  className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50"
-                >
-                  Delete Instance
-                </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+                 <button
+                   onClick={() => navigate('/instances')}
+                   className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50"
+                 >
+                   Delete Instance
+                 </button>
+             </div>
+           </div>
+         </div>
+         <MetricModal />
+       </div>
+     </div>
+   )
+ }
 
 export default InstanceDetailPage
