@@ -9,7 +9,7 @@ tags: ["metrics", "ui", "button", "api"]
 
 ## One-Liner
 
-Added "Test Metrics" button to Instance Details page for manual metrics collection trigger.
+Added "Test Metrics" button to Instance Details page for manual metrics collection trigger that calls backend endpoint on-demand.
 
 ## Dependency Graph
 
@@ -17,7 +17,14 @@ Added "Test Metrics" button to Instance Details page for manual metrics collecti
 - **Provides:** Manual metrics collection endpoint, UI button for one-off collection
 - **Affects:** Future phases may extend this pattern to other instances or add automation controls
 
-## Tech Tracking
+### Tech Stack Changes
+
+| Component | Action | Details |
+|-----------|--------|---------|
+| `internal/metrics/collector.go` | Added | Public `CollectInstance()` method for on-demand collection |
+| `cmd/server/main.go` | Added | POST `/instances/:id/collect-metrics` endpoint |
+| `web/src/lib/api.ts` | Added | `collectInstanceMetrics()` API method |
+| `web/src/pages/InstanceDetailPage.tsx` | Added | Test Metrics button with loading state |
 
 ### Added Libraries/Patterns
 
