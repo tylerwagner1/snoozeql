@@ -5,19 +5,19 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 12 - Metrics Retention
-**Recent work:** Phase 11 (Time-Series Visualization) completed
+**Current focus:** Phase 13 - Idle Detection (next)
+**Recent work:** Phase 12 (Metrics Retention) completed
 
 ## Current Position
 
-Phase: 12 of 14 (Metrics Retention)
-Plan: 1 of 1 in current phase
+Phase: 12 of 14 (Metrics Retention) - COMPLETE
+Plan: 1 of 1 complete
 Status: Phase complete
 Last activity: 2026-02-25 — Completed 12-01-PLAN.md (Metrics Retention)
 
-Progress: [████████████████████░░░░░░░░░░░░] 57% (4/7 plans)
+Progress: [████████████████████████░░░░░░░░] 71% (5/7 plans)
 
-**Next Action:** Phase 12 complete - Metrics retention automated with 7-day window
+**Next Action:** Phase 13 - Idle Detection (compound threshold for CPU + connections)
 
 ## Quick Tasks Completed
 
@@ -25,12 +25,12 @@ Progress: [████████████████████░░░
 |------------|------|-------------|
 | quick-001-01 | 2026-02-24 | Test Metrics button with backend endpoint, API method, and UI button |
 
-## Performance Metrics
+**Performance Metrics**
 
 **Velocity (v1.0 + v1.1 + v1.2):**
-- Total plans completed: 34
+- Total plans completed: 35
 - Average duration: ~15 min
-- Total execution time: ~8.5 hours
+- Total execution time: ~8.75 hours
 
 **By Milestone:**
 
@@ -38,7 +38,7 @@ Progress: [████████████████████░░░
 |-----------|--------|-------|--------|
 | v1.0 MVP | 1-6 | 24 | Shipped 2026-02-23 |
 | v1.1 Enhanced Insights | 7-9 | 9 | Shipped 2026-02-24 |
-| v1.2 Metrics & Recommendations | 10-14 | 1/7 | In progress |
+| v1.2 Metrics & Recommendations | 10-14 | 2/7 | In progress (Phase 12 complete) |
 
 ## Accumulated Context
 
@@ -89,6 +89,8 @@ Progress: [████████████████████░░░
 - 7-minute startup delay followed by 24-hour interval cleanup
 - Requirements METR-03 satisfied
 
+### Phase 13: Idle Detection (Next - not started)
+
 ### Key Decisions
 
 | Decision | Rationale |
@@ -109,12 +111,12 @@ Minimal tech debt from savings removal:
 
 ## Blockers/Concerns
 
-None — ready for Phase 12.
+None — ready for Phase 13.
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 12-01-PLAN.md (Metrics Retention)
+Stopped at: Completed Phase 12 (12-01), metrics retention automated
 Resume file: None
 
 ## Accumulated Context
@@ -140,4 +142,4 @@ Resume file: None
 
 ---
 
-*Last updated: 2026-02-25 - Phase 12 completed (12-01), 7-day retention automated*
+*Last updated: 2026-02-25 - Phase 12 completed, 7-day retention automated*

@@ -58,17 +58,19 @@ Plans:
 - [x] 11-01-PLAN.md — Add metrics history API endpoint with time range support
 - [x] 11-02-PLAN.md — Build MetricsChart component with tabs and time range selector
 
-#### Phase 12: Metrics Retention
+#### Phase 12: Metrics Retention ✓ COMPLETE
 **Goal**: Metrics data stays manageable with automatic cleanup
 **Depends on**: Phase 10 (needs data to clean up)
 **Requirements**: METR-03
 **Success Criteria** (what must be TRUE):
-  1. Metrics older than 7 days are automatically deleted
-  2. Cleanup runs without affecting application performance
+  1. Metrics older than 7 days are automatically deleted ✓
+  2. Cleanup runs without affecting application performance ✓
 **Plans**: 1 plan
 
 Plans:
-- [ ] 12-01-PLAN.md — Create RetentionCleaner service with batched deletes and last-run tracking
+- [x] 12-01-PLAN.md — Create RetentionCleaner service with batched deletes and last-run tracking
+
+**Delivered:** RetentionCleaner service with batched deletes (1000 rows/batch), 7-day retention, 7-min startup delay, 24h interval, settings-based last-run tracking.
 
 #### Phase 13: Idle Detection
 **Goal**: Idle detection accurately identifies truly inactive instances
@@ -106,10 +108,10 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 |-------|----------------|--------|-----------|
 | 10. Metrics Collection Enhancement | 1/1 | Complete | 2026-02-24 |
 | 11. Time-Series Visualization | 2/2 | Complete | 2026-02-25 |
-| 12. Metrics Retention | 0/1 | Not started | - |
-| 13. Idle Detection | 0/1 | Not started | - |
+| 12. Metrics Retention | 1/1 | Complete | 2026-02-25 |
+| 13. Idle Detection | 0/1 | Ready to plan | - |
 | 14. Grouped Recommendations | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-24*
-*Last updated: 2026-02-25 - Phase 11 completed*
+*Last updated: 2026-02-25 - Phase 12 completed (7-day retention automated)*
