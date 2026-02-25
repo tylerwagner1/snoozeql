@@ -6,7 +6,7 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
 **Current focus:** Phase 11 - Time-Series Visualization
-**Recent work:** Phase 10 (Metrics Collection Enhancement) completed
+**Recent work:** Phase 10 (Metrics Collection Enhancement) completed, Quick 001-01 (Test Metrics Button) completed
 
 ## Current Position
 
@@ -18,6 +18,12 @@ Last activity: 2026-02-24 — Phase 10 completed
 Progress: [█████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 14% (1/7 plans)
 
 **Next Action:** `/gsd-discuss-phase 11` to gather context, or `/gsd-plan-phase 11` to plan directly
+
+## Quick Tasks Completed
+
+| Quick Task | Date | Description |
+|------------|------|-------------|
+| quick-001-01 | 2026-02-24 | Test Metrics button with backend endpoint, API method, and UI button |
 
 ## Performance Metrics
 
@@ -61,6 +67,13 @@ Progress: [█████░░░░░░░░░░░░░░░░░░
 - "Metrics unavailable" badge on Instance Details page
 - Requirements METR-01, METR-02 satisfied
 
+**Quick 001-01: Test Metrics Button (Complete):**
+- Added POST /instances/:id/collect-metrics backend endpoint
+- Added collectInstanceMetrics() API method
+- Added Test Metrics button to Instance Details page
+- Button shows loading state, disabled for non-AWS instances
+- Public CollectInstance() method exposed on MetricsCollector
+
 ### Key Decisions
 
 All key decisions documented in PROJECT.md.
@@ -79,7 +92,7 @@ None — ready for Phase 11.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Phase 10 complete
+Stopped at: Completed quick-001-01 (Test Metrics Button)
 Resume file: None
 
 ### Archive References
