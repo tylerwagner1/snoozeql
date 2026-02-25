@@ -65,10 +65,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Metrics older than 7 days are automatically deleted
   2. Cleanup runs without affecting application performance
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 12-01: Implement 7-day retention cleanup job
+- [ ] 12-01-PLAN.md — Create RetentionCleaner service with batched deletes and last-run tracking
 
 #### Phase 13: Idle Detection
 **Goal**: Idle detection accurately identifies truly inactive instances
