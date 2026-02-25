@@ -18,10 +18,10 @@ score: 3/3 must-haves verified
 
 | #   | Truth   | Status     | Evidence       |
 | --- | ------- | ---------- | -------------- |
-| 1   | Instance only flagged idle when CPU < 5% AND connections = 0 | ✓ VERIFIED | `cpu < thresholds.CPUPercent && conns <= thresholds.ConnectionsThreshold` (line 185) |
-| 2   | Instances with active connections never flagged as idle | ✓ VERIFIED | ConnectionsThreshold=0 requires conns == 0 for idle check |
-| 3   | Hour with CPU 4% and 1 connection is NOT idle | ✓ VERIFIED | Compound condition fails when conns > 0 |
-| 4   | Hour with CPU 4% and 0 connections IS idle | ✓ VERIFIED | Both conditions satisfied when CPU < 5.0 and conns == 0 |
+| 1   | Instance only flagged idle when CPU < 5% AND connections < 2 | ✓ VERIFIED | `cpu < thresholds.CPUPercent && conns < thresholds.ConnectionsThreshold` (line 185) |
+| 2   | Instances with active connections never flagged as idle | ✓ VERIFIED | ConnectionsThreshold=2 requires conns < 2 for idle check |
+| 3   | Hour with CPU 4% and 1 connection IS idle | ✓ VERIFIED | Compound condition satisfied when CPU < 5.0 and conns = 1 < 2 |
+| 4   | Hour with CPU 4% and 0 connections IS idle | ✓ VERIFIED | Both conditions satisfied when CPU < 5.0 and conns = 0 < 2 |
 
 **Score:** 4/4 truths verified
 
@@ -29,13 +29,13 @@ score: 3/3 must-haves verified
 
 | Artifact | Expected | Status | Details |
 | -------- | -------- | ------ | ------- |
-| `internal/analyzer/patterns.go` | Compound idle threshold logic | ✓ VERIFIED | ActivityThresholds has ConnectionsThreshold field, DefaultThresholds() returns CPUPercent: 5.0/ConnectionsThreshold: 0, findIdleSegments() checks compound condition |
+| `internal/analyzer/patterns.go` | Compound idle threshold logic | ✓ VERIFIED | ActivityThresholds has ConnectionsThreshold field, DefaultThresholds() returns CPUPercent: 5.0/ConnectionsThreshold: 2, findIdleSegments() checks compound condition |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 | ---- | -- | --- | ------ | ------- |
-| `findIdleSegments()` | `ActivityThresholds` | `CPUPercent and ConnectionsThreshold fields` | ✓ VERIFIED | Line 185: `cpu < thresholds.CPUPercent && conns <= thresholds.ConnectionsThreshold` |
+| `findIdleSegments()` | `ActivityThresholds` | `CPUPercent and ConnectionsThreshold fields` | ✓ VERIFIED | Line 185: `cpu < thresholds.CPUPercent && conns < thresholds.ConnectionsThreshold` |
 
 ### Requirements Coverage
 
@@ -51,13 +51,13 @@ score: 3/3 must-haves verified
 
 ### Gaps Summary
 
-No gaps found. All must-haves verified and implemented correctly in `internal/analyzer/patterns.go`.
+No gaps found. All must-haves verified and implemented correctly in `internal/analyzer/patterns.go` with ConnectionsThreshold: 2.
 
 **Verification Details:**
 
-1. **ActivityThresholds struct** (lines 11-18): Has `ConnectionsThreshold float64` field with comment "Connections must be exactly 0 for idle"
-2. **DefaultThresholds()** (lines 21-30): Returns `CPUPercent: 5.0` and `ConnectionsThreshold: 0`
-3. **findIdleSegments()** (line 185): Compound check `cpu < thresholds.CPUPercent && conns <= thresholds.ConnectionsThreshold` correctly implements CPU < 5% AND connections == 0
+1. **ActivityThresholds struct** (lines 11-18): Has `ConnectionsThreshold float64` field with comment "Connections must be 0 or 1 for idle"
+2. **DefaultThresholds()** (lines 21-30): Returns `CPUPercent: 5.0` and `ConnectionsThreshold: 2`
+3. **findIdleSegments()** (line 185): Compound check `cpu < thresholds.CPUPercent && conns < thresholds.ConnectionsThreshold` correctly implements CPU < 5% AND connections < 2
 
 ---
 
