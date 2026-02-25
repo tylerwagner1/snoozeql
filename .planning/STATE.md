@@ -6,7 +6,7 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
 **Current focus:** Phase 14 - Grouped Recommendations (complete)
-**Recent work:** Phase 12 (Metrics Retention) completed
+**Recent work:** Phase 15 (UI Polish & Cleanup) completed
 
 ## Current Position
 
@@ -40,7 +40,7 @@ Progress: [███████████████████████
 |-----------|--------|-------|--------|
 | v1.0 MVP | 1-6 | 24 | Shipped 2026-02-23 |
 | v1.1 Enhanced Insights | 7-9 | 9 | Shipped 2026-02-24 |
-| v1.2 Metrics & Recommendations | 10-14 | 7/7 | COMPLETE (2026-02-25) |
+| v1.2 Metrics & Recommendations | 10-15 | 9/9 | COMPLETE (2026-02-25) |
 
 ## Accumulated Context
 

@@ -108,8 +108,10 @@ Plans:
 **Depends on**: Phase 14
 **Plans**: 1 plan
 
+**Delivered:** Navigation active states using useLocation hook, formatters.ts deleted, Saving struct removed from models.go.
+
 Plans:
-- [ ] 15-01-PLAN.md — Add navigation active states and remove orphaned code
+- [x] 15-01-PLAN.md — Add navigation active states and remove orphaned code
 
 ## Progress
 
@@ -123,7 +125,9 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 12. Metrics Retention | 1/1 | Complete | 2026-02-25 |
 | 13. Idle Detection | 1/1 | Complete | 2026-02-25 |
 | 14. Grouped Recommendations | 2/2 | Complete | 2026-02-25 |
+| 15. UI Polish & Cleanup | 1/1 | Complete | 2026-02-25 |
 
 ---
+
 *Roadmap created: 2026-02-24*
 *Last updated: 2026-02-25 - v1.2 Metrics & Recommendations COMPLETE (Phases 10-15)*
