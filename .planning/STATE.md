@@ -10,14 +10,14 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 13 of 14 (Idle Detection) - COMPLETE
-Plan: 1 of 1 complete
-Status: Phase complete
-Last activity: 2026-02-25 — Completed 13-01-PLAN.md (Idle Detection)
+Phase: 14 of 14 (Grouped Recommendations) - IN PROGRESS
+Plan: 1 of 2 complete
+Status: Phase in progress
+Last activity: 2026-02-25 — Completed 14-01-PLAN.md (Backend pattern grouping), 14-02-PLAN.md pending
 
-Progress: [█████████████████████████████░░░] 79% (6/8 plans)
+Progress: [█████████████████████████████░░░] 83% (7/8 plans)
 
-**Next Action:** Phase 14 - Grouped Recommendations
+**Next Action:** Complete Plan 14-02 (Frontend UI)
 
 ## Quick Tasks Completed
 
@@ -38,7 +38,7 @@ Progress: [███████████████████████
 |-----------|--------|-------|--------|
 | v1.0 MVP | 1-6 | 24 | Shipped 2026-02-23 |
 | v1.1 Enhanced Insights | 7-9 | 9 | Shipped 2026-02-24 |
-| v1.2 Metrics & Recommendations | 10-14 | 3/7 | In progress (Phase 13 complete) |
+| v1.2 Metrics & Recommendations | 10-14 | 3/7 | In progress (Phase 14-01 complete) |
 
 ## Accumulated Context
 
@@ -59,6 +59,17 @@ Progress: [███████████████████████
 - Feature removed per product direction change
 
 ### v1.2 Progress
+
+**Phase 14: Grouped Recommendations (In Progress):**
+
+**Phase 14, Plan 01 (Complete - 2026-02-25):**
+- Added PatternSignature and RecommendationGroup types
+- Implemented groupRecommendations() function with pattern signatures
+- Modified GetAllRecommendations endpoint to return { groups: [...] }
+- Backend response returns recommendations organized by similar idle patterns
+- Group totals and per-instance savings both displayed
+- Requirements REC-02, REC-03 satisfied
+- Files modified: `internal/api/handlers/recommendations.go`
 
 **Phase 10: Metrics Collection Enhancement (Complete):**
 - Added FreeableMemory metric to CloudWatch collector
@@ -136,12 +147,12 @@ Minimal tech debt from savings removal:
 
 ## Blockers/Concerns
 
-None — Phase 13 complete, ready for Phase 14.
+None — Phase 14-01 complete, Phase 14-02 (frontend) ready for execution.
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed Phase 13 (13-01), idle detection compound threshold
+Stopped at: Completed Phase 14-01 (backend pattern grouping), Phase 14-02 pending
 Resume file: None
 
 ## Accumulated Context
@@ -167,4 +178,4 @@ Resume file: None
 
 ---
 
-*Last updated: 2026-02-25 - Phase 13 completed, idle detection compound threshold*
+*Last updated: 2026-02-25 - Phase 14-01 completed (backend pattern grouping, REC-02, REC-03)*
