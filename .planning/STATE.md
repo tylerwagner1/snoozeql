@@ -11,13 +11,13 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 12 of 14 (Metrics Retention)
-Plan: 0 of 1 in current phase
-Status: Ready to plan
-Last activity: 2026-02-25 — Phase 11 completed
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-25 — Completed 12-01-PLAN.md (Metrics Retention)
 
-Progress: [████████████████░░░░░░░░░░░░░░░░░░] 43% (3/7 plans)
+Progress: [████████████████████░░░░░░░░░░░░] 57% (4/7 plans)
 
-**Next Action:** `/gsd-discuss-phase 12` to gather context, or `/gsd-plan-phase 12` to plan directly
+**Next Action:** Phase 12 complete - Metrics retention automated with 7-day window
 
 ## Quick Tasks Completed
 
@@ -81,9 +81,24 @@ Progress: [████████████████░░░░░░░
 - Integrated into InstanceDetailPage with "Metrics History" section
 - Requirements VIS-01, VIS-02, VIS-03, VIS-04 satisfied
 
+**Phase 12: Metrics Retention (Complete):**
+- Created RetentionCleaner service with RunContinuous pattern (149 lines)
+- 7-day retention enforced via batched deletes (1000 rows/batch)
+- 100ms pauses between batches to prevent table locking
+- Last-run timestamp tracked in settings table for skip-if-recent logic
+- 7-minute startup delay followed by 24-hour interval cleanup
+- Requirements METR-03 satisfied
+
 ### Key Decisions
 
-All key decisions documented in PROJECT.md.
+| Decision | Rationale |
+|----------|-----------|
+| Hard-coded 7-day retention | Per CONTEXT.md requirement |
+| 1000 rows per batch | Reasonable default for PostgreSQL |
+| 7-minute startup delay | Within 5-10 minute range per CONTEXT.md |
+| Settings key: metrics_retention_last_run | Standard key-value tracking in settings table |
+| UTC timestamps for comparisons | Per RESEARCH.md pitfalls |
+| Subquery pattern for batched deletes | PostgreSQL standard approach |
 
 ### Tech Debt
 
@@ -99,8 +114,21 @@ None — ready for Phase 12.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed Phase 11 (Time-Series Visualization)
+Stopped at: Completed 12-01-PLAN.md (Metrics Retention)
 Resume file: None
+
+## Accumulated Context
+
+### Key Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Hard-coded 7-day retention | Per CONTEXT.md requirement |
+| 1000 rows per batch | Reasonable default for PostgreSQL |
+| 7-minute startup delay | Within 5-10 minute range per CONTEXT.md |
+| Settings key: metrics_retention_last_run | Standard key-value tracking |
+| UTC timestamps for comparisons | Per RESEARCH.md pitfalls |
+| Subquery pattern for batched deletes | PostgreSQL standard approach |
 
 ### Archive References
 
@@ -112,4 +140,4 @@ Resume file: None
 
 ---
 
-*Last updated: 2026-02-25 - Phase 11 completed, verified*
+*Last updated: 2026-02-25 - Phase 12 completed (12-01), 7-day retention automated*
