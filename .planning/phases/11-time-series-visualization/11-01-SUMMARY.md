@@ -36,8 +36,8 @@ key-files:
 key-decisions:
   - Range parameter defaults to "24h" when not provided
   - Returns empty array on error (consistent with /metrics endpoint)
-  - Time range calculation: subtract duration from current time
   - Frontend method type-safe with '1h' | '6h' | '24h' | '7d' union type
+  - Time range calculation: subtract duration from current time
 
 patterns-established:
   - Metrics history endpoint follows error handling pattern of returning empty array
