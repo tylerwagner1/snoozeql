@@ -250,6 +250,8 @@ const api = {
 
     getInstanceMetrics: (instanceId: string) =>
       api.get<HourlyMetric[]>(`/instances/${instanceId}/metrics`),
+    getMetricsHistory: (instanceId: string, range: '1h' | '6h' | '24h' | '7d' = '24h') =>
+      api.get<HourlyMetric[]>(`/instances/${instanceId}/metrics/history?range=${range}`),
     collectInstanceMetrics: (instanceId: string) =>
       api.post<{ success: boolean; message: string }>(`/instances/${instanceId}/collect-metrics`),
   }
