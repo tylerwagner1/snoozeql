@@ -250,6 +250,8 @@ const api = {
 
     getInstanceMetrics: (instanceId: string) =>
       api.get<HourlyMetric[]>(`/instances/${instanceId}/metrics`),
+    collectInstanceMetrics: (instanceId: string) =>
+      api.post<{ success: boolean; message: string }>(`/instances/${instanceId}/collect-metrics`),
   }
 
 export default api

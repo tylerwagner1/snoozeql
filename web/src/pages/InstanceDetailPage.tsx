@@ -67,6 +67,7 @@ const InstanceDetailPage = () => {
   const [idleTime, setIdleTime] = useState<string>('--')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [collecting, setCollecting] = useState(false)
 
   // Check if metrics are stale (no data or older than 30 min)
   const isMetricsStale = () => {
@@ -137,6 +138,21 @@ const InstanceDetailPage = () => {
       setInstance(prev => prev ? { ...prev, status: 'stopping' } : null)
     } catch (err) {
       console.error('Failed to stop instance:', err)
+    }
+  }
+
+  const handleCollectMetrics = async () => {
+    if (!id) return
+    setCollecting(true)
+    try {
+      await api.collectInstanceMetrics(id)
+      // Refresh metrics after collection
+      const metricsData = await api.getInstanceMetrics(id)
+      setMetrics(metricsData)
+    } catch (err) {
+      console.error('Failed to collect metrics:', err)
+    } finally {
+      setCollecting(false)
     }
   }
 
@@ -325,17 +341,24 @@ const InstanceDetailPage = () => {
                  View Logs
                </button>
                <button
-                 onClick={() => navigate('/schedules')}
-                 className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-               >
-                 Configure Schedule
-               </button>
-               <button
-                 onClick={() => navigate('/instances')}
-                 className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50"
-               >
-                 Delete Instance
-               </button>
+                  onClick={() => navigate('/schedules')}
+                  className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Configure Schedule
+                </button>
+                <button
+                  onClick={handleCollectMetrics}
+                  disabled={collecting || instance.provider !== 'aws'}
+                  className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {collecting ? 'Collecting...' : 'Test Metrics'}
+                </button>
+                <button
+                  onClick={() => navigate('/instances')}
+                  className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50"
+                >
+                  Delete Instance
+                </button>
             </div>
           </div>
         </div>
