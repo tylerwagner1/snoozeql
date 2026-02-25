@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 
 	"snoozeql/internal/analyzer"
 	"snoozeql/internal/models"
@@ -19,6 +20,22 @@ type RecommendationHandler struct {
 	scheduleStore *store.ScheduleStore
 	provider      *provider.Registry
 	analyzer      *analyzer.Analyzer
+}
+
+// PatternSignature represents a grouping key for recommendations
+type PatternSignature struct {
+	StartBucket string
+	EndBucket   string
+	DayType     string
+}
+
+// RecommendationGroup represents a group of recommendations with similar patterns
+type RecommendationGroup struct {
+	PatternDescription string           `json:"pattern_description"`
+	PatternKey         string           `json:"pattern_key"`
+	TotalDailySavings  float64          `json:"total_daily_savings"`
+	InstanceCount      int              `json:"instance_count"`
+	Recommendations    []map[string]any `json:"recommendations"`
 }
 
 // NewRecommendationHandler creates a new recommendation handler
@@ -135,18 +152,155 @@ func (h *RecommendationHandler) GetAllRecommendations(w http.ResponseWriter, r *
 		})
 	}
 
-	// Sort by estimated_daily_savings descending (highest savings first)
-	for i := 0; i < len(enriched)-1; i++ {
-		for j := i + 1; j < len(enriched); j++ {
-			if enriched[j].EstimatedDailySavings > enriched[i].EstimatedDailySavings {
-				enriched[i], enriched[j] = enriched[j], enriched[i]
-			}
+	// Local functions for grouping
+	hourToBucket := func(hour int) string {
+		switch {
+		case hour >= 6 && hour < 10:
+			return "early-morning"
+		case hour >= 10 && hour < 14:
+			return "midday"
+		case hour >= 14 && hour < 18:
+			return "afternoon"
+		case hour >= 18 && hour < 22:
+			return "evening"
+		default:
+			return "night"
 		}
 	}
 
+	daysToType := func(days []interface{}) string {
+		if len(days) >= 7 {
+			return "daily"
+		}
+		weekdays := 0
+		weekends := 0
+		for _, d := range days {
+			day := d.(string)
+			if day == "Saturday" || day == "Sunday" {
+				weekends++
+			} else {
+				weekdays++
+			}
+		}
+		if weekdays >= 4 && weekends == 0 {
+			return "weekdays"
+		}
+		if weekends >= 2 && weekdays == 0 {
+			return "weekends"
+		}
+		return "mixed"
+	}
+
+	generatePatternSignature := func(pattern map[string]interface{}) PatternSignature {
+		startHour := int(pattern["idle_start_hour"].(float64))
+		endHour := int(pattern["idle_end_hour"].(float64))
+		daysOfWeek := pattern["days_of_week"].([]interface{})
+
+		return PatternSignature{
+			StartBucket: hourToBucket(startHour),
+			EndBucket:   hourToBucket(endHour),
+			DayType:     daysToType(daysOfWeek),
+		}
+	}
+
+	formatHour := func(hour int) string {
+		if hour == 0 {
+			return "midnight"
+		}
+		if hour == 12 {
+			return "noon"
+		}
+		if hour < 12 {
+			return fmt.Sprintf("%dam", hour)
+		}
+		return fmt.Sprintf("%dpm", hour-12)
+	}
+
+	describePattern := func(pattern map[string]interface{}) string {
+		startHour := int(pattern["idle_start_hour"].(float64))
+		endHour := int(pattern["idle_end_hour"].(float64))
+		daysOfWeek := pattern["days_of_week"].([]interface{})
+
+		startTime := formatHour(startHour)
+		endTime := formatHour(endHour)
+		timeRange := fmt.Sprintf("%s to %s", startTime, endTime)
+
+		dayType := daysToType(daysOfWeek)
+		var dayDesc string
+		switch dayType {
+		case "weekdays":
+			dayDesc = "weekdays"
+		case "weekends":
+			dayDesc = "weekends"
+		case "daily":
+			dayDesc = "daily"
+		default:
+			dayDesc = fmt.Sprintf("%d days/week", len(daysOfWeek))
+		}
+
+		return fmt.Sprintf("Idle %s, %s", timeRange, dayDesc)
+	}
+
+	groupRecommendations := func(recs []enrichedRec) []RecommendationGroup {
+		groupMap := make(map[string]*RecommendationGroup)
+
+		for _, rec := range recs {
+			sig := generatePatternSignature(rec.DetectedPattern)
+			key := fmt.Sprintf("%s-%s-%s", sig.StartBucket, sig.EndBucket, sig.DayType)
+
+			if groupMap[key] == nil {
+				groupMap[key] = &RecommendationGroup{
+					PatternDescription: describePattern(rec.DetectedPattern),
+					PatternKey:         key,
+					Recommendations:    []map[string]any{},
+				}
+			}
+
+			recMap := map[string]any{
+				"id":                      rec.ID,
+				"instance_id":             rec.InstanceID,
+				"instance_name":           rec.InstanceName,
+				"provider":                rec.Provider,
+				"region":                  rec.Region,
+				"engine":                  rec.Engine,
+				"hourly_cost_cents":       rec.HourlyCostCents,
+				"detected_pattern":        rec.DetectedPattern,
+				"suggested_schedule":      rec.SuggestedSchedule,
+				"confidence_score":        rec.ConfidenceScore,
+				"estimated_daily_savings": rec.EstimatedDailySavings,
+				"status":                  rec.Status,
+				"created_at":              rec.CreatedAt,
+			}
+			groupMap[key].Recommendations = append(groupMap[key].Recommendations, recMap)
+			groupMap[key].TotalDailySavings += rec.EstimatedDailySavings
+			groupMap[key].InstanceCount++
+		}
+
+		var groups []RecommendationGroup
+		for _, g := range groupMap {
+			// Sort recommendations within group by savings
+			sort.Slice(g.Recommendations, func(i, j int) bool {
+				return g.Recommendations[i]["estimated_daily_savings"].(float64) > g.Recommendations[j]["estimated_daily_savings"].(float64)
+			})
+			groups = append(groups, *g)
+		}
+
+		// Sort groups by total savings (already sorted, but explicit for clarity)
+		sort.Slice(groups, func(i, j int) bool {
+			return groups[i].TotalDailySavings > groups[j].TotalDailySavings
+		})
+
+		return groups
+	}
+
+	// Group recommendations by pattern signature
+	groups := groupRecommendations(enriched)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(enriched)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"groups": groups,
+	})
 }
 
 // GetRecommendation returns a single recommendation by ID
