@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { TrendingDown, RefreshCw } from 'lucide-react'
 import api from '../lib/api'
-import type { RecommendationEnriched } from '../lib/api'
-import { RecommendationCard } from '../components/RecommendationCard'
+import type { RecommendationEnriched, RecommendationGroup } from '../lib/api'
+import { RecommendationGroup as RecommendationGroupComponent } from '../components/RecommendationGroup'
 import { RecommendationModal } from '../components/RecommendationModal'
 import toast from 'react-hot-toast'
 
 const RecommendationsPage = () => {
-  const [recommendations, setRecommendations] = useState<RecommendationEnriched[]>([])
+  const [groups, setGroups] = useState<RecommendationGroup[]>([])
   const [dismissedCount, setDismissedCount] = useState(0)
   const [selectedRecommendation, setSelectedRecommendation] = useState<RecommendationEnriched | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -17,12 +17,14 @@ const RecommendationsPage = () => {
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        const [pending, dismissed] = await Promise.all([
+        const [pendingResponse, dismissedResponse] = await Promise.all([
           api.getRecommendations('pending'),
           api.getRecommendations('dismissed')
         ])
-        setRecommendations(pending || [])
-        setDismissedCount(dismissed?.length || 0)
+        setGroups(pendingResponse?.groups || [])
+        // Count dismissed from all groups
+        const dismissedRecs = dismissedResponse?.groups?.flatMap(g => g.recommendations) || []
+        setDismissedCount(dismissedRecs.length)
       } catch (err) {
         console.error('Failed to load recommendations:', err)
         toast.error('Failed to load recommendations')
@@ -37,7 +39,7 @@ const RecommendationsPage = () => {
       const result = await api.generateRecommendations()
       toast.success(result.message)
       const updated = await api.getRecommendations('pending')
-      setRecommendations(updated || [])
+      setGroups(updated?.groups || [])
     } catch (err: any) {
       // Extract error message from API response if available
       const errorMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to generate recommendations'
@@ -50,7 +52,18 @@ const RecommendationsPage = () => {
   const handleDismiss = async (id: string) => {
     try {
       await api.dismissRecommendation(id)
-      setRecommendations(prev => prev.filter(r => r.id !== id))
+      // Remove from groups and update
+      setGroups(prev => {
+        const newGroups = prev.map(g => ({
+          ...g,
+          recommendations: g.recommendations.filter(r => r.id !== id),
+          instance_count: g.recommendations.filter(r => r.id !== id).length,
+          total_daily_savings: g.recommendations
+            .filter(r => r.id !== id)
+            .reduce((sum, r) => sum + r.estimated_daily_savings, 0)
+        })).filter(g => g.instance_count > 0)
+        return newGroups
+      })
       setDismissedCount(prev => prev + 1)
       toast.success('Recommendation dismissed')
     } catch (err) {
@@ -62,7 +75,18 @@ const RecommendationsPage = () => {
     setConfirmLoading(true)
     try {
       await api.confirmRecommendation(id)
-      setRecommendations(prev => prev.filter(r => r.id !== id))
+      // Remove from groups
+      setGroups(prev => {
+        const newGroups = prev.map(g => ({
+          ...g,
+          recommendations: g.recommendations.filter(r => r.id !== id),
+          instance_count: g.recommendations.filter(r => r.id !== id).length,
+          total_daily_savings: g.recommendations
+            .filter(r => r.id !== id)
+            .reduce((sum, r) => sum + r.estimated_daily_savings, 0)
+        })).filter(g => g.instance_count > 0)
+        return newGroups
+      })
       setModalOpen(false)
       setSelectedRecommendation(null)
       toast.success('Schedule created from recommendation!')
@@ -78,7 +102,7 @@ const RecommendationsPage = () => {
     setModalOpen(true)
   }
 
-  const pending = recommendations.filter(r => r.status === 'pending')
+  const pendingCount = groups.reduce((sum, g) => sum + g.instance_count, 0)
 
   if (generating) {
     return <div className="p-8 text-center text-slate-400">Generating recommendations...</div>
@@ -90,7 +114,7 @@ const RecommendationsPage = () => {
         <div>
           <h1 className="text-3xl font-bold text-white">Recommendations</h1>
           <p className="text-sm text-slate-400 mt-1">
-            {pending.length} pending · {dismissedCount} dismissed
+            {pendingCount} pending · {dismissedCount} dismissed
           </p>
         </div>
         <button
@@ -112,12 +136,12 @@ const RecommendationsPage = () => {
         </button>
       </div>
 
-      {pending.length > 0 ? (
+      {pendingCount > 0 ? (
         <div className="space-y-4">
-          {recommendations.map((recommendation) => (
-            <RecommendationCard
-              key={recommendation.id}
-              recommendation={recommendation}
+          {groups.map((group) => (
+            <RecommendationGroupComponent
+              key={group.pattern_key}
+              group={group}
               onOpenModal={handleOpenModal}
               onDismiss={handleDismiss}
             />

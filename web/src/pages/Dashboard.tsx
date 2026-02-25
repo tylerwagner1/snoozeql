@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Activity, Zap, TrendingDown, Clock, Search, Filter, Plus, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api, { Instance, CloudAccount } from '../lib/api'
-import type { RecommendationEnriched, Event } from '../lib/api'
+import type { RecommendationEnriched, RecommendationGroup, Event } from '../lib/api'
 import { RecommendationCard } from '../components/RecommendationCard'
 import { RecommendationModal } from '../components/RecommendationModal'
 import { CostOverTimeChart } from '../components/CostOverTimeChart'
@@ -13,7 +13,7 @@ const Dashboard = () => {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [instances, setInstances] = useState<Instance[]>([])
-  const [recommendations, setRecommendations] = useState<RecommendationEnriched[]>([])
+  const [groups, setGroups] = useState<RecommendationGroup[]>([])
   const [cloudAccounts, setCloudAccounts] = useState<CloudAccount[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [selectedRecommendation, setSelectedRecommendation] = useState<RecommendationEnriched | null>(null)
@@ -24,20 +24,20 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [instancesData, recommendationsData, accountsData, eventsData] = await Promise.all([
+        const [instancesData, recommendationsResponse, accountsData, eventsData] = await Promise.all([
           api.getInstances(),
           api.getRecommendations('pending'),
           api.getCloudAccounts(),
           api.getEvents(10, 0)
         ])
         setInstances(instancesData || [])
-        setRecommendations(recommendationsData || [])
+        setGroups(recommendationsResponse?.groups || [])
         setCloudAccounts(accountsData || [])
         setEvents(eventsData || [])
       } catch (err) {
         console.error(err)
         setInstances([])
-        setRecommendations([])
+        setGroups([])
         setCloudAccounts([])
         setEvents([])
       }
@@ -58,7 +58,7 @@ const Dashboard = () => {
   const totalSavings = instances.reduce((sum, inst) => sum + (inst.hourly_cost_cents / 100) * 24 * 7, 0)
   const runningCount = filteredInstances.filter(i => i.status === 'available' || i.status === 'running' || i.status === 'starting').length
   const sleepingCount = filteredInstances.filter(i => i.status === 'stopped' || i.status === 'stopping').length
-  const pendingActions = recommendations.length
+  const pendingActions = groups.reduce((sum, g) => sum + g.instance_count, 0)
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -66,7 +66,7 @@ const Dashboard = () => {
       const result = await api.generateRecommendations()
       toast.success(result.message)
       const updated = await api.getRecommendations('pending')
-      setRecommendations(updated || [])
+      setGroups(updated?.groups || [])
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to generate recommendations'
       toast.error(errorMessage)
@@ -78,7 +78,18 @@ const Dashboard = () => {
   const handleDismiss = async (id: string) => {
     try {
       await api.dismissRecommendation(id)
-      setRecommendations(prev => prev.filter(r => r.id !== id))
+      // Remove from groups and update
+      setGroups(prev => {
+        const newGroups = prev.map(g => ({
+          ...g,
+          recommendations: g.recommendations.filter(r => r.id !== id),
+          instance_count: g.recommendations.filter(r => r.id !== id).length,
+          total_daily_savings: g.recommendations
+            .filter(r => r.id !== id)
+            .reduce((sum, r) => sum + r.estimated_daily_savings, 0)
+        })).filter(g => g.instance_count > 0)
+        return newGroups
+      })
       toast.success('Recommendation dismissed')
     } catch (err) {
       toast.error('Failed to dismiss recommendation')
@@ -89,7 +100,18 @@ const Dashboard = () => {
     setConfirmLoading(true)
     try {
       await api.confirmRecommendation(id)
-      setRecommendations(prev => prev.filter(r => r.id !== id))
+      // Remove from groups
+      setGroups(prev => {
+        const newGroups = prev.map(g => ({
+          ...g,
+          recommendations: g.recommendations.filter(r => r.id !== id),
+          instance_count: g.recommendations.filter(r => r.id !== id).length,
+          total_daily_savings: g.recommendations
+            .filter(r => r.id !== id)
+            .reduce((sum, r) => sum + r.estimated_daily_savings, 0)
+        })).filter(g => g.instance_count > 0)
+        return newGroups
+      })
       setModalOpen(false)
       setSelectedRecommendation(null)
       toast.success('Schedule created from recommendation!')
@@ -310,16 +332,17 @@ const Dashboard = () => {
           </button>
         </div>
         
-        {recommendations.length > 0 ? (
+        {pendingActions > 0 ? (
           <div className="space-y-4">
-            {recommendations.slice(0, 3).map((rec) => (
+            {/* Show first group's recommendations (up to 3) */}
+            {groups.length > 0 ? groups[0].recommendations.slice(0, 3).map((rec: RecommendationEnriched) => (
               <RecommendationCard
                 key={rec.id}
                 recommendation={rec}
                 onOpenModal={handleOpenModal}
                 onDismiss={handleDismiss}
               />
-            ))}
+            )) : null}
             <div className="text-center pt-2">
               <button
                 onClick={() => navigate('/recommendations')}
