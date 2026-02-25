@@ -10,15 +10,14 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: 14 of 14 (Grouped Recommendations) - COMPLETE
-Plan: 2 of 2 complete
-Status: v1.2 COMPLETE
-Last activity: 2026-02-25 — Phase 14 complete, v1.2 milestone complete
-Next Phase: 15 (UI Polish & Cleanup) - Not planned (added 2026-02-25)
+Phase: 15 of 15 (UI Polish & Cleanup)
+Plan: 1 of 1 complete
+Status: Phase 15 COMPLETE
+Last activity: 2026-02-25 — Completed 15-01 plan (Navigation active states + tech debt cleanup)
 
-Progress: [████████████████████████████████████] 100% (8/8 plans)
+Progress: [████████████████████████████████████] 100% (9/9 plans)
 
-**Next Action:** Phase 15 (if any) or v1.2 release
+**Next Action:** Phase 15 complete, v1.2 ready for release
 
 ## Quick Tasks Completed
 
@@ -60,13 +59,12 @@ Progress: [███████████████████████
 - Savings dashboard with charts and tables
 - Instance metrics display added
 - Feature removed per product direction change
+- Tech debt: formatters.ts deleted, Saving struct removed (Phase 15)
 
 ### v1.2 Metrics & Recommendations (COMPLETE 2026-02-25)
 
-**Phase 15: UI Polish & Cleanup (Added 2026-02-25):**
-- Fix visual issues, improve styling, ensure consistent UI/UX
-
-**Phase 14: Grouped Recommendations (Complete):**
+**Phase 15: UI Polish & Cleanup (Complete 2026-02-25):**
+- Phase 15-01: Navigation active states with useLocation, formatters.ts deleted, Saving struct removed
 
 **Phase 14, Plan 01 (Complete - 2026-02-25):**
 - Added PatternSignature and RecommendationGroup types
@@ -170,20 +168,30 @@ Progress: [███████████████████████
 
 ### Tech Debt
 
-Minimal tech debt from savings removal:
-- Orphaned `web/src/lib/formatters.ts` (~50 lines)
-- Orphaned `Saving` struct in models.go (~20 lines)
-- Migration files kept for history
+Tech debt from savings removal fully cleaned up in Phase 15-01:
+- `web/src/lib/formatters.ts` deleted
+- `Saving` struct removed from models.go
+
+Migration files kept for history.
 
 ## Blockers/Concerns
 
 None — v1.2 complete.
 
+## Decisions
+
+| Phase | Decision | Rationale |
+|-------|----------|-----------|
+| 15-01 | Navigation active states use bg-blue-500/30 text-blue-400 for most links, bg-purple-500/30 text-purple-400 for Accounts | Visual distinction between navigation items |
+| 15-01 | Active path matching: exact for /, prefix for others | Simple and intuitive matching strategy |
+| 15-01 | formatters.ts and Saving struct removal | Orphaned code from Phase 9 savings feature removal |
+
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: v1.2 Metrics & Recommendations complete (Phases 10-14)
+Stopped at: Phase 15-01 complete (Navigation active states, formatters.ts deleted, Saving struct removed)
 Resume file: None
 
 ---
-*Last updated: 2026-02-25 - v1.2 Metrics & Recommendations COMPLETE (Phases 10-14), Phase 15 added*
+
+*Last updated: 2026-02-25 - Phase 15-01 COMPLETE (Navigation active states + Tech Debt Cleanup)*
