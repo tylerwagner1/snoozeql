@@ -108,9 +108,18 @@ func (s *MetricsStore) GetLatestMetrics(ctx context.Context, instanceID string) 
 }
 
 // DeleteOldMetrics removes metrics older than the retention period
-// Called by a cleanup job to maintain 14-day retention
-func (s *MetricsStore) DeleteOldMetrics(ctx context.Context, before time.Time) (int64, error) {
-	return s.db.Exec(ctx, "DELETE FROM metrics_hourly WHERE hour < $1", before)
+// Called by a cleanup job to maintain 7-day retention
+// Supports batched deletes with limit parameter to avoid table locking
+func (s *MetricsStore) DeleteOldMetrics(ctx context.Context, before time.Time, limit int) (int64, error) {
+	// Use subquery with LIMIT to batch deletes and avoid table locks
+	query := `
+		DELETE FROM metrics_hourly 
+		WHERE id IN (
+			SELECT id FROM metrics_hourly 
+			WHERE hour < $1 
+			LIMIT $2
+		)`
+	return s.db.Exec(ctx, query, before, limit)
 }
 
 // HasSufficientData checks if an instance has enough data for pattern analysis
