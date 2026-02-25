@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import api from '../lib/api'
 import type { Instance, HourlyMetric } from '../lib/api'
+import { MetricsChart } from '../components/MetricsChart'
 
 // Metric Card Component
 const MetricCard = ({ label, value, unit, min, max, samples }: { 
@@ -142,8 +143,9 @@ const InstanceDetailPage = () => {
     }
   }
 
-  // State for modal
-  const [showMetrics, setShowMetrics] = useState(false)
+   // State for modal
+   const [showMetrics, setShowMetrics] = useState(false)
+   const [metricsForModal, setMetricsForModal] = useState<HourlyMetric[]>([])
 
   const handleCollectMetrics = async () => {
     if (!id) return
@@ -153,7 +155,8 @@ const InstanceDetailPage = () => {
       // Refresh metrics after collection
       const metricsData = await api.getInstanceMetrics(id)
       setMetrics(metricsData)
-      // Show the metrics in a modal
+      // Show the metrics in a modal with the fresh data
+      setMetricsForModal(metricsData)
       setShowMetrics(true)
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Failed to collect metrics'
@@ -164,7 +167,7 @@ const InstanceDetailPage = () => {
     }
   }
 
-  const MetricModal = () => {
+  const MetricModal = ({ metrics }: { metrics: HourlyMetric[] }) => {
     if (!showMetrics) return null
     
     // Group metrics by metric_name
@@ -179,10 +182,13 @@ const InstanceDetailPage = () => {
           <div className="p-6 border-b">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-gray-900">Current Metrics</h3>
-              <button
-                onClick={() => setShowMetrics(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
+               <button
+                 onClick={() => {
+                   setShowMetrics(false)
+                   setMetricsForModal([])
+                 }}
+                 className="text-gray-500 hover:text-gray-700"
+               >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -197,57 +203,57 @@ const InstanceDetailPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
-                {metricsByType['cpu_utilization'] && (
-                  <MetricCard
-                    label="CPU Utilization"
-                    value={metricsByType['cpu_utilization'].avg_value}
-                    unit="%"
-                    min={metricsByType['cpu_utilization'].min_value}
-                    max={metricsByType['cpu_utilization'].max_value}
-                    samples={metricsByType['cpu_utilization'].sample_count}
-                  />
-                )}
-                {metricsByType['memory_utilization'] && (
-                  <MetricCard
-                    label="Memory Utilization"
-                    value={metricsByType['memory_utilization'].avg_value}
-                    unit="%"
-                    min={metricsByType['memory_utilization'].min_value}
-                    max={metricsByType['memory_utilization'].max_value}
-                    samples={metricsByType['memory_utilization'].sample_count}
-                  />
-                )}
-                {metricsByType['disk_total_iops'] && (
-                  <MetricCard
-                    label="Disk IOPS"
-                    value={metricsByType['disk_total_iops'].avg_value}
-                    unit="IOPS"
-                    min={metricsByType['disk_total_iops'].min_value}
-                    max={metricsByType['disk_total_iops'].max_value}
-                    samples={metricsByType['disk_total_iops'].sample_count}
-                  />
-                )}
-                {metricsByType['network_in'] && (
-                  <MetricCard
-                    label="Network In"
-                    value={metricsByType['network_in'].avg_value}
-                    unit="Mbps"
-                    min={metricsByType['network_in'].min_value}
-                    max={metricsByType['network_in'].max_value}
-                    samples={metricsByType['network_in'].sample_count}
-                  />
-                )}
-                {metricsByType['network_out'] && (
-                  <MetricCard
-                    label="Network Out"
-                    value={metricsByType['network_out'].avg_value}
-                    unit="Mbps"
-                    min={metricsByType['network_out'].min_value}
-                    max={metricsByType['network_out'].max_value}
-                    samples={metricsByType['network_out'].sample_count}
-                  />
-                )}
-              </div>
+                 {metricsByType['CPUUtilization'] && (
+                   <MetricCard
+                     label="CPU Utilization"
+                     value={metricsByType['CPUUtilization'].avg_value}
+                     unit="%"
+                     min={metricsByType['CPUUtilization'].min_value}
+                     max={metricsByType['CPUUtilization'].max_value}
+                     samples={metricsByType['CPUUtilization'].sample_count}
+                   />
+                 )}
+                 {metricsByType['FreeableMemory'] && (
+                   <MetricCard
+                     label="Memory Available"
+                     value={metricsByType['FreeableMemory'].avg_value}
+                     unit="%"
+                     min={metricsByType['FreeableMemory'].min_value}
+                     max={metricsByType['FreeableMemory'].max_value}
+                     samples={metricsByType['FreeableMemory'].sample_count}
+                   />
+                 )}
+                 {metricsByType['ReadIOPS'] && (
+                   <MetricCard
+                     label="Read IOPS"
+                     value={metricsByType['ReadIOPS'].avg_value}
+                     unit="IOPS"
+                     min={metricsByType['ReadIOPS'].min_value}
+                     max={metricsByType['ReadIOPS'].max_value}
+                     samples={metricsByType['ReadIOPS'].sample_count}
+                   />
+                 )}
+                 {metricsByType['WriteIOPS'] && (
+                   <MetricCard
+                     label="Write IOPS"
+                     value={metricsByType['WriteIOPS'].avg_value}
+                     unit="IOPS"
+                     min={metricsByType['WriteIOPS'].min_value}
+                     max={metricsByType['WriteIOPS'].max_value}
+                     samples={metricsByType['WriteIOPS'].sample_count}
+                   />
+                 )}
+                 {metricsByType['DatabaseConnections'] && (
+                   <MetricCard
+                     label="Database Connections"
+                     value={metricsByType['DatabaseConnections'].avg_value}
+                     unit=""
+                     min={metricsByType['DatabaseConnections'].min_value}
+                     max={metricsByType['DatabaseConnections'].max_value}
+                     samples={metricsByType['DatabaseConnections'].sample_count}
+                   />
+                 )}
+               </div>
             )}
           </div>
           
@@ -360,57 +366,65 @@ const InstanceDetailPage = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <MetricCard 
                   label="CPU Utilization" 
-                  value={getMetricValue(metrics, 'cpuutilization')}
-                  unit="%"
-                  min={getMetricMin(metrics, 'cpuutilization')}
-                  max={getMetricMax(metrics, 'cpuutilization')}
-                  samples={getMetricSamples(metrics, 'cpuutilization')}
-                />
-                <MetricCard 
-                  label="Memory Available" 
-                  value={getMetricValue(metrics, 'freeablememory')}
-                  unit="%"
-                  min={getMetricMin(metrics, 'freeablememory')}
-                  max={getMetricMax(metrics, 'freeablememory')}
-                  samples={getMetricSamples(metrics, 'freeablememory')}
-                />
-                <MetricCard 
-                  label="Database Connections" 
-                  value={getMetricValue(metrics, 'databaseconnections')}
-                  unit=""
-                  min={getMetricMin(metrics, 'databaseconnections')}
-                  max={getMetricMax(metrics, 'databaseconnections')}
-                  samples={getMetricSamples(metrics, 'databaseconnections')}
-                />
-                <MetricCard 
-                  label="Read IOPS" 
-                  value={getMetricValue(metrics, 'readiops')}
+                   value={getMetricValue(metrics, 'CPUUtilization')}
+                   unit="%"
+                   min={getMetricMin(metrics, 'CPUUtilization')}
+                   max={getMetricMax(metrics, 'CPUUtilization')}
+                   samples={getMetricSamples(metrics, 'CPUUtilization')}
+                 />
+                 <MetricCard 
+                   label="Memory Available" 
+                   value={getMetricValue(metrics, 'FreeableMemory')}
+                   unit="%"
+                   min={getMetricMin(metrics, 'FreeableMemory')}
+                   max={getMetricMax(metrics, 'FreeableMemory')}
+                   samples={getMetricSamples(metrics, 'FreeableMemory')}
+                 />
+                 <MetricCard 
+                   label="Database Connections" 
+                   value={getMetricValue(metrics, 'DatabaseConnections')}
+                   unit=""
+                   min={getMetricMin(metrics, 'DatabaseConnections')}
+                   max={getMetricMax(metrics, 'DatabaseConnections')}
+                   samples={getMetricSamples(metrics, 'DatabaseConnections')}
+                 />
+                 <MetricCard 
+                   label="Read IOPS" 
+                   value={getMetricValue(metrics, 'ReadIOPS')}
                   unit=""
                   min={getMetricMin(metrics, 'readiops')}
-                  max={getMetricMax(metrics, 'readiops')}
-                  samples={getMetricSamples(metrics, 'readiops')}
-                />
-                <MetricCard 
-                  label="Write IOPS" 
-                  value={getMetricValue(metrics, 'writeiops')}
-                  unit=""
-                  min={getMetricMin(metrics, 'writeiops')}
-                  max={getMetricMax(metrics, 'writeiops')}
-                  samples={getMetricSamples(metrics, 'writeiops')}
-                />
-                <MetricCard 
-                  label="Total IOPS" 
-                  value={getMetricValue(metrics, 'totaliops')}
-                  unit=""
-                  min={getMetricMin(metrics, 'totaliops')}
-                  max={getMetricMax(metrics, 'totaliops')}
-                  samples={getMetricSamples(metrics, 'totaliops')}
-                />
+                   max={getMetricMax(metrics, 'ReadIOPS')}
+                   samples={getMetricSamples(metrics, 'ReadIOPS')}
+                 />
+                 <MetricCard 
+                   label="Write IOPS" 
+                   value={getMetricValue(metrics, 'WriteIOPS')}
+                   unit=""
+                   min={getMetricMin(metrics, 'WriteIOPS')}
+                   max={getMetricMax(metrics, 'WriteIOPS')}
+                   samples={getMetricSamples(metrics, 'WriteIOPS')}
+                 />
+                 <MetricCard 
+                   label="Total IOPS" 
+                   value={getMetricValue(metrics, 'ReadIOPS')}
+                   unit=""
+                   min={getMetricMin(metrics, 'ReadIOPS')}
+                   max={getMetricMax(metrics, 'ReadIOPS')}
+                   samples={getMetricSamples(metrics, 'ReadIOPS')}
+                 />
               </div>
             ) : (
               <p className="text-sm text-gray-500">No metrics data available yet. Metrics are collected every 15 minutes.</p>
             )}
           </div>
+
+          {/* Metrics History Chart */}
+          {id && (
+            <div className="mt-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Metrics History</h2>
+              <MetricsChart instanceId={id} />
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -467,11 +481,11 @@ const InstanceDetailPage = () => {
                  </button>
              </div>
            </div>
-         </div>
-         <MetricModal />
-       </div>
-     </div>
-   )
+          </div>
+          <MetricModal metrics={metricsForModal} />
+        </div>
+      </div>
+    )
  }
 
 export default InstanceDetailPage
