@@ -171,6 +171,7 @@ export function MetricsChart({ instanceId }: MetricsChartProps) {
                   border: '1px solid #e5e7eb',
                   borderRadius: '0.5rem',
                   fontSize: '12px',
+                  padding: '8px 12px',
                 }}
                 labelFormatter={(ts) => new Date(ts).toLocaleString()}
                 formatter={(value: number) => [
@@ -186,6 +187,7 @@ export function MetricsChart({ instanceId }: MetricsChartProps) {
                   dot={false}
                   strokeWidth={2}
                   connectNulls={false}
+                  activeDot={{ r: 4, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
                 />
               )}
             </LineChart>
