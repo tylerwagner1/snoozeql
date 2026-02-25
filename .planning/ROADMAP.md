@@ -52,11 +52,11 @@ Plans:
   2. User can switch between 1h, 6h, 24h, and 7d time ranges
   3. All three metrics are visible together on the page
   4. Charts show loading spinner while fetching and "No data" when empty
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 11-01: Create metrics history API endpoint
-- [ ] 11-02: Build MetricsChart component with time range selector
+- [ ] 11-01-PLAN.md — Add metrics history API endpoint with time range support
+- [ ] 11-02-PLAN.md — Build MetricsChart component with tabs and time range selector
 
 #### Phase 12: Metrics Retention
 **Goal**: Metrics data stays manageable with automatic cleanup
