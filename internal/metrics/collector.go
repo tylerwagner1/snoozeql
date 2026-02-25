@@ -127,36 +127,69 @@ func (c *MetricsCollector) CollectAll(ctx context.Context) error {
 	return nil
 }
 
+// CollectInstance collects metrics for a single instance on-demand
+// This is the public API for manual/triggered collection
+func (c *MetricsCollector) CollectInstance(ctx context.Context, instance models.Instance) error {
+	// For stopped instances, store zeros
+	if instance.Status != "available" && instance.Status != "running" {
+		return c.storeZeroMetrics(ctx, instance)
+	}
+
+	// Only AWS supported for active collection
+	if instance.Provider != "aws" {
+		return fmt.Errorf("metrics collection not supported for provider: %s", instance.Provider)
+	}
+
+	client, err := c.getClient(ctx, instance)
+	if err != nil {
+		return err
+	}
+
+	return c.collectInstance(ctx, client, instance)
+}
+
 // collectInstance collects and stores metrics for a single instance
+// Returns error only if all metrics fail AND we can't store zero metrics as fallback
 func (c *MetricsCollector) collectInstance(ctx context.Context, client *CloudWatchClient, instance models.Instance) error {
 	// ProviderID is the DBInstanceIdentifier for RDS
 	metrics, err := client.GetRDSMetrics(ctx, instance.ProviderID)
 	if err != nil {
-		return fmt.Errorf("GetRDSMetrics failed: %w", err)
+		log.Printf("CloudWatch unavailable for %s: %v - storing zero metrics as fallback", instance.Name, err)
+		// Store zero metrics as fallback when CloudWatch is unavailable
+		return c.storeZeroMetrics(ctx, instance)
 	}
 
 	// Store each metric type
+	storedCount := 0
 	if metrics.CPU != nil {
 		if err := c.storeMetric(ctx, instance.ID, models.MetricCPUUtilization, metrics.Timestamp, metrics.CPU); err != nil {
 			log.Printf("Failed to store CPU metric for %s: %v", instance.Name, err)
+		} else {
+			storedCount++
 		}
 	}
 
 	if metrics.Connections != nil {
 		if err := c.storeMetric(ctx, instance.ID, models.MetricDatabaseConnections, metrics.Timestamp, metrics.Connections); err != nil {
 			log.Printf("Failed to store Connections metric for %s: %v", instance.Name, err)
+		} else {
+			storedCount++
 		}
 	}
 
 	if metrics.ReadIOPS != nil {
 		if err := c.storeMetric(ctx, instance.ID, models.MetricReadIOPS, metrics.Timestamp, metrics.ReadIOPS); err != nil {
 			log.Printf("Failed to store ReadIOPS metric for %s: %v", instance.Name, err)
+		} else {
+			storedCount++
 		}
 	}
 
 	if metrics.WriteIOPS != nil {
 		if err := c.storeMetric(ctx, instance.ID, models.MetricWriteIOPS, metrics.Timestamp, metrics.WriteIOPS); err != nil {
 			log.Printf("Failed to store WriteIOPS metric for %s: %v", instance.Name, err)
+		} else {
+			storedCount++
 		}
 	}
 
@@ -167,10 +200,17 @@ func (c *MetricsCollector) collectInstance(ctx context.Context, client *CloudWat
 			memValue := &MetricValue{Avg: *pct, Max: *pct, Min: *pct}
 			if err := c.storeMetric(ctx, instance.ID, models.MetricFreeableMemory, metrics.Timestamp, memValue); err != nil {
 				log.Printf("Failed to store FreeableMemory metric for %s: %v", instance.Name, err)
+			} else {
+				storedCount++
 			}
 		} else {
 			log.Printf("Unknown instance class %s for %s - skipping memory percentage", instance.InstanceType, instance.Name)
 		}
+	}
+
+	// If we stored no metrics at all, consider this a failure
+	if storedCount == 0 {
+		return fmt.Errorf("no metrics stored for %s", instance.Name)
 	}
 
 	return nil
@@ -233,17 +273,42 @@ func (c *MetricsCollector) getClient(ctx context.Context, instance models.Instan
 	}
 
 	// Extract AWS credentials
-	accessKey, _ := account.Credentials["aws_access_key_id"].(string)
-	secretKey, _ := account.Credentials["aws_secret_access_key"].(string)
+	var accessKey, secretKey string
+	accessKeyIface, ok := account.Credentials["aws_access_key_id"]
+	if !ok {
+		log.Printf("DEBUG: access_key_id NOT FOUND in credentials for account %s", account.Name)
+	} else {
+		var ok bool
+		accessKey, ok = accessKeyIface.(string)
+		if !ok {
+			log.Printf("DEBUG: access_key_id is not a string, type=%T for account %s", accessKeyIface, account.Name)
+		}
+		log.Printf("DEBUG: access_key_id found: %v", accessKey[:10]+"...")
+	}
+
+	secretKeyIface, ok := account.Credentials["aws_secret_access_key"]
+	if !ok {
+		log.Printf("DEBUG: secret_access_key NOT FOUND in credentials for account %s", account.Name)
+	} else {
+		var ok bool
+		secretKey, ok = secretKeyIface.(string)
+		if !ok {
+			log.Printf("DEBUG: secret_access_key is not a string, type=%T for account %s", secretKeyIface, account.Name)
+		}
+		log.Printf("DEBUG: secret_access_key found: %v", secretKey[:10]+"...")
+	}
 
 	if accessKey == "" || secretKey == "" {
+		log.Printf("DEBUG: Final check - accessKey=%q, secretKey=%q, credentials len=%d", accessKey, secretKey, len(account.Credentials))
 		return nil, fmt.Errorf("missing AWS credentials for account %s", account.Name)
 	}
 
 	client, err = NewCloudWatchClient(instance.Region, accessKey, secretKey)
 	if err != nil {
+		log.Printf("ERROR: failed to create CloudWatch client: %v", err)
 		return nil, fmt.Errorf("failed to create CloudWatch client: %w", err)
 	}
+	log.Printf("DEBUG: CloudWatch client created successfully for %s (%s)", instance.Name, instance.CloudAccountID)
 
 	c.clientsMu.Lock()
 	c.clients[key] = client
