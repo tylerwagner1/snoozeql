@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -78,6 +79,7 @@ func (c *CloudWatchClient) GetRDSMetrics(ctx context.Context, dbInstanceID strin
 	var metricsCollected int
 
 	// Fetch each metric type
+	log.Printf("DEBUG: GetRDSMetrics starting to fetch metrics for %s", dbInstanceID)
 	cpu, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricCPUUtilization, startTime, endTime)
 	if err == nil {
 		metrics.CPU = cpu
@@ -132,6 +134,7 @@ func (c *CloudWatchClient) getMetricWithRetry(ctx context.Context, dbInstanceID,
 	var lastErr error
 
 	for attempt := 0; attempt < 3; attempt++ {
+		fmt.Printf("DEBUG: getMetricWithRetry calling getMetric for %s, attempt %d\n", metricName, attempt)
 		value, err := c.getMetric(ctx, dbInstanceID, metricName, start, end)
 		if err == nil {
 			return value, nil
@@ -157,6 +160,15 @@ func (c *CloudWatchClient) getMetricWithRetry(ctx context.Context, dbInstanceID,
 
 // getMetric fetches a single CloudWatch metric
 func (c *CloudWatchClient) getMetric(ctx context.Context, dbInstanceID, metricName string, start, end time.Time) (*MetricValue, error) {
+	// Write to file to verify function is called
+	f, err := os.OpenFile("/tmp/cloudwatch_debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err == nil {
+		defer f.Close()
+		fmt.Fprintf(f, "DEBUG: getMetric called for %s DBInstanceID: %s\n", metricName, dbInstanceID)
+	}
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
+	log.Printf("DEBUG: getMetric called for %s DBInstanceID: %s", metricName, dbInstanceID)
+
 	input := &cloudwatch.GetMetricStatisticsInput{
 		Namespace:  aws.String("AWS/RDS"),
 		MetricName: aws.String(metricName),
@@ -176,11 +188,16 @@ func (c *CloudWatchClient) getMetric(ctx context.Context, dbInstanceID, metricNa
 		},
 	}
 
+	log.Printf("DEBUG: GetMetricStatistics for %s: Namespace=%s, MetricName=%s, DBInstanceID=%s, Period=%ds, Start=%s, End=%s",
+		metricName, *input.Namespace, *input.MetricName, dbInstanceID, *input.Period, start.Format(time.RFC3339), end.Format(time.RFC3339))
+
 	output, err := c.client.GetMetricStatistics(ctx, input)
 	if err != nil {
+		log.Printf("ERROR: GetMetricStatistics failed for %s: %v", metricName, err)
 		return nil, fmt.Errorf("GetMetricStatistics failed for %s: %w", metricName, err)
 	}
 
+	log.Printf("DEBUG: GetMetricStatistics returned %d datapoints for %s", len(output.Datapoints), metricName)
 	if len(output.Datapoints) == 0 {
 		return nil, fmt.Errorf("no datapoints for %s", metricName)
 	}

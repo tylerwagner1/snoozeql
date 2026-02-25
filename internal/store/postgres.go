@@ -539,14 +539,15 @@ func NewCloudAccountStore(db *Postgres) *CloudAccountStore {
 func (s *CloudAccountStore) GetCloudAccount(id string) (*models.CloudAccount, error) {
 	var account models.CloudAccount
 	var regionsStr string
+	var credentialsJSON []byte
 	var connectionStatus, lastError sql.NullString
 	var lastSyncAt sql.NullTime
 
 	err := s.db.db.QueryRowContext(context.Background(), `
-		SELECT id, name, provider, regions, connection_status, last_sync_at, last_error, created_at
+		SELECT id, name, provider, regions, credentials, connection_status, last_sync_at, last_error, created_at
 		FROM cloud_accounts WHERE id = $1`, id).Scan(
 		&account.ID, &account.Name, &account.Provider, &regionsStr,
-		&connectionStatus, &lastSyncAt, &lastError, &account.CreatedAt,
+		&credentialsJSON, &connectionStatus, &lastSyncAt, &lastError, &account.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -557,6 +558,13 @@ func (s *CloudAccountStore) GetCloudAccount(id string) (*models.CloudAccount, er
 	}
 	if lastError.Valid {
 		account.LastError = &lastError.String
+	}
+	// Parse credentials JSONB
+	if len(credentialsJSON) > 0 {
+		if err := json.Unmarshal(credentialsJSON, &account.Credentials); err != nil {
+			log.Printf("Warning: Failed to parse credentials for account %s: %v", account.ID, err)
+			account.Credentials = make(map[string]any)
+		}
 	}
 	// Parse PostgreSQL text[] format: {us-east-1,us-west-2}
 	if regionsStr != "" && regionsStr != "{}" {

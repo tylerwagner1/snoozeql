@@ -346,13 +346,14 @@ const InstanceDetailPage = () => {
                 >
                   Configure Schedule
                 </button>
-                <button
-                  onClick={handleCollectMetrics}
-                  disabled={collecting || instance.provider !== 'aws'}
-                  className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {collecting ? 'Collecting...' : 'Test Metrics'}
-                </button>
+                 <button
+                   onClick={handleCollectMetrics}
+                   disabled={collecting || instance.provider !== 'aws'}
+                   className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-100 disabled:cursor-not-allowed"
+                   title={instance.provider !== 'aws' ? 'Test Metrics only works with AWS instances' : collecting ? 'Collecting metrics...' : 'Click to collect metrics data'}
+                 >
+                   {collecting ? 'Collecting...' : 'Test Metrics'}
+                 </button>
                 <button
                   onClick={() => navigate('/instances')}
                   className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50"

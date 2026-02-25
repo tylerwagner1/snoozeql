@@ -74,6 +74,11 @@ github.com/aws/aws-sdk-go-v2/internal/endpoints/v2
 # github.com/aws/aws-sdk-go-v2/internal/ini v1.8.4
 ## explicit; go 1.23
 github.com/aws/aws-sdk-go-v2/internal/ini
+# github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.54.0
+## explicit; go 1.23
+github.com/aws/aws-sdk-go-v2/service/cloudwatch
+github.com/aws/aws-sdk-go-v2/service/cloudwatch/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/cloudwatch/types
 # github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.4
 ## explicit; go 1.23
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding
@@ -113,6 +118,7 @@ github.com/aws/smithy-go/auth/bearer
 github.com/aws/smithy-go/context
 github.com/aws/smithy-go/document
 github.com/aws/smithy-go/encoding
+github.com/aws/smithy-go/encoding/cbor
 github.com/aws/smithy-go/encoding/httpbinding
 github.com/aws/smithy-go/encoding/json
 github.com/aws/smithy-go/encoding/xml
