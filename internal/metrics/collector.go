@@ -59,14 +59,23 @@ func (c *MetricsCollector) RunContinuous(ctx context.Context) {
 			log.Println("Metrics collector shutting down")
 			return
 		case <-ticker.C:
-			if err := c.CollectAll(ctx); err != nil {
-				log.Printf("Metrics collection failed: %v", err)
-			}
+			// Recover from panics to prevent goroutine from dying
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Metrics collection panic recovered: %v", r)
+					}
+				}()
+
+				if err := c.CollectAll(ctx); err != nil {
+					log.Printf("Metrics collection failed: %v", err)
+				}
+			}()
 		}
 	}
 }
 
-// CollectAll collects metrics for all running AWS RDS instances
+// CollectAll collects metrics for all running instances
 func (c *MetricsCollector) CollectAll(ctx context.Context) error {
 	log.Println("Starting metrics collection cycle...")
 
@@ -78,13 +87,7 @@ func (c *MetricsCollector) CollectAll(ctx context.Context) error {
 	var collected, skipped, failed int
 
 	for _, instance := range instances {
-		// Skip non-AWS instances (GCP not implemented yet per CONTEXT.md)
-		if instance.Provider != "aws" {
-			skipped++
-			continue
-		}
-
-		// Store zeros for stopped instances (shows "asleep" state in metrics)
+		// Store zeros for stopped instances (shows "asleep" state in metrics) for all providers
 		if instance.Status != "available" && instance.Status != "running" {
 			if err := c.storeZeroMetrics(ctx, instance); err != nil {
 				log.Printf("Failed to store zero metrics for stopped instance %s: %v", instance.Name, err)
@@ -92,6 +95,13 @@ func (c *MetricsCollector) CollectAll(ctx context.Context) error {
 				continue
 			}
 			collected++
+			continue
+		}
+
+		// Skip non-AWS instances for active collection (GCP metrics not yet implemented)
+		if instance.Provider != "aws" {
+			log.Printf("Skipping active metrics collection for non-AWS instance %s (provider: %s)", instance.Name, instance.Provider)
+			skipped++
 			continue
 		}
 
@@ -200,6 +210,11 @@ func (c *MetricsCollector) storeZeroMetrics(ctx context.Context, instance models
 
 // getClient returns or creates a CloudWatch client for the instance's account/region
 func (c *MetricsCollector) getClient(ctx context.Context, instance models.Instance) (*CloudWatchClient, error) {
+	// Only AWS instances are supported for active metric collection
+	if instance.Provider != "aws" {
+		return nil, fmt.Errorf("active metrics collection not supported for provider: %s", instance.Provider)
+	}
+
 	// Key by account+region since each region needs its own client
 	key := fmt.Sprintf("%s_%s", instance.CloudAccountID, instance.Region)
 
