@@ -113,15 +113,6 @@ type Event struct {
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 }
 
-// Saving represents aggregated savings data
-type Saving struct {
-	ID                    string `json:"id" db:"id"`
-	InstanceID            string `json:"instance_id" db:"instance_id"`
-	Date                  string `json:"date" db:"date"`
-	StoppedMinutes        int    `json:"stopped_minutes" db:"stopped_minutes"`
-	EstimatedSavingsCents int    `json:"estimated_savings_cents" db:"estimated_savings_cents"`
-}
-
 // HourlyMetric represents an hourly aggregated metric from CloudWatch
 type HourlyMetric struct {
 	ID          string    `json:"id" db:"id"`
