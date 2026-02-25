@@ -173,6 +173,11 @@ export function MetricsChart({ instanceId }: MetricsChartProps) {
                   fontSize: '12px',
                   padding: '8px 12px',
                 }}
+                labelStyle={{
+                  color: '#374151',
+                  fontWeight: 500,
+                  marginBottom: '4px',
+                }}
                 labelFormatter={(ts) => new Date(ts).toLocaleString()}
                 formatter={(value: number) => [
                   isPercentage ? `${value.toFixed(1)}%` : value.toFixed(1),
