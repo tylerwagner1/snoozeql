@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 MVP** - Phases 1-6 (shipped 2026-02-23)
 - ✅ **v1.1 Enhanced Insights** - Phases 7-9 (shipped 2026-02-24)
-- 🚧 **v1.2 Metrics & Recommendations** - Phases 10-14 (in progress)
+- ✅ **v1.2 Metrics & Recommendations** - Phases 10-15 (complete 2026-02-25)
 
 ## Phases
 
@@ -103,6 +103,14 @@ Plans:
 - [x] 14-01-PLAN.md — Add pattern signature generation and grouping logic to recommendations API
 - [x] 14-02-PLAN.md — Update recommendations UI with grouped display and expand/collapse
 
+#### Phase 15: UI Polish & Cleanup
+**Goal**: Fix visual issues, improve styling, and ensure consistent UI/UX across the application
+**Depends on**: Phase 14
+**Plans**: 1 plan
+
+Plans:
+- [ ] 15-01-PLAN.md — Add navigation active states and remove orphaned code
+
 ## Progress
 
 **Execution Order:**
@@ -118,4 +126,4 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 
 ---
 *Roadmap created: 2026-02-24*
-*Last updated: 2026-02-25 - v1.2 Metrics & Recommendations COMPLETE (Phase 14: Grouped Recommendations)*
+*Last updated: 2026-02-25 - v1.2 Metrics & Recommendations COMPLETE (Phases 10-15)*
