@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 Phase: 14 of 14 (Grouped Recommendations) - COMPLETE
 Plan: 2 of 2 complete
-Status: Phase complete
-Last activity: 2026-02-25 — Completed 14-01-PLAN.md (Backend), 14-02-PLAN.md (Frontend)
+Status: v1.2 COMPLETE
+Last activity: 2026-02-25 — Phase 14 complete, v1.2 milestone complete
 
 Progress: [████████████████████████████████████] 100% (8/8 plans)
 
@@ -24,6 +24,8 @@ Progress: [███████████████████████
 | Quick Task | Date | Description |
 |------------|------|-------------|
 | quick-001-01 | 2026-02-24 | Test Metrics button with backend endpoint, API method, and UI button |
+| quick-002-01 | 2026-02-25 | Phase 14-01: Backend pattern grouping (PatternSignature, RecommendationGroup, groupRecommendations) |
+| quick-002-02 | 2026-02-25 | Phase 14-02: Frontend grouped recommendations (RecommendationGroup component, UI updates) |
 
 **Performance Metrics**
 
@@ -38,7 +40,7 @@ Progress: [███████████████████████
 |-----------|--------|-------|--------|
 | v1.0 MVP | 1-6 | 24 | Shipped 2026-02-23 |
 | v1.1 Enhanced Insights | 7-9 | 9 | Shipped 2026-02-24 |
-| v1.2 Metrics & Recommendations | 10-14 | 3/7 | In progress (Phase 14-01 complete) |
+| v1.2 Metrics & Recommendations | 10-14 | 7/7 | COMPLETE (2026-02-25) |
 
 ## Accumulated Context
 
@@ -58,9 +60,25 @@ Progress: [███████████████████████
 - Instance metrics display added
 - Feature removed per product direction change
 
-### v1.2 Progress
+### v1.2 Metrics & Recommendations (COMPLETE 2026-02-25)
 
-**Phase 14: Grouped Recommendations (In Progress):**
+**Phase 14: Grouped Recommendations (Complete):**
+
+**Phase 14, Plan 01 (Complete - 2026-02-25):**
+- Added PatternSignature and RecommendationGroup types
+- Implemented groupRecommendations() function with pattern signatures
+- Modified GetAllRecommendations endpoint to return { groups: [...] }
+- Backend response returns recommendations organized by similar idle patterns
+- Group totals and per-instance savings both displayed
+- Requirements REC-02, REC-03 satisfied
+- Files modified: `internal/api/handlers/recommendations.go`
+
+**Phase 14, Plan 02 (Complete - 2026-02-25):**
+- Added RecommendationGroup and GroupedRecommendationsResponse API types
+- Created `RecommendationGroup.tsx` component with expand/collapse
+- Updated `RecommendationsPage.tsx` to render groups
+- Updated `Dashboard.tsx` to handle grouped response
+- All builds pass (Go and TypeScript)
 
 **Phase 14, Plan 01 (Complete - 2026-02-25):**
 - Added PatternSignature and RecommendationGroup types
@@ -117,20 +135,28 @@ Progress: [███████████████████████
 | ConnectionsThreshold: 0 | Requirement REC-01 specifies connections = 0 for idle flag |
 | Use <= for connections check | Ensures negative connection edge case handled properly |
 
-### Phase 14: Grouped Recommendations (Next)
+### Phase 14: Grouped Recommendations (Complete)
 
-### Key Decisions
-
+**Key Decisions:**
 | Decision | Rationale |
 |----------|-----------|
-| Hard-coded 7-day retention | Per CONTEXT.md requirement |
-| 1000 rows per batch | Reasonable default for PostgreSQL |
-| 7-minute startup delay | Within 5-10 minute range per CONTEXT.md |
-| Settings key: metrics_retention_last_run | Standard key-value tracking in settings table |
-| UTC timestamps for comparisons | Per RESEARCH.md pitfalls |
-| Subquery pattern for batched deletes | PostgreSQL standard approach |
+| PatternSignature struct | Efficient O(n) grouping instead of O(n²) pairwise comparisons |
+| 5 time buckets | Balance between granularity and group size; covers typical patterns |
+| 80% threshold for day type | Allows "mostly weekdays" patterns to group with weekdays |
+| Sort groups by total savings | High-impact patterns shown first for better UX |
+| Keep per-instance savings visible | Users need to see individual savings within groups |
+| Single-instance groups as regular cards | Avoids awkward "Group: 1 instance" UI overhead |
+| Always start expanded | Ensures visibility of all patterns on first load |
+| Show first 3 recommendations in Dashboard | Preview without overwhelming dashboard |
 
-### Phase 13: Idle Detection
+**Phase 13: Idle Detection (Complete):**
+- Added ConnectionsThreshold field to ActivityThresholds struct
+- Updated DefaultThresholds() with CPUPercent: 5.0, ConnectionsThreshold: 0
+- Modified findIdleSegments() to check CPU < 5% AND connections == 0
+- REC-01 requirement satisfied - compound threshold prevents false positives
+- Requirements REC-01 satisfied
+
+**Decisions:**
 
 | Decision | Rationale |
 |----------|-----------|
@@ -147,35 +173,13 @@ Minimal tech debt from savings removal:
 
 ## Blockers/Concerns
 
-None — Phase 14-01 complete, Phase 14-02 (frontend) ready for execution.
+None — v1.2 complete.
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed Phase 14-01 (backend pattern grouping), Phase 14-02 pending
+Stopped at: v1.2 Metrics & Recommendations complete (Phases 10-14)
 Resume file: None
 
-## Accumulated Context
-
-### Key Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| Hard-coded 7-day retention | Per CONTEXT.md requirement |
-| 1000 rows per batch | Reasonable default for PostgreSQL |
-| 7-minute startup delay | Within 5-10 minute range per CONTEXT.md |
-| Settings key: metrics_retention_last_run | Standard key-value tracking |
-| UTC timestamps for comparisons | Per RESEARCH.md pitfalls |
-| Subquery pattern for batched deletes | PostgreSQL standard approach |
-
-### Archive References
-
-- `.planning/milestones/v1.0-ROADMAP.md` — Full v1.0 phase details
-- `.planning/milestones/v1.0-REQUIREMENTS.md` — v1.0 requirements
-- `.planning/milestones/v1.1-ROADMAP.md` — Full v1.1 phase details
-- `.planning/milestones/v1.1-REQUIREMENTS.md` — v1.1 requirements
-- `.planning/milestones/v1.1-MILESTONE-AUDIT.md` — v1.1 audit report
-
 ---
-
-*Last updated: 2026-02-25 - Phase 14 completed (Plans 01, 02; REC-02, REC-03)*
+*Last updated: 2026-02-25 - v1.2 Metrics & Recommendations COMPLETE (Phases 10-14)*

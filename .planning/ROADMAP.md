@@ -26,7 +26,7 @@ Delivered: Savings tracking system (built, evaluated, removed), instance metrics
 
 </details>
 
-### 🚧 v1.2 Metrics & Recommendations (In Progress)
+### ✅ v1.2 Metrics & Recommendations - COMPLETE
 
 **Milestone Goal:** Metrics working flawlessly with time-series visualization, powering intelligent schedule recommendations.
 
@@ -97,9 +97,11 @@ Plans:
   3. User can see which instances share similar idle patterns
 **Plans**: 2 plans
 
+**Delivered:** Pattern signature generation, RecommendationGroup struct, groupRecommendations() function, modified API endpoint to return `{ groups: [...] }`, RecommendationGroup React component with expand/collapse, grouped display in RecommendationsPage and Dashboard.
+
 Plans:
-- [ ] 14-01-PLAN.md — Add pattern signature generation and grouping logic to recommendations API
-- [ ] 14-02-PLAN.md — Update recommendations UI with grouped display and expand/collapse
+- [x] 14-01-PLAN.md — Add pattern signature generation and grouping logic to recommendations API
+- [x] 14-02-PLAN.md — Update recommendations UI with grouped display and expand/collapse
 
 ## Progress
 
@@ -112,8 +114,8 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 11. Time-Series Visualization | 2/2 | Complete | 2026-02-25 |
 | 12. Metrics Retention | 1/1 | Complete | 2026-02-25 |
 | 13. Idle Detection | 1/1 | Complete | 2026-02-25 |
-| 14. Grouped Recommendations | 0/2 | Not started | - |
+| 14. Grouped Recommendations | 2/2 | Complete | 2026-02-25 |
 
 ---
 *Roadmap created: 2026-02-24*
-*Last updated: 2026-02-25 - Phase 13 completed (idle detection compound threshold)*
+*Last updated: 2026-02-25 - v1.2 Metrics & Recommendations COMPLETE (Phase 14: Grouped Recommendations)*
