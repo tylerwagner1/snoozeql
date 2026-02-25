@@ -669,6 +669,42 @@ func main() {
 				json.NewEncoder(w).Encode(metrics)
 			})
 
+			r.Post("/instances/{id}/collect-metrics", func(w http.ResponseWriter, r *http.Request) {
+				instanceID := chi.URLParam(r, "id")
+				log.Printf("DEBUG: Collect metrics for instance: %s", instanceID)
+
+				ctx := r.Context()
+				instance, err := instanceStore.GetInstanceByID(ctx, instanceID)
+				if err != nil {
+					log.Printf("ERROR: Instance not found: %s", instanceID)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					w.Write([]byte(`{"error":"Instance not found"}`))
+					return
+				}
+
+				// Check if AWS provider (GCP not supported for collection yet)
+				if instance.Provider != "aws" {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"error":"Metrics collection not supported for this provider"}`))
+					return
+				}
+
+				// Call metrics collector for single instance
+				if err := metricsCollector.CollectInstance(ctx, *instance); err != nil {
+					log.Printf("ERROR: Failed to collect metrics for %s: %v", instanceID, err)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					w.Write([]byte(fmt.Sprintf(`{"error":"Failed to collect metrics: %v"}`, err)))
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(map[string]string{"success": "true", "message": "Metrics collected"})
+			})
+
 			// Events/Audit Log
 			r.Get("/events", func(w http.ResponseWriter, r *http.Request) {
 				ctx := r.Context()
