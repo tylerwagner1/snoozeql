@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: complete
 phase: 11-time-series-visualization
 source: 11-01-SUMMARY.md, 11-02-SUMMARY.md
 started: 2026-02-25T18:45:00Z
@@ -23,9 +23,8 @@ result: pass
 
 ### 3. Time Range Selector
 expected: You should see time range buttons (1h, 6h, 24h, 7d) to the right of the tabs. 24h should be selected by default. Clicking a different range should update the chart to show data for that time period.
-result: issue
-reported: "the x axis is broken on all of them. I would expect uniform gaps between times (right now it goes 1:00, 1:05, 1:20 on 1hr view) and correct hours or days for 24hr and 7day views (24hr shows 11am, 12pm 5 times, 1pm 5 times & 7 day view just says 'Feb 25' 11 times). If there isn't data to go back 6hr, 24hr, or 7 days, i would expect correct axis but no data until the first datapoint i have registered today"
-severity: major
+result: pass
+note: "Initially failed (X-axis irregular intervals), fixed in commits f8195d11, 162bf4c4, c995fb40"
 
 ### 4. Loading State
 expected: When switching tabs or time ranges, you should briefly see a loading spinner in the chart area while data is being fetched.
@@ -42,8 +41,8 @@ result: pass
 ## Summary
 
 total: 6
-passed: 5
-issues: 1
+passed: 6
+issues: 0
 pending: 0
 skipped: 0
 
