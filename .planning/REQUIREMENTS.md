@@ -17,10 +17,10 @@ Requirements for Metrics & Recommendations milestone. Each maps to roadmap phase
 
 ### Metrics Visualization
 
-- [ ] **VIS-01**: User can view time-series charts for CPU, Memory, and Connections on Instance Details page
-- [ ] **VIS-02**: User can select time range (1h, 6h, 24h, 7d) for metrics charts
-- [ ] **VIS-03**: Multiple metrics are visible together on Instance Details page
-- [ ] **VIS-04**: Metrics charts show appropriate loading and empty states
+- [x] **VIS-01**: User can view time-series charts for CPU, Memory, and Connections on Instance Details page
+- [x] **VIS-02**: User can select time range (1h, 6h, 24h, 7d) for metrics charts
+- [x] **VIS-03**: Multiple metrics are visible together on Instance Details page
+- [x] **VIS-04**: Metrics charts show appropriate loading and empty states
 
 ### Recommendations
 
@@ -68,10 +68,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | METR-01 | Phase 10 | Complete |
 | METR-02 | Phase 10 | Complete |
 | METR-03 | Phase 12 | Pending |
-| VIS-01 | Phase 11 | Pending |
-| VIS-02 | Phase 11 | Pending |
-| VIS-03 | Phase 11 | Pending |
-| VIS-04 | Phase 11 | Pending |
+| VIS-01 | Phase 11 | Complete |
+| VIS-02 | Phase 11 | Complete |
+| VIS-03 | Phase 11 | Complete |
+| VIS-04 | Phase 11 | Complete |
 | REC-01 | Phase 13 | Pending |
 | REC-02 | Phase 14 | Pending |
 | REC-03 | Phase 14 | Pending |
@@ -83,4 +83,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-24 after roadmap creation*
+*Last updated: 2026-02-25 - Phase 11 requirements complete*

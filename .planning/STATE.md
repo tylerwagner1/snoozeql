@@ -5,19 +5,19 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Phase 11 - Time-Series Visualization
-**Recent work:** Phase 11 Plan 01 (Metrics History API) completed
+**Current focus:** Phase 12 - Metrics Retention
+**Recent work:** Phase 11 (Time-Series Visualization) completed
 
 ## Current Position
 
-Phase: 11 of 14 (Time-Series Visualization)
-Plan: 2 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-25 — Completed 11-02-PLAN.md (MetricsChart Component)
+Phase: 12 of 14 (Metrics Retention)
+Plan: 0 of 1 in current phase
+Status: Ready to plan
+Last activity: 2026-02-25 — Phase 11 completed
 
-Progress: [█████████████░░░░░░░░░░░░░░░░░░░░░] 29% (2/7 plans)
+Progress: [████████████████░░░░░░░░░░░░░░░░░░] 43% (3/7 plans)
 
-**Next Action:** Phase 11 complete, ready for 12-01-PLAN.md
+**Next Action:** `/gsd-discuss-phase 12` to gather context, or `/gsd-plan-phase 12` to plan directly
 
 ## Quick Tasks Completed
 
@@ -74,18 +74,12 @@ Progress: [█████████████░░░░░░░░░░
 - Button shows loading state, disabled for non-AWS instances
 - Public CollectInstance() method exposed on MetricsCollector
 
-**Phase 11-02: MetricsChart Component (Complete):**
+**Phase 11: Time-Series Visualization (Complete):**
+- Added GET /instances/{id}/metrics/history API endpoint
 - Created MetricsChart component with tabs for CPU, Memory, Connections
 - Time range selector (1h, 6h, 24h, 7d) with dynamic axis formatting
-- Integrated into InstanceDetailPage
-- @tanstack/react-query dependency added for data fetching
-- Fixed implicit any type errors
-
-**Phase 11-01: Metrics History API (Complete):**
-- Added GET /instances/{id}/metrics/history endpoint
-- Supports time ranges: 1h, 6h, 24h, 7d (default: 24h)
-- Added frontend getMetricsHistory() API method
-- Returns empty array on error (consistent with /metrics)
+- Integrated into InstanceDetailPage with "Metrics History" section
+- Requirements VIS-01, VIS-02, VIS-03, VIS-04 satisfied
 
 ### Key Decisions
 
@@ -100,12 +94,12 @@ Minimal tech debt from savings removal:
 
 ## Blockers/Concerns
 
-None — Phase 11 complete, ready for 12-01-PLAN.md.
+None — ready for Phase 12.
 
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 11-02-PLAN.md (MetricsChart Component)
+Stopped at: Completed Phase 11 (Time-Series Visualization)
 Resume file: None
 
 ### Archive References
@@ -118,4 +112,4 @@ Resume file: None
 
 ---
 
-*Last updated: 2026-02-25 - Phase 11 complete (Plans 01 & 02)*
+*Last updated: 2026-02-25 - Phase 11 completed, verified*

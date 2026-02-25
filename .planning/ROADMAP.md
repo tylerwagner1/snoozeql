@@ -55,8 +55,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Add metrics history API endpoint with time range support
-- [ ] 11-02-PLAN.md — Build MetricsChart component with tabs and time range selector
+- [x] 11-01-PLAN.md — Add metrics history API endpoint with time range support
+- [x] 11-02-PLAN.md — Build MetricsChart component with tabs and time range selector
 
 #### Phase 12: Metrics Retention
 **Goal**: Metrics data stays manageable with automatic cleanup
@@ -105,11 +105,11 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 10. Metrics Collection Enhancement | 1/1 | Complete | 2026-02-24 |
-| 11. Time-Series Visualization | 0/2 | Not started | - |
+| 11. Time-Series Visualization | 2/2 | Complete | 2026-02-25 |
 | 12. Metrics Retention | 0/1 | Not started | - |
 | 13. Idle Detection | 0/1 | Not started | - |
 | 14. Grouped Recommendations | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-24*
-*Last updated: 2026-02-24 - Phase 10 Plan 01 completed*
+*Last updated: 2026-02-25 - Phase 11 completed*
