@@ -80,10 +80,10 @@ Plans:
   1. Instance only flagged idle when CPU < 5% AND connections = 0
   2. Instances with active connections never flagged as idle
   3. Recommendations use compound threshold for pattern detection
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 13-01: Update analyzer with compound idle threshold
+- [ ] 13-01-PLAN.md — Update ActivityThresholds and findIdleSegments with compound threshold
 
 #### Phase 14: Grouped Recommendations
 **Goal**: Recommendations show patterns and savings clearly
