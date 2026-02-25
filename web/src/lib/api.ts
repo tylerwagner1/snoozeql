@@ -81,6 +81,18 @@ export interface RecommendationEnriched {
   created_at: string
 }
 
+export interface RecommendationGroup {
+  pattern_description: string
+  pattern_key: string
+  total_daily_savings: number
+  instance_count: number
+  recommendations: RecommendationEnriched[]
+}
+
+export interface GroupedRecommendationsResponse {
+  groups: RecommendationGroup[]
+}
+
 export interface CloudAccount {
   id: string
   name: string
@@ -217,7 +229,7 @@ const api = {
   // Recommendations
   getRecommendations: (status?: string) => {
     const params = status ? `?status=${status}` : ''
-    return api.get<RecommendationEnriched[]>(`/recommendations${params}`)
+    return api.get<GroupedRecommendationsResponse>(`/recommendations${params}`)
   },
   getRecommendation: (id: string) => api.get<RecommendationEnriched>(`/recommendations/${id}`),
   generateRecommendations: () => api.post<{ created: number; message: string }>('/recommendations/generate'),
