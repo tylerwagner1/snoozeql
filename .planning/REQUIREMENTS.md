@@ -24,7 +24,7 @@ Requirements for Metrics & Recommendations milestone. Each maps to roadmap phase
 
 ### Recommendations
 
-- [ ] **REC-01**: Idle detection uses compound threshold (CPU < 5% AND connections = 0)
+- [x] **REC-01**: Idle detection uses compound threshold (CPU < 5% AND connections = 0)
 - [ ] **REC-02**: Recommendations are grouped by similar idle patterns
 - [ ] **REC-03**: Each recommendation displays estimated daily savings
 
@@ -72,7 +72,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VIS-02 | Phase 11 | Complete |
 | VIS-03 | Phase 11 | Complete |
 | VIS-04 | Phase 11 | Complete |
-| REC-01 | Phase 13 | Pending |
+| REC-01 | Phase 13 | Complete |
 | REC-02 | Phase 14 | Pending |
 | REC-03 | Phase 14 | Pending |
 
@@ -83,4 +83,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-25 - Phase 11 requirements complete*
+*Last updated: 2026-02-25 - Phase 13 requirements complete (REC-01 satisfied)*
