@@ -51,8 +51,8 @@ export function MetricsChart({ instanceId }: MetricsChartProps) {
   const chartData = useMemo(() => {
     if (!data) return []
     return data
-      .filter(m => m.metric_name === metricNameMap[activeTab])
-      .map(m => ({
+      .filter((m: { metric_name: string }) => m.metric_name === metricNameMap[activeTab])
+      .map((m: { hour: string; avg_value: number }) => ({
         hour: m.hour,
         value: m.avg_value,
       }))
