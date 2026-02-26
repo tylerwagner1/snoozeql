@@ -14,6 +14,14 @@ type MetricsStore struct {
 	db *store.Postgres
 }
 
+// MetricPeriod constant for 5-minute granularity
+const MetricPeriod = 5 * time.Minute
+
+// TruncateToMetricPeriod truncates a time to 5-minute boundaries
+func TruncateToMetricPeriod(t time.Time) time.Time {
+	return t.Truncate(MetricPeriod)
+}
+
 // NewMetricsStore creates a new metrics store
 func NewMetricsStore(db *store.Postgres) *MetricsStore {
 	return &MetricsStore{db: db}
@@ -138,7 +146,8 @@ func (s *MetricsStore) HasSufficientData(ctx context.Context, instanceID string)
 	return sufficient, nil
 }
 
-// HourHasData checks if an instance has any metrics for a specific hour
+// HourHasData checks if an instance has any metrics for a specific time period
+// The hour parameter should be pre-truncated to 5-minute boundaries using TruncateToMetricPeriod
 func (s *MetricsStore) HourHasData(ctx context.Context, instanceID, metricName string, hour time.Time) (bool, error) {
 	query := `
         SELECT EXISTS (
