@@ -26,12 +26,13 @@ SnoozeQL is fully functional with:
 **Goal:** Metrics working flawlessly with time-series visualization, powering intelligent schedule recommendations.
 
 **Target features:**
-- CPU, Memory, Connections metrics collected every 15 min (AWS RDS)
-- 7-day retention for metrics data
-- Time-series charts on Instance Details page
-- Recommendation engine detects idle patterns via simple threshold
-- Grouped recommendations with per-instance overrides
-- User approval workflow creates and assigns schedules
+- CPU, Memory, Connections metrics collected every 15 min (AWS RDS) ✓
+- 7-day retention for metrics data ✓
+- Time-series charts on Instance Details page ✓
+- Recommendation engine detects idle patterns via simple threshold ✓
+- Grouped recommendations with per-instance overrides ✓
+- 5-minute CloudWatch granularity (Period=300) ✓
+- **Dual-mode collection:** Real-time (15 min) + Historical backfill (hourly, 3-day window)
 
 ## Requirements
 
@@ -107,4 +108,4 @@ SnoozeQL is fully functional with:
 | Remove savings feature after evaluation | Product direction change after build | ✓ Executed cleanly |
 
 ---
-*Last updated: 2026-02-24 after v1.2 milestone started*
+*Last updated: 2026-02-26 after Phase 18 scoping (dual-mode data collection)*

@@ -127,24 +127,37 @@ Tab-specific UI changes needed per user request. Plan will require:
 - Fixes for visual issues in each tab
 - Server restart and frontend verification
 
-#### Phase 17: Enhanced Metrics & Data Collection Strategy
+#### Phase 17: Enhanced Metrics & Data Collection Strategy ✓ COMPLETE
 **Goal**: CloudWatch scraped at 5-min intervals, 3 datapoints per 15-min collection, with intelligent gap detection and interpolated backfill
 **Depends on**: Phase 16
 **Plans**: 2 plans
 
 Plans:
 - [x] 17-01-PLAN.md — High-resolution CloudWatch collection (Period=300, 3 datapoints/cycle)
-- [ ] 17-02-PLAN.md — Gap detection and interpolation on startup
+- [x] 17-02-PLAN.md — Gap detection and interpolation on startup
 
-**Delivered:** 5-minute CloudWatch collection with GetRDSMetricsMultiple method, MetricPeriod constant, 3 datapoints per 15-min cycle, storeZeroMetrics with 3 zero entries.
+**Delivered:** 5-minute CloudWatch collection with GetRDSMetricsMultiple method, MetricPeriod constant, 3 datapoints per 15-min cycle, DetectAndFillGaps on startup with 7-day CloudWatch historical fetch.
+
+#### Phase 18: Dual-Mode Data Collection
+**Goal**: Reliable metrics data via real-time collection + hourly historical backfill
+**Depends on**: Phase 17
+**Requirements**: DATA-01, DATA-02
+**Success Criteria** (what must be TRUE):
+  1. Real-time collection continues every 15 minutes (unchanged)
+  2. Historical backfill runs on startup (5-10 min delay) and then hourly
+  3. Historical backfill fetches 3-day CloudWatch window and upserts (gaps filled automatically)
+  4. Phase 17-02's startup-only gap detection is removed/replaced
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 18 to break down)
 
 **Details:**
-Enhance metrics collection for higher granularity and data continuity:
-- Change CloudWatch API Period from 3600s to 300s (5-minute intervals)
-- Modify collector to fetch and store 3 datapoints per 15-min cycle
-- Add gap detection on startup to identify missing intervals
-- Create interpolated entries for gaps to maintain timeline continuity
-- Verify: 11am-4pm data + 7pm restart → interpolated entries for 4pm-7pm gap
+Architectural split for robust data collection:
+- **Real-time mode (keep):** Every 15 min → fetch current metrics → fresh dashboard data
+- **Historical backfill (new):** Startup (delay) + hourly → fetch 3-day window → self-healing gap fill
+- Replaces Phase 17-02's one-time startup approach with continuous healing
+- Recommendations get reliable 3-day data within ~1 hour of app startup
 
 ## Progress
 
@@ -159,10 +172,11 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 13. Idle Detection | 1/1 | Complete | 2026-02-25 |
 | 14. Grouped Recommendations | 2/2 | Complete | 2026-02-25 |
 | 15. UI Polish & Cleanup | 1/1 | Complete | 2026-02-25 |
-| 16. UI Changes Per Tab | 0/0 | Not started | - |
-| 17. Enhanced Metrics & Data Collection | 1/2 | In Progress | 2026-02-26 |
+| 16. UI Changes Per Tab | 0/0 | Skipped | - |
+| 17. Enhanced Metrics & Data Collection | 2/2 | Complete | 2026-02-26 |
+| 18. Dual-Mode Data Collection | 0/0 | Not started | - |
 
 ---
 
 *Roadmap created: 2026-02-24*
-*Last updated: 2026-02-26 - Phase 17-01 complete, 5-minute CloudWatch collection implemented*
+*Last updated: 2026-02-26 - Phase 17 complete, Phase 18 added (dual-mode data collection)*

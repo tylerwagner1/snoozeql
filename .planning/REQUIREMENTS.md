@@ -25,8 +25,13 @@ Requirements for Metrics & Recommendations milestone. Each maps to roadmap phase
 ### Recommendations
 
 - [x] **REC-01**: Idle detection uses compound threshold (CPU < 5% AND connections = 0)
-- [ ] **REC-02**: Recommendations are grouped by similar idle patterns
-- [ ] **REC-03**: Each recommendation displays estimated daily savings
+- [x] **REC-02**: Recommendations are grouped by similar idle patterns
+- [x] **REC-03**: Each recommendation displays estimated daily savings
+
+### Data Collection Architecture
+
+- [ ] **DATA-01**: Real-time collection runs every 15 minutes fetching current metrics
+- [ ] **DATA-02**: Historical backfill runs hourly (and on startup with delay) fetching 3-day CloudWatch window
 
 ## Future Requirements
 
@@ -73,14 +78,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VIS-03 | Phase 11 | Complete |
 | VIS-04 | Phase 11 | Complete |
 | REC-01 | Phase 13 | Complete |
-| REC-02 | Phase 14 | Pending |
-| REC-03 | Phase 14 | Pending |
+| REC-02 | Phase 14 | Complete |
+| REC-03 | Phase 14 | Complete |
+| DATA-01 | Phase 18 | Pending |
+| DATA-02 | Phase 18 | Pending |
 
 **Coverage:**
-- v1.2 requirements: 10 total
-- Mapped to phases: 10 ✓
+- v1.2 requirements: 12 total
+- Mapped to phases: 12 ✓
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-25 - Phase 13 requirements complete (REC-01 satisfied)*
+*Last updated: 2026-02-26 - Phase 18 requirements added (DATA-01, DATA-02 for dual-mode collection)*
