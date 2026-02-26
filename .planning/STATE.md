@@ -13,7 +13,7 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 Phase: 18 of 18 (Dual-Mode Data Collection)
 Plan: 1 of 1 in current phase
 Status: In progress
-Last activity: 2026-02-26 — Completed 18-01-PLAN.md (dual-mode data collection)
+Last activity: 2026-02-26 — Completed quick-004: Instance Details page cleanup
 
 Progress: [████████████████████████████████████] 100% (38/38 plans through Phase 18)
 
@@ -27,6 +27,7 @@ Progress: [███████████████████████
 | quick-002-01 | 2026-02-25 | Phase 14-01: Backend pattern grouping (PatternSignature, RecommendationGroup, groupRecommendations) |
 | quick-002-02 | 2026-02-25 | Phase 14-02: Frontend grouped recommendations (RecommendationGroup component, UI updates) |
 | quick-003-01 | 2026-02-26 | Metrics backfill: BackfillMetrics method + POST /api/v1/instances/{id}/metrics/backfill endpoint |
+| quick-004-01 | 2026-02-26 | Instance Details page cleanup: fix title color, remove Quick Stats and Metrics cards, dark mode colors |
 
 **Performance Metrics**
 
