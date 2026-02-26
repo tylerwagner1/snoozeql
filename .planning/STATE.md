@@ -11,13 +11,13 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 18 of 18 (Dual-Mode Data Collection)
-Plan: Not yet planned
-Status: Defining requirements
-Last activity: 2026-02-26 — Phase 18 scoped (dual-mode data collection architecture)
+Plan: 1 of 1 in current phase
+Status: In progress
+Last activity: 2026-02-26 — Completed 18-01-PLAN.md (dual-mode data collection)
 
-Progress: [████████████████████████████████████] 100% (37/37 plans through Phase 17) + Phase 18 pending
+Progress: [████████████████████████████████████] 100% (38/38 plans through Phase 18)
 
-**Next Action:** Run `/gsd-plan-phase 18` to create execution plans
+**Next Action:** Phase 18 complete, all plans finished
 
 ## Quick Tasks Completed
 
@@ -183,20 +183,37 @@ Migration files kept for history.
 - Updated collector to use 5-minute granularity with 3 datapoints per cycle
 - Zero entries for stopped instances (3 per 15-minute window)
 
-**Phase 17-02 (Complete - Metrics backfill):**
-- DetectAndFillGaps calls CloudWatch for up to 7 days of historical data
-- GetLatestMetricTimes batch query for efficient instance processing
-- Gap detection runs synchronously at startup before continuous collection
-- Only new datapoints inserted, existing entries skipped
+**Phase 17-02 (Complete - Metrics backfill - superseding to Phase 18-01):**
+- Superseded by Phase 18-01 for continuous backfill
+- Original synchronous gap detection replaced with background goroutine
+- See Phase 18-01 for new 3-day window + hourly backfill implementation
+
+### Phase 18: Dual-Mode Data Collection (COMPLETE 2026-02-26)
+
+**Phase 18-01 (Complete - Dual-mode collection architecture):**
+- Added RunHistoricalBackfill method with 7-minute startup delay + 1-hour interval
+- Created runHistoricalBackfill private method with 3-day CloudWatch window
+- Updated server startup to run historical backfill as background goroutine
+- Removed synchronous gap detection that blocked server startup
+- Real-time collection (15-min) continues unchanged
+- Server startup no longer blocks on gap detection
 
 ### Roadmap Evolution
 
 - Phase 17 added: Enhanced Metrics & Data Collection Strategy (5-min CloudWatch intervals, 3 datapoints/collection, interpolated gap backfill)
 - Phase 17-01 complete (2026-02-26): 5-minute CloudWatch collection with GetRDSMetricsMultiple, MetricPeriod constant, 3 datapoints per 15-min cycle
+- Phase 17-02 superseded by Phase 18-01: Continuous background backfill instead of synchronous startup call
+
+### Phase 18: Dual-Mode Data Collection
+
+- Background historical backfill with 7-min startup delay + hourly interval
+- 3-day CloudWatch window (not 7) for faster processing and reduced API cost
+- Non-blocking server startup with dual background goroutines
+- Real-time collection (15-min) continues unchanged
 
 ## Blockers/Concerns
 
-None — Phase 18 ready for planning.
+Phase 18 complete. No blockers carried forward.
 
 ### Accumulated Decisions
 
@@ -223,12 +240,34 @@ None — Phase 18 ready for planning.
 | 17-02 | Skip existing rows automatically via ON CONFLICT | Avoid duplicate entries |
 | 17-02 | Batch query GetLatestMetricTimes for efficient instance processing | Avoid N queries for N instances |
 
+## Accumulated Decisions
+
+| Phase | Decision | Rationale |
+|-------|----------|-----------|
+| 18-01 | 7-minute startup delay for historical backfill | Consistent with RetentionCleaner pattern |
+| 18-01 | 3-day CloudWatch window (not 7) | Faster processing, lower API cost, continuous hourly healing |
+| 18-01 | Background goroutine for historical backfill | Non-blocking startup, real-time collection continues immediately |
+
+## Decisions
+
+| Phase | Decision | Rationale |
+|-------|----------|-----------|
+| 15-01 | Navigation active states use bg-blue-500/30 text-blue-400 for most links, bg-purple-500/30 text-purple-400 for Accounts | Visual distinction between navigation items |
+| 15-01 | Active path matching: exact for /, prefix for others | Simple and intuitive matching strategy |
+| 15-01 | formatters.ts and Saving struct removal | Orphaned code from Phase 9 savings feature removal |
+| 17-01 | MetricPeriod = 5 * time.Minute with TruncateToMetricPeriod helper | Consistent timestamp truncation for 5-minute granularity |
+| 17-01 | Truncate timestamps in Go, SQL as-is | Maintain backward compatibility with existing UpsertHourlyMetric |
+| 17-01 | storeZeroMetrics generates 3 entries (one per 5-min interval) | Match 15-minute collection window for stopped instances |
+| 17-02 | Call CloudWatch for up to 7 days of historical data on startup | New approach for gap detection |
+| 17-02 | Skip existing rows automatically via ON CONFLICT | Avoid duplicate entries |
+| 17-02 | Batch query GetLatestMetricTimes for efficient instance processing | Avoid N queries for N instances |
+
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Phase 18 scoped (dual-mode data collection)
+Stopped at: Completed 18-01-PLAN.md (dual-mode data collection)
 Resume file: None
 
 ---
 
-*Last updated: 2026-02-26 - Phase 18 added (dual-mode data collection)*
+*Last updated: 2026-02-26 - Phase 18 complete (18-01 planned and executed)*
