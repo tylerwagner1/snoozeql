@@ -321,3 +321,131 @@ func (c *MetricsCollector) getClient(ctx context.Context, instance models.Instan
 func (c *MetricsCollector) SetEnabled(enabled bool) {
 	c.enabled = enabled
 }
+
+// BackfillMetrics collects historical CloudWatch metrics for a specific instance
+// over a given number of days, collecting metrics at hourly granularity.
+// Returns the count of hours backfilled and any error encountered.
+// The method self-throttles between hours to prevent CloudWatch rate limit errors.
+func (c *MetricsCollector) BackfillMetrics(ctx context.Context, instance models.Instance, days int) (int, error) {
+	// Cap days at 7 (CloudWatch free tier limitation)
+	if days > 7 {
+		days = 7
+	}
+	if days < 1 {
+		days = 1
+	}
+
+	// Only AWS instances are supported
+	if instance.Provider != "aws" {
+		return 0, fmt.Errorf("backfill not supported for non-AWS instances (provider: %s)", instance.Provider)
+	}
+
+	// Get CloudWatch client
+	client, err := c.getClient(ctx, instance)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get CloudWatch client: %w", err)
+	}
+
+	// Calculate start and end times
+	now := time.Now().UTC()
+	endHour := now.Truncate(time.Hour)
+	startHour := endHour.Add(-time.Duration(days*24) * time.Hour)
+
+	log.Printf("BackfillMetrics: collecting %d days of metrics for %s (from %s to %s)",
+		days, instance.Name, startHour.Format(time.RFC3339), endHour.Format(time.RFC3339))
+
+	hoursBackfilled := 0
+
+	// Iterate backward hour-by-hour
+	currentHour := endHour
+	for currentHour.Compare(startHour) >= 0 {
+		// Check if this hour already has data
+		hasData := true
+		for _, metricName := range []string{
+			models.MetricCPUUtilization,
+			models.MetricDatabaseConnections,
+			models.MetricFreeableMemory,
+		} {
+			exists, err := c.metricsStore.HourHasData(ctx, instance.ID, metricName, currentHour)
+			if err != nil {
+				log.Printf("Warning: failed to check if hour %s has data: %v", currentHour.Format(time.RFC3339), err)
+			}
+			if exists {
+				hasData = true
+			} else {
+				hasData = false
+				break
+			}
+		}
+
+		// Skip hours that already have data
+		if hasData {
+			log.Printf("Skipping hour %s - already has data", currentHour.Format(time.RFC3339))
+			currentHour = currentHour.Add(-1 * time.Hour)
+			continue
+		}
+
+		// Fetch metrics for this specific hour
+		metrics, err := client.GetRDSMetricsForHour(ctx, instance.ProviderID, currentHour)
+		if err != nil {
+			log.Printf("Failed to fetch metrics for %s at hour %s: %v", instance.Name, currentHour.Format(time.RFC3339), err)
+			currentHour = currentHour.Add(-1 * time.Hour)
+			continue
+		}
+
+		// Store each metric type
+		metricStored := false
+		if metrics.CPU != nil {
+			if err := c.storeMetric(ctx, instance.ID, models.MetricCPUUtilization, currentHour, metrics.CPU); err != nil {
+				log.Printf("Failed to store CPU metric for %s at %s: %v", instance.Name, currentHour.Format(time.RFC3339), err)
+			} else {
+				metricStored = true
+			}
+		}
+
+		if metrics.Connections != nil {
+			if err := c.storeMetric(ctx, instance.ID, models.MetricDatabaseConnections, currentHour, metrics.Connections); err != nil {
+				log.Printf("Failed to store Connections metric for %s at %s: %v", instance.Name, currentHour.Format(time.RFC3339), err)
+			} else {
+				metricStored = true
+			}
+		}
+
+		if metrics.FreeMemory != nil {
+			pct := CalculateMemoryPercentage(instance.InstanceType, metrics.FreeMemory.Avg)
+			if pct != nil {
+				memValue := &MetricValue{Avg: *pct, Max: *pct, Min: *pct}
+				if err := c.storeMetric(ctx, instance.ID, models.MetricFreeableMemory, currentHour, memValue); err != nil {
+					log.Printf("Failed to store FreeableMemory metric for %s at %s: %v", instance.Name, currentHour.Format(time.RFC3339), err)
+				} else {
+					metricStored = true
+				}
+			} else {
+				log.Printf("Unknown instance class %s for %s - skipping memory percentage", instance.InstanceType, instance.Name)
+			}
+		}
+
+		if metricStored {
+			hoursBackfilled++
+		}
+
+		// Progress logging every 24 hours
+		hoursRemaining := int(endHour.Sub(currentHour).Hours())
+		if hoursRemaining > 0 && hoursRemaining%24 == 0 {
+			log.Printf("Backfill progress: %d hours backfilled, %d hours remaining", hoursBackfilled, hoursRemaining)
+		}
+
+		// Self-throttle between hours to prevent rate limit errors
+		select {
+		case <-ctx.Done():
+			return hoursBackfilled, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		// Move to previous hour
+		currentHour = currentHour.Add(-1 * time.Hour)
+	}
+
+	log.Printf("BackfillMetrics complete: %d hours backfilled for %s", hoursBackfilled, instance.Name)
+	return hoursBackfilled, nil
+}

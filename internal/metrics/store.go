@@ -137,3 +137,19 @@ func (s *MetricsStore) HasSufficientData(ctx context.Context, instanceID string)
 	}
 	return sufficient, nil
 }
+
+// HourHasData checks if an instance has any metrics for a specific hour
+func (s *MetricsStore) HourHasData(ctx context.Context, instanceID, metricName string, hour time.Time) (bool, error) {
+	query := `
+        SELECT EXISTS (
+            SELECT 1 FROM metrics_hourly
+            WHERE instance_id = $1 AND metric_name = $2 AND hour = date_trunc('hour', $3::timestamptz)
+        )`
+
+	var exists bool
+	err := s.db.QueryRow(ctx, query, instanceID, metricName, hour).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("failed to check hour data for instance %s: %w", instanceID, err)
+	}
+	return exists, nil
+}

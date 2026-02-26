@@ -68,18 +68,25 @@ type MetricValue struct {
 // Returns metrics for the last hour, aggregated
 // Returns an error if ALL metrics fail to fetch (no data available from CloudWatch)
 func (c *CloudWatchClient) GetRDSMetrics(ctx context.Context, dbInstanceID string) (*RDSMetrics, error) {
-	endTime := time.Now().UTC()
-	startTime := endTime.Add(-1 * time.Hour)
+	return c.GetRDSMetricsForHour(ctx, dbInstanceID, time.Now().UTC().Add(-1*time.Hour))
+}
+
+// GetRDSMetricsForHour fetches all relevant metrics for an RDS instance for a specific hour
+// Returns metrics for the given hour, aggregated
+// Returns an error if ALL metrics fail to fetch (no data available from CloudWatch)
+func (c *CloudWatchClient) GetRDSMetricsForHour(ctx context.Context, dbInstanceID string, hour time.Time) (*RDSMetrics, error) {
+	startTime := hour
+	endTime := hour.Add(1 * time.Hour)
 
 	metrics := &RDSMetrics{
 		InstanceID: dbInstanceID,
-		Timestamp:  endTime.Truncate(time.Hour),
+		Timestamp:  hour.Truncate(time.Hour),
 	}
 
 	var metricsCollected int
 
 	// Fetch each metric type
-	log.Printf("DEBUG: GetRDSMetrics starting to fetch metrics for %s", dbInstanceID)
+	log.Printf("DEBUG: GetRDSMetricsForHour starting to fetch metrics for %s at hour %s", dbInstanceID, hour.Format(time.RFC3339))
 	cpu, err := c.getMetricWithRetry(ctx, dbInstanceID, models.MetricCPUUtilization, startTime, endTime)
 	if err == nil {
 		metrics.CPU = cpu
