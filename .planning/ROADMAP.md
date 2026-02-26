@@ -147,10 +147,10 @@ Plans:
   2. Historical backfill runs on startup (5-10 min delay) and then hourly
   3. Historical backfill fetches 3-day CloudWatch window and upserts (gaps filled automatically)
   4. Phase 17-02's startup-only gap detection is removed/replaced
-**Plans**: 0 plans
+**Plans**: 1 plan
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 18 to break down)
+- [ ] 18-01-PLAN.md — Add RunHistoricalBackfill method and update main.go startup
 
 **Details:**
 Architectural split for robust data collection:
@@ -174,9 +174,9 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 15. UI Polish & Cleanup | 1/1 | Complete | 2026-02-25 |
 | 16. UI Changes Per Tab | 0/0 | Skipped | - |
 | 17. Enhanced Metrics & Data Collection | 2/2 | Complete | 2026-02-26 |
-| 18. Dual-Mode Data Collection | 0/0 | Not started | - |
+| 18. Dual-Mode Data Collection | 0/1 | Planned | - |
 
 ---
 
 *Roadmap created: 2026-02-24*
-*Last updated: 2026-02-26 - Phase 17 complete, Phase 18 added (dual-mode data collection)*
+*Last updated: 2026-02-26 - Phase 18 planned (1 plan for dual-mode data collection)*
