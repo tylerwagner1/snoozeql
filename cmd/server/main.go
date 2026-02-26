@@ -756,6 +756,58 @@ func main() {
 				json.NewEncoder(w).Encode(latestMetrics)
 			})
 
+			r.Post("/instances/{id}/metrics/backfill", func(w http.ResponseWriter, r *http.Request) {
+				instanceID := chi.URLParam(r, "id")
+				log.Printf("DEBUG: Backfill metrics for instance: %s", instanceID)
+
+				ctx := r.Context()
+
+				// Fetch instance from store
+				instance, err := instanceStore.GetInstanceByID(ctx, instanceID)
+				if err != nil {
+					log.Printf("ERROR: Instance not found: %s", instanceID)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNotFound)
+					w.Write([]byte(`{"error":"Instance not found"}`))
+					return
+				}
+
+				// Only AWS instances are supported
+				if instance.Provider != "aws" {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"error":"Metrics backfill only supported for AWS instances"}`))
+					return
+				}
+
+				// Parse days parameter (default 7, max 7)
+				days := 7
+				if d := r.URL.Query().Get("days"); d != "" {
+					if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 && parsed <= 7 {
+						days = parsed
+					}
+				}
+
+				// Call the backfill method
+				hoursBackfilled, err := metricsCollector.BackfillMetrics(ctx, *instance, days)
+				if err != nil {
+					log.Printf("ERROR: Backfill failed for %s: %v", instanceID, err)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					w.Write([]byte(fmt.Sprintf(`{"error":"Backfill failed: %v","instance_id":"%s"}`, err, instanceID)))
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success":          true,
+					"instance_id":      instanceID,
+					"hours_backfilled": hoursBackfilled,
+					"days_requested":   days,
+				})
+			})
+
 			// Events/Audit Log
 			r.Get("/events", func(w http.ResponseWriter, r *http.Request) {
 				ctx := r.Context()
