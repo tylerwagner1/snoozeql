@@ -11,13 +11,13 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 17 of 17 (Enhanced Metrics & Data Collection Strategy)
-Plan: 01 of 2 in current phase
-Status: In Progress
-Last activity: 2026-02-26 — Completed 17-01-PLAN.md (5-minute CloudWatch collection)
+Plan: 02 of 2 in current phase
+Status: Phase Complete
+Last activity: 2026-02-26 — Completed 17-02-PLAN.md (metrics backfill on startup)
 
-Progress: [████████████████████████████████████] 100% (35/35 total) + [█░░░░░░░░░] 1/2 Phase 17 plans
+Progress: [████████████████████████████████████] 100% (35/35 total) + [█████░] 2/2 Phase 17 plans
 
-**Next Action:** Ready for 17-02-PLAN.md (gap detection and interpolation)
+**Next Action:** Phase 17 complete. Ready for transition or new phase planning.
 
 ## Quick Tasks Completed
 
@@ -175,6 +175,20 @@ Tech debt from savings removal fully cleaned up in Phase 15-01:
 
 Migration files kept for history.
 
+### Phase 17: Enhanced Metrics & Data Collection Strategy (COMPLETE 2026-02-26)
+
+**Phase 17-01 (Complete - 5-minute CloudWatch collection):**
+- Added MetricPeriod constant (5 * time.Minute)
+- Implemented GetRDSMetricsMultiple method for multi-datapoint fetch
+- Updated collector to use 5-minute granularity with 3 datapoints per cycle
+- Zero entries for stopped instances (3 per 15-minute window)
+
+**Phase 17-02 (Complete - Metrics backfill):**
+- DetectAndFillGaps calls CloudWatch for up to 7 days of historical data
+- GetLatestMetricTimes batch query for efficient instance processing
+- Gap detection runs synchronously at startup before continuous collection
+- Only new datapoints inserted, existing entries skipped
+
 ### Roadmap Evolution
 
 - Phase 17 added: Enhanced Metrics & Data Collection Strategy (5-min CloudWatch intervals, 3 datapoints/collection, interpolated gap backfill)
@@ -182,7 +196,18 @@ Migration files kept for history.
 
 ## Blockers/Concerns
 
-None — Phase 17-01 complete, ready for gap detection (17-02).
+None — Phase 17 complete (17-01 and 17-02 both complete).
+
+### Accumulated Decisions
+
+| Phase | Decision | Rationale |
+|-------|----------|-----------|
+| 17-01 | Store timestamps pre-truncated in Go, SQL as-is | Maintain backward compatibility with existing UpsertHourlyMetric |
+| 17-01 | Store 3 zero entries for stopped instances (one per 5-min interval) | Match 15-minute collection window |
+| 17-01 | Keep existing methods unchanged for BackfillMetrics backward compatibility | Preserve existing callers |
+| 17-02 | Call CloudWatch for up to 7 days of historical data on startup | New approach for gap detection |
+| 17-02 | Skip existing rows automatically via ON CONFLICT | Avoid duplicate entries |
+| 17-02 | Batch query GetLatestMetricTimes for efficient instance processing | Avoid N queries for N instances |
 
 ## Decisions
 
@@ -194,13 +219,16 @@ None — Phase 17-01 complete, ready for gap detection (17-02).
 | 17-01 | MetricPeriod = 5 * time.Minute with TruncateToMetricPeriod helper | Consistent timestamp truncation for 5-minute granularity |
 | 17-01 | Truncate timestamps in Go, SQL as-is | Maintain backward compatibility with existing UpsertHourlyMetric |
 | 17-01 | storeZeroMetrics generates 3 entries (one per 5-min interval) | Match 15-minute collection window for stopped instances |
+| 17-02 | Call CloudWatch for up to 7 days of historical data on startup | New approach for gap detection |
+| 17-02 | Skip existing rows automatically via ON CONFLICT | Avoid duplicate entries |
+| 17-02 | Batch query GetLatestMetricTimes for efficient instance processing | Avoid N queries for N instances |
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: 17-01-PLAN.md COMPLETE (5-minute CloudWatch collection, MetricPeriod constant, 3 datapoints/cycle)
+Stopped at: 17-02-PLAN.md COMPLETE (metrics backfill on startup via CloudWatch historical fetch)
 Resume file: None
 
 ---
 
-*Last updated: 2026-02-26 - Phase 17-01 complete*
+*Last updated: 2026-02-26 - Phase 17 complete*
