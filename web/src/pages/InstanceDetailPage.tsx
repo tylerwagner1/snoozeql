@@ -184,98 +184,93 @@ const InstanceDetailPage = () => {
         </div>
       </div>
 
-      {/* Main content grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Configuration, Tags, Metrics History */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Configuration Card */}
-          <div className="bg-card shadow-sm border border-border rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Configuration</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Provider</p>
-                <p className="text-sm font-medium text-foreground">{instance.provider === 'aws' ? 'AWS' : 'GCP'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Region</p>
-                <p className="text-sm font-medium text-foreground">{instance.region}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Engine</p>
-                <p className="text-sm font-medium text-foreground">{instance.engine}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Instance Type</p>
-                <p className="text-sm font-medium text-foreground">{instance.instance_type}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Created</p>
-                <p className="text-sm font-medium text-foreground">{new Date(instance.created_at).toLocaleDateString()}</p>
-              </div>
+      {/* Top row - Configuration, Tags, Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Configuration Card */}
+        <div className="bg-card shadow-sm border border-border rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Configuration</h2>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase">Provider</p>
+              <p className="text-sm font-medium text-foreground">{instance.provider === 'aws' ? 'AWS' : 'GCP'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase">Region</p>
+              <p className="text-sm font-medium text-foreground">{instance.region}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase">Engine</p>
+              <p className="text-sm font-medium text-foreground">{instance.engine}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase">Instance Type</p>
+              <p className="text-sm font-medium text-foreground">{instance.instance_type}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase">Created</p>
+              <p className="text-sm font-medium text-foreground">{new Date(instance.created_at).toLocaleDateString()}</p>
             </div>
           </div>
+        </div>
 
-          {/* Tags Card */}
-          <div className="bg-card shadow-sm border border-border rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Tags</h2>
-            {Object.keys(instance.tags).length > 0 ? (
-              <div className="space-y-2">
-                {Object.entries(instance.tags).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between p-2 bg-muted rounded-lg">
-                    <span className="text-sm font-medium text-foreground">{key}</span>
-                    <span className="text-sm text-muted-foreground">{value}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No tags configured</p>
-            )}
-          </div>
-
-          {/* Metrics History Chart */}
-          {id && (
-            <div className="bg-card shadow-sm border border-border rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Metrics History</h2>
-              <MetricsChart instanceId={id} />
+        {/* Tags Card */}
+        <div className="bg-card shadow-sm border border-border rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Tags</h2>
+          {Object.keys(instance.tags).length > 0 ? (
+            <div className="space-y-2">
+              {Object.entries(instance.tags).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between p-2 bg-muted rounded-lg">
+                  <span className="text-sm font-medium text-foreground">{key}</span>
+                  <span className="text-sm text-muted-foreground">{value}</span>
+                </div>
+              ))}
             </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No tags configured</p>
           )}
         </div>
 
-        {/* Right column - Actions */}
-        <div className="space-y-6">
-          <div className="bg-card shadow-sm border border-border rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Actions</h2>
-            <div className="space-y-2">
-              <button
-                onClick={() => navigate(`/audit-log?instance_id=${instance.id}`)}
-                className="w-full px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted"
-              >
-                View Logs
-              </button>
-              <button
-                onClick={() => navigate('/schedules')}
-                className="w-full px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted"
-              >
-                Configure Schedule
-              </button>
-              <button
-                onClick={handleCollectMetrics}
-                disabled={collecting}
-                className="w-full px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-                title={collecting ? 'Collecting metrics...' : 'Click to test metrics connection'}
-              >
-                {collecting ? 'Collecting...' : 'Test Metrics'}
-              </button>
-              <button
-                onClick={() => navigate('/instances')}
-                className="w-full px-4 py-2 text-sm font-medium text-red-400 bg-card border border-red-500/30 rounded-lg hover:bg-red-500/10"
-              >
-                Delete Instance
-              </button>
-            </div>
+        {/* Actions Card */}
+        <div className="bg-card shadow-sm border border-border rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Actions</h2>
+          <div className="space-y-2">
+            <button
+              onClick={() => navigate(`/audit-log?instance_id=${instance.id}`)}
+              className="w-full px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted"
+            >
+              View Logs
+            </button>
+            <button
+              onClick={() => navigate('/schedules')}
+              className="w-full px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted"
+            >
+              Configure Schedule
+            </button>
+            <button
+              onClick={handleCollectMetrics}
+              disabled={collecting}
+              className="w-full px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+              title={collecting ? 'Collecting metrics...' : 'Click to test metrics connection'}
+            >
+              {collecting ? 'Collecting...' : 'Test Metrics'}
+            </button>
+            <button
+              onClick={() => navigate('/instances')}
+              className="w-full px-4 py-2 text-sm font-medium text-red-400 bg-card border border-red-500/30 rounded-lg hover:bg-red-500/10"
+            >
+              Delete Instance
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Metrics History - Full Width */}
+      {id && (
+        <div className="bg-card shadow-sm border border-border rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Metrics History</h2>
+          <MetricsChart instanceId={id} />
+        </div>
+      )}
       
       <MetricModal metrics={metricsForModal} />
     </div>
