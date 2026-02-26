@@ -11,6 +11,12 @@ import (
 	"snoozeql/internal/store"
 )
 
+const (
+	backfillStartupDelay = 7 * time.Minute // Wait before first backfill
+	backfillInterval     = 1 * time.Hour   // Then hourly
+	backfillDays         = 3               // 3-day CloudWatch window
+)
+
 // MetricsCollector manages background metric collection from CloudWatch
 type MetricsCollector struct {
 	metricsStore  *MetricsStore
@@ -464,11 +470,53 @@ func (c *MetricsCollector) BackfillMetrics(ctx context.Context, instance models.
 	return hoursBackfilled, nil
 }
 
+// RunHistoricalBackfill runs historical backfill on startup (delayed) + hourly
+// This provides continuous self-healing gap detection for metrics data
+func (c *MetricsCollector) RunHistoricalBackfill(ctx context.Context) {
+	// Wait for startup delay with context awareness
+	select {
+	case <-ctx.Done():
+		log.Println("Historical backfill shutting down before startup")
+		return
+	case <-time.After(backfillStartupDelay):
+		// Continue to backfill
+	}
+
+	log.Println("Starting initial historical backfill...")
+
+	// Run immediately after delay
+	if err := c.runHistoricalBackfill(ctx); err != nil {
+		log.Printf("Initial historical backfill failed: %v", err)
+	}
+
+	// Then hourly
+	ticker := time.NewTicker(backfillInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Historical backfill shutting down")
+			return
+		case <-ticker.C:
+			log.Println("Running hourly historical backfill...")
+			if err := c.runHistoricalBackfill(ctx); err != nil {
+				log.Printf("Hourly historical backfill failed: %v", err)
+			}
+		}
+	}
+}
+
 // DetectAndFillGaps checks for missing metric intervals and fills with interpolated data
 // Called once on server startup before continuous collection begins
 // This implementation calls CloudWatch for up to 7 days of historical data and fills gaps
 func (c *MetricsCollector) DetectAndFillGaps(ctx context.Context) error {
-	log.Println("Backfilling metrics data from CloudWatch (up to 7 days)...")
+	return c.runHistoricalBackfill(ctx)
+}
+
+// runHistoricalBackfill performs a single backfill cycle for 3-day window
+func (c *MetricsCollector) runHistoricalBackfill(ctx context.Context) error {
+	log.Println("Backfilling metrics data from CloudWatch (3-day window)...")
 
 	instances, err := c.instanceStore.ListInstances(ctx)
 	if err != nil {
@@ -490,19 +538,19 @@ func (c *MetricsCollector) DetectAndFillGaps(ctx context.Context) error {
 			continue
 		}
 
-		// Determine the start time: 7 days ago or since last metric, whichever is more recent
+		// Determine the start time: 3 days ago or since last metric, whichever is more recent
 		var startTime time.Time
 
 		if lastTime, exists := latestTimes[instance.ID]; exists {
 			// Use last recorded time + 5 minutes as start (skip existing last record)
 			startTime = lastTime.Add(MetricPeriod)
 		} else {
-			// No previous data, go back 7 days
-			startTime = time.Now().UTC().Add(-7 * 24 * time.Hour)
+			// No previous data, go back backfillDays
+			startTime = time.Now().UTC().Add(-backfillDays * 24 * time.Hour)
 		}
 
-		// Cap start time at 7 days ago maximum
-		maxLookback := time.Now().UTC().Add(-7 * 24 * time.Hour)
+		// Cap start time at backfillDays ago maximum
+		maxLookback := time.Now().UTC().Add(-backfillDays * 24 * time.Hour)
 		if startTime.Before(maxLookback) {
 			startTime = maxLookback
 		}
