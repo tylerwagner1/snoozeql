@@ -64,6 +64,16 @@ type MetricValue struct {
 	Min float64
 }
 
+// RDSMetricDatapoint holds metrics for a single 5-minute interval
+type RDSMetricDatapoint struct {
+	Timestamp   time.Time
+	CPU         *MetricValue
+	Connections *MetricValue
+	ReadIOPS    *MetricValue
+	WriteIOPS   *MetricValue
+	FreeMemory  *MetricValue
+}
+
 // GetRDSMetrics fetches all relevant metrics for an RDS instance
 // Returns metrics for the last hour, aggregated
 // Returns an error if ALL metrics fail to fetch (no data available from CloudWatch)
@@ -222,6 +232,141 @@ func (c *CloudWatchClient) getMetric(ctx context.Context, dbInstanceID, metricNa
 		Max: aws.ToFloat64(dp.Maximum),
 		Min: aws.ToFloat64(dp.Minimum),
 	}, nil
+}
+
+// getMetricMultiple fetches all CloudWatch datapoints for a metric within a time range
+// Returns all datapoints (not just the most recent) for use with 5-minute periods
+func (c *CloudWatchClient) getMetricMultiple(ctx context.Context, dbInstanceID, metricName string, start, end time.Time) ([]MetricValue, error) {
+	input := &cloudwatch.GetMetricStatisticsInput{
+		Namespace:  aws.String("AWS/RDS"),
+		MetricName: aws.String(metricName),
+		Dimensions: []types.Dimension{
+			{
+				Name:  aws.String("DBInstanceIdentifier"),
+				Value: aws.String(dbInstanceID),
+			},
+		},
+		StartTime: aws.Time(start),
+		EndTime:   aws.Time(end),
+		Period:    aws.Int32(300), // 5 minutes
+		Statistics: []types.Statistic{
+			types.StatisticAverage,
+			types.StatisticMaximum,
+			types.StatisticMinimum,
+		},
+	}
+
+	output, err := c.client.GetMetricStatistics(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("GetMetricStatistics failed for %s: %w", metricName, err)
+	}
+
+	if len(output.Datapoints) == 0 {
+		return nil, fmt.Errorf("no datapoints for %s", metricName)
+	}
+
+	// Return all datapoints sorted by timestamp
+	var datapoints []MetricValue
+	for _, dp := range output.Datapoints {
+		datapoints = append(datapoints, MetricValue{
+			Avg: aws.ToFloat64(dp.Average),
+			Max: aws.ToFloat64(dp.Maximum),
+			Min: aws.ToFloat64(dp.Minimum),
+		})
+	}
+
+	// Sort by timestamp ascending
+	for i := 0; i < len(datapoints); i++ {
+		for j := i + 1; j < len(datapoints); j++ {
+			if output.Datapoints[i].Timestamp.Before(*output.Datapoints[j].Timestamp) {
+				output.Datapoints[i], output.Datapoints[j] = output.Datapoints[j], output.Datapoints[i]
+				datapoints[i], datapoints[j] = datapoints[j], datapoints[i]
+			}
+		}
+	}
+
+	return datapoints, nil
+}
+
+// GetRDSMetricsMultiple fetches all relevant metrics for an RDS instance over a time range
+// Returns multiple datapoints at 5-minute intervals (Period=300)
+// For a 15-minute window, returns up to 3 datapoints
+func (c *CloudWatchClient) GetRDSMetricsMultiple(ctx context.Context, dbInstanceID string, start, end time.Time) ([]RDSMetricDatapoint, error) {
+	log.Printf("DEBUG: GetRDSMetricsMultiple fetching 5-minute metrics for %s from %s to %s",
+		dbInstanceID, start.Format(time.RFC3339), end.Format(time.RFC3339))
+
+	var allDatapoints []RDSMetricDatapoint
+
+	// Fetch each metric type and collect all datapoints by timestamp
+	metricNames := []string{
+		models.MetricCPUUtilization,
+		models.MetricDatabaseConnections,
+		models.MetricReadIOPS,
+		models.MetricWriteIOPS,
+		models.MetricFreeableMemory,
+	}
+
+	// Store datapoints by timestamp for each metric
+	metricData := make(map[string][]MetricValue)
+
+	// Fetch each metric type
+	for _, metricName := range metricNames {
+		dp, err := c.getMetricMultiple(ctx, dbInstanceID, metricName, start, end)
+		if err != nil {
+			log.Printf("CloudWatch: no datapoints for %s - checking if this is expected", metricName)
+			continue
+		}
+		metricData[metricName] = dp
+	}
+
+	// Merge all datapoints by timestamp
+	// First, iterate through CPU datapoints (most reliable) and build the base
+	if cpus, ok := metricData[models.MetricCPUUtilization]; ok {
+		for _, cpu := range cpus {
+			dp := &RDSMetricDatapoint{}
+			dp.CPU = &cpu
+			allDatapoints = append(allDatapoints, *dp)
+		}
+	}
+
+	// Now merge other metrics into existing datapoints
+	if conns, ok := metricData[models.MetricDatabaseConnections]; ok {
+		for i, conn := range conns {
+			if i < len(allDatapoints) {
+				allDatapoints[i].Connections = &conn
+			}
+		}
+	}
+
+	if readIOPS, ok := metricData[models.MetricReadIOPS]; ok {
+		for i, v := range readIOPS {
+			if i < len(allDatapoints) {
+				allDatapoints[i].ReadIOPS = &v
+			}
+		}
+	}
+
+	if writeIOPS, ok := metricData[models.MetricWriteIOPS]; ok {
+		for i, v := range writeIOPS {
+			if i < len(allDatapoints) {
+				allDatapoints[i].WriteIOPS = &v
+			}
+		}
+	}
+
+	if freeMem, ok := metricData[models.MetricFreeableMemory]; ok {
+		for i, v := range freeMem {
+			if i < len(allDatapoints) {
+				allDatapoints[i].FreeMemory = &v
+			}
+		}
+	}
+
+	if len(allDatapoints) == 0 {
+		return nil, fmt.Errorf("no CloudWatch datapoints available for instance %s across all metrics", dbInstanceID)
+	}
+
+	return allDatapoints, nil
 }
 
 // isRetryableError checks if an error is transient and should be retried
