@@ -133,8 +133,10 @@ Tab-specific UI changes needed per user request. Plan will require:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 17-01-PLAN.md — High-resolution CloudWatch collection (Period=300, 3 datapoints/cycle)
+- [x] 17-01-PLAN.md — High-resolution CloudWatch collection (Period=300, 3 datapoints/cycle)
 - [ ] 17-02-PLAN.md — Gap detection and interpolation on startup
+
+**Delivered:** 5-minute CloudWatch collection with GetRDSMetricsMultiple method, MetricPeriod constant, 3 datapoints per 15-min cycle, storeZeroMetrics with 3 zero entries.
 
 **Details:**
 Enhance metrics collection for higher granularity and data continuity:
@@ -158,9 +160,9 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 14. Grouped Recommendations | 2/2 | Complete | 2026-02-25 |
 | 15. UI Polish & Cleanup | 1/1 | Complete | 2026-02-25 |
 | 16. UI Changes Per Tab | 0/0 | Not started | - |
-| 17. Enhanced Metrics & Data Collection | 0/2 | Not started | - |
+| 17. Enhanced Metrics & Data Collection | 1/2 | In Progress | 2026-02-26 |
 
 ---
 
 *Roadmap created: 2026-02-24*
-*Last updated: 2026-02-25 - v1.2 Metrics & Recommendations complete, Phase 17 added*
+*Last updated: 2026-02-26 - Phase 17-01 complete, 5-minute CloudWatch collection implemented*
