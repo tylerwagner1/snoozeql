@@ -70,14 +70,16 @@ export function MetricsChart({ instanceId }: MetricsChartProps) {
   })
 
   // Filter data for active metric and convert to timestamp
+  // Handle both HourlyMetric (has hour field) and MinuteMetric (has minute field)
   const chartData = useMemo(() => {
     if (!data) return []
     return data
       .filter((m: { metric_name: string }) => m.metric_name === metricNameMap[activeTab])
-      .map((m: { hour: string; avg_value: number }) => ({
-        timestamp: new Date(m.hour).getTime(),
+      .map((m: { hour?: string; minute?: string; avg_value: number }) => ({
+        timestamp: m.minute ? new Date(m.minute).getTime() : (m.hour ? new Date(m.hour).getTime() : 0),
         value: m.avg_value,
       }))
+      .filter((d) => d.timestamp > 0) // Filter out invalid timestamps
       .sort((a, b) => a.timestamp - b.timestamp)
   }, [data, activeTab])
 

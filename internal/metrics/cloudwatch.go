@@ -234,9 +234,17 @@ func (c *CloudWatchClient) getMetric(ctx context.Context, dbInstanceID, metricNa
 	}, nil
 }
 
+// MetricValueWithTimestamp holds a metric's statistics along with its timestamp
+type MetricValueWithTimestamp struct {
+	Timestamp time.Time
+	Avg       float64
+	Max       float64
+	Min       float64
+}
+
 // getMetricMultiple fetches all CloudWatch datapoints for a metric within a time range
 // Returns all datapoints (not just the most recent) for use with 5-minute periods
-func (c *CloudWatchClient) getMetricMultiple(ctx context.Context, dbInstanceID, metricName string, start, end time.Time) ([]MetricValue, error) {
+func (c *CloudWatchClient) getMetricMultiple(ctx context.Context, dbInstanceID, metricName string, start, end time.Time) ([]MetricValueWithTimestamp, error) {
 	input := &cloudwatch.GetMetricStatisticsInput{
 		Namespace:  aws.String("AWS/RDS"),
 		MetricName: aws.String(metricName),
@@ -266,20 +274,20 @@ func (c *CloudWatchClient) getMetricMultiple(ctx context.Context, dbInstanceID, 
 	}
 
 	// Return all datapoints sorted by timestamp
-	var datapoints []MetricValue
+	var datapoints []MetricValueWithTimestamp
 	for _, dp := range output.Datapoints {
-		datapoints = append(datapoints, MetricValue{
-			Avg: aws.ToFloat64(dp.Average),
-			Max: aws.ToFloat64(dp.Maximum),
-			Min: aws.ToFloat64(dp.Minimum),
+		datapoints = append(datapoints, MetricValueWithTimestamp{
+			Timestamp: *dp.Timestamp,
+			Avg:       aws.ToFloat64(dp.Average),
+			Max:       aws.ToFloat64(dp.Maximum),
+			Min:       aws.ToFloat64(dp.Minimum),
 		})
 	}
 
-	// Sort by timestamp ascending
+	// Sort by timestamp ascending (already in order from CloudWatch, but ensure it)
 	for i := 0; i < len(datapoints); i++ {
 		for j := i + 1; j < len(datapoints); j++ {
-			if output.Datapoints[i].Timestamp.Before(*output.Datapoints[j].Timestamp) {
-				output.Datapoints[i], output.Datapoints[j] = output.Datapoints[j], output.Datapoints[i]
+			if datapoints[i].Timestamp.Before(datapoints[j].Timestamp) {
 				datapoints[i], datapoints[j] = datapoints[j], datapoints[i]
 			}
 		}
@@ -307,7 +315,7 @@ func (c *CloudWatchClient) GetRDSMetricsMultiple(ctx context.Context, dbInstance
 	}
 
 	// Store datapoints by timestamp for each metric
-	metricData := make(map[string][]MetricValue)
+	metricData := make(map[string][]MetricValueWithTimestamp)
 
 	// Fetch each metric type
 	for _, metricName := range metricNames {
@@ -323,8 +331,10 @@ func (c *CloudWatchClient) GetRDSMetricsMultiple(ctx context.Context, dbInstance
 	// First, iterate through CPU datapoints (most reliable) and build the base
 	if cpus, ok := metricData[models.MetricCPUUtilization]; ok {
 		for _, cpu := range cpus {
-			dp := &RDSMetricDatapoint{}
-			dp.CPU = &cpu
+			dp := &RDSMetricDatapoint{
+				Timestamp: cpu.Timestamp,
+			}
+			dp.CPU = &MetricValue{Avg: cpu.Avg, Max: cpu.Max, Min: cpu.Min}
 			allDatapoints = append(allDatapoints, *dp)
 		}
 	}
@@ -333,7 +343,7 @@ func (c *CloudWatchClient) GetRDSMetricsMultiple(ctx context.Context, dbInstance
 	if conns, ok := metricData[models.MetricDatabaseConnections]; ok {
 		for i, conn := range conns {
 			if i < len(allDatapoints) {
-				allDatapoints[i].Connections = &conn
+				allDatapoints[i].Connections = &MetricValue{Avg: conn.Avg, Max: conn.Max, Min: conn.Min}
 			}
 		}
 	}
@@ -341,7 +351,7 @@ func (c *CloudWatchClient) GetRDSMetricsMultiple(ctx context.Context, dbInstance
 	if readIOPS, ok := metricData[models.MetricReadIOPS]; ok {
 		for i, v := range readIOPS {
 			if i < len(allDatapoints) {
-				allDatapoints[i].ReadIOPS = &v
+				allDatapoints[i].ReadIOPS = &MetricValue{Avg: v.Avg, Max: v.Max, Min: v.Min}
 			}
 		}
 	}
@@ -349,7 +359,7 @@ func (c *CloudWatchClient) GetRDSMetricsMultiple(ctx context.Context, dbInstance
 	if writeIOPS, ok := metricData[models.MetricWriteIOPS]; ok {
 		for i, v := range writeIOPS {
 			if i < len(allDatapoints) {
-				allDatapoints[i].WriteIOPS = &v
+				allDatapoints[i].WriteIOPS = &MetricValue{Avg: v.Avg, Max: v.Max, Min: v.Min}
 			}
 		}
 	}
@@ -357,7 +367,7 @@ func (c *CloudWatchClient) GetRDSMetricsMultiple(ctx context.Context, dbInstance
 	if freeMem, ok := metricData[models.MetricFreeableMemory]; ok {
 		for i, v := range freeMem {
 			if i < len(allDatapoints) {
-				allDatapoints[i].FreeMemory = &v
+				allDatapoints[i].FreeMemory = &MetricValue{Avg: v.Avg, Max: v.Max, Min: v.Min}
 			}
 		}
 	}

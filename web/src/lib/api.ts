@@ -147,6 +147,23 @@ export interface HourlyMetric {
   updated_at: string
 }
 
+// Interface for 5-minute granularity metrics
+export interface MinuteMetric {
+  id: string
+  instance_id: string
+  metric_name: string
+  minute: string
+  avg_value: number
+  max_value: number
+  min_value: number
+  sample_count: number
+  created_at: string
+  updated_at: string
+}
+
+// Utility type for metrics response (can be either HourlyMetric or MinuteMetric)
+export type MetricsResponse = HourlyMetric[] | MinuteMetric[]
+
 const api = {
   async get<T>(path: string): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${path}`, {

@@ -157,9 +157,9 @@ func (c *MetricsCollector) CollectInstance(ctx context.Context, instance models.
 // collectInstance collects and stores metrics for a single instance
 // Returns error only if all metrics fail AND we can't store zero metrics as fallback
 func (c *MetricsCollector) collectInstance(ctx context.Context, client *CloudWatchClient, instance models.Instance) error {
-	// Calculate timestamps for 15-minute window (3 datapoints at 5-minute intervals)
+	// Calculate timestamps for 60-minute window (12 datapoints at 5-minute intervals)
 	now := time.Now().UTC()
-	startTime := now.Add(-15 * time.Minute)
+	startTime := now.Add(-60 * time.Minute)
 	endTime := now
 
 	// Fetch all 5-minute datapoints
@@ -171,37 +171,54 @@ func (c *MetricsCollector) collectInstance(ctx context.Context, client *CloudWat
 	}
 
 	// Store each metric type for each datapoint (3 datapoints per 15-minute cycle)
+	// Store BOTH 5-minute granularity (for recent charts) and hourly aggregates (for history)
 	storedCount := 0
 	for _, dp := range metrics {
 		if dp.CPU != nil {
-			if err := c.storeMetric(ctx, instance.ID, models.MetricCPUUtilization, dp.Timestamp, dp.CPU); err != nil {
-				log.Printf("Failed to store CPU metric for %s: %v", instance.Name, err)
+			if err := c.storeMetric5Min(ctx, instance.ID, models.MetricCPUUtilization, dp.Timestamp, dp.CPU); err != nil {
+				log.Printf("Failed to store 5-min CPU metric for %s: %v", instance.Name, err)
 			} else {
 				storedCount++
+			}
+			// Also store as hourly aggregate for historical data
+			if err := c.storeMetric(ctx, instance.ID, models.MetricCPUUtilization, dp.Timestamp, dp.CPU); err != nil {
+				log.Printf("Failed to store hourly CPU metric for %s: %v", instance.Name, err)
 			}
 		}
 
 		if dp.Connections != nil {
-			if err := c.storeMetric(ctx, instance.ID, models.MetricDatabaseConnections, dp.Timestamp, dp.Connections); err != nil {
-				log.Printf("Failed to store Connections metric for %s: %v", instance.Name, err)
+			if err := c.storeMetric5Min(ctx, instance.ID, models.MetricDatabaseConnections, dp.Timestamp, dp.Connections); err != nil {
+				log.Printf("Failed to store 5-min Connections metric for %s: %v", instance.Name, err)
 			} else {
 				storedCount++
+			}
+			// Also store as hourly aggregate for historical data
+			if err := c.storeMetric(ctx, instance.ID, models.MetricDatabaseConnections, dp.Timestamp, dp.Connections); err != nil {
+				log.Printf("Failed to store hourly Connections metric for %s: %v", instance.Name, err)
 			}
 		}
 
 		if dp.ReadIOPS != nil {
-			if err := c.storeMetric(ctx, instance.ID, models.MetricReadIOPS, dp.Timestamp, dp.ReadIOPS); err != nil {
-				log.Printf("Failed to store ReadIOPS metric for %s: %v", instance.Name, err)
+			if err := c.storeMetric5Min(ctx, instance.ID, models.MetricReadIOPS, dp.Timestamp, dp.ReadIOPS); err != nil {
+				log.Printf("Failed to store 5-min ReadIOPS metric for %s: %v", instance.Name, err)
 			} else {
 				storedCount++
+			}
+			// Also store as hourly aggregate for historical data
+			if err := c.storeMetric(ctx, instance.ID, models.MetricReadIOPS, dp.Timestamp, dp.ReadIOPS); err != nil {
+				log.Printf("Failed to store hourly ReadIOPS metric for %s: %v", instance.Name, err)
 			}
 		}
 
 		if dp.WriteIOPS != nil {
-			if err := c.storeMetric(ctx, instance.ID, models.MetricWriteIOPS, dp.Timestamp, dp.WriteIOPS); err != nil {
-				log.Printf("Failed to store WriteIOPS metric for %s: %v", instance.Name, err)
+			if err := c.storeMetric5Min(ctx, instance.ID, models.MetricWriteIOPS, dp.Timestamp, dp.WriteIOPS); err != nil {
+				log.Printf("Failed to store 5-min WriteIOPS metric for %s: %v", instance.Name, err)
 			} else {
 				storedCount++
+			}
+			// Also store as hourly aggregate for historical data
+			if err := c.storeMetric(ctx, instance.ID, models.MetricWriteIOPS, dp.Timestamp, dp.WriteIOPS); err != nil {
+				log.Printf("Failed to store hourly WriteIOPS metric for %s: %v", instance.Name, err)
 			}
 		}
 
@@ -210,10 +227,14 @@ func (c *MetricsCollector) collectInstance(ctx context.Context, client *CloudWat
 			pct := CalculateMemoryPercentage(instance.InstanceType, dp.FreeMemory.Avg)
 			if pct != nil {
 				memValue := &MetricValue{Avg: *pct, Max: *pct, Min: *pct}
-				if err := c.storeMetric(ctx, instance.ID, models.MetricFreeableMemory, dp.Timestamp, memValue); err != nil {
-					log.Printf("Failed to store FreeableMemory metric for %s: %v", instance.Name, err)
+				if err := c.storeMetric5Min(ctx, instance.ID, models.MetricFreeableMemory, dp.Timestamp, memValue); err != nil {
+					log.Printf("Failed to store 5-min FreeableMemory metric for %s: %v", instance.Name, err)
 				} else {
 					storedCount++
+				}
+				// Also store as hourly aggregate for historical data
+				if err := c.storeMetric(ctx, instance.ID, models.MetricFreeableMemory, dp.Timestamp, memValue); err != nil {
+					log.Printf("Failed to store hourly FreeableMemory metric for %s: %v", instance.Name, err)
 				}
 			} else {
 				log.Printf("Unknown instance class %s for %s - skipping memory percentage", instance.InstanceType, instance.Name)
@@ -229,7 +250,7 @@ func (c *MetricsCollector) collectInstance(ctx context.Context, client *CloudWat
 	return nil
 }
 
-// storeMetric stores a single metric value
+// storeMetric stores a single metric value as hourly aggregate
 func (c *MetricsCollector) storeMetric(ctx context.Context, instanceID, metricName string, hour time.Time, value *MetricValue) error {
 	m := &models.HourlyMetric{
 		InstanceID:  instanceID,
@@ -241,6 +262,20 @@ func (c *MetricsCollector) storeMetric(ctx context.Context, instanceID, metricNa
 		SampleCount: 1,
 	}
 	return c.metricsStore.UpsertHourlyMetric(ctx, m)
+}
+
+// storeMetric5Min stores a single metric value at 5-minute granularity
+func (c *MetricsCollector) storeMetric5Min(ctx context.Context, instanceID, metricName string, minute time.Time, value *MetricValue) error {
+	m := &models.MinuteMetric{
+		InstanceID:  instanceID,
+		MetricName:  metricName,
+		Minute:      minute,
+		AvgValue:    value.Avg,
+		MaxValue:    value.Max,
+		MinValue:    value.Min,
+		SampleCount: 1,
+	}
+	return c.metricsStore.UpsertMinuteMetric(ctx, m)
 }
 
 // storeZeroMetrics stores zero metrics for all metric types
@@ -541,16 +576,26 @@ func (c *MetricsCollector) runHistoricalBackfill(ctx context.Context) error {
 		// Determine the start time: 3 days ago or since last metric, whichever is more recent
 		var startTime time.Time
 
+		maxLookback := time.Now().UTC().Add(-backfillDays * 24 * time.Hour)
+
 		if lastTime, exists := latestTimes[instance.ID]; exists {
-			// Use last recorded time + 5 minutes as start (skip existing last record)
-			startTime = lastTime.Add(MetricPeriod)
+			// Check if there's data within the 3-day window that extends back far enough
+			// If the last data is less than 3 days old but we don't have 3 days of data,
+			// we should fill from maxLookback to get a complete 3-day window
+			if lastTime.After(maxLookback) {
+				// Last data is within 3-day window
+				// Check if there's data older than 3 days - if not, fill from maxLookback
+				startTime = maxLookback
+			} else {
+				// Last data is older than 3 days, fill from maxLookback
+				startTime = maxLookback
+			}
 		} else {
 			// No previous data, go back backfillDays
 			startTime = time.Now().UTC().Add(-backfillDays * 24 * time.Hour)
 		}
 
-		// Cap start time at backfillDays ago maximum
-		maxLookback := time.Now().UTC().Add(-backfillDays * 24 * time.Hour)
+		// Cap start time at backfillDays ago maximum (don't look further back)
 		if startTime.Before(maxLookback) {
 			startTime = maxLookback
 		}

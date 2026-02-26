@@ -345,22 +345,12 @@ type DetectedPattern struct {
 	ConfidenceScore float64  `json:"confidence_score"`
 }
 
-// GetInstanceIDs returns all managed instance IDs
+// GetInstanceIDs returns all managed instance UUIDs from the database
 // Used by the API handler to check data sufficiency before generating recommendations
 func (a *Analyzer) GetInstanceIDs(ctx context.Context) ([]string, error) {
-	instances, err := a.provider.ListAllDatabases(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list instances: %w", err)
-	}
-
-	var ids []string
-	for _, instance := range instances {
-		if instance.Managed {
-			ids = append(ids, instance.ID)
-		}
-	}
-
-	return ids, nil
+	// Use the metrics store's GetInstanceIDs to get the correct UUIDs
+	// The provider's ListAllDatabases returns AWS DB instance identifiers, not UUIDs
+	return a.metricsStore.GetInstanceIDs(ctx)
 }
 
 // HasDataSufficient checks if an instance has at least 24 hours of data

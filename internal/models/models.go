@@ -127,6 +127,20 @@ type HourlyMetric struct {
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
+// MinuteMetric represents a 5-minute granularity metric from CloudWatch
+type MinuteMetric struct {
+	ID          string    `json:"id" db:"id"`
+	InstanceID  string    `json:"instance_id" db:"instance_id"`
+	MetricName  string    `json:"metric_name" db:"metric_name"` // CPUUtilization, DatabaseConnections, etc.
+	Minute      time.Time `json:"minute" db:"minute"`           // Truncated to 5-minute boundaries
+	AvgValue    float64   `json:"avg_value" db:"avg_value"`
+	MaxValue    float64   `json:"max_value" db:"max_value"`
+	MinValue    float64   `json:"min_value" db:"min_value"`
+	SampleCount int       `json:"sample_count" db:"sample_count"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
+
 // MetricNames constants for supported CloudWatch metrics
 const (
 	MetricCPUUtilization      = "CPUUtilization"

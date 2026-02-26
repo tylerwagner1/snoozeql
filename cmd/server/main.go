@@ -193,7 +193,7 @@ func main() {
 		metricsStore,
 		instanceStore,
 		accountStore,
-		15, // 15-minute collection interval per CONTEXT.md
+		5, // 5-minute collection interval to support 1-hour view with 12 datapoints
 	)
 
 	// Initialize recommendation analyzer
@@ -695,11 +695,19 @@ func main() {
 					duration = 24 * time.Hour
 				}
 
-				start := time.Now().Add(-duration)
-				end := time.Now()
+				start := time.Now().Add(-duration).Truncate(5 * time.Minute)
+				end := time.Now().Truncate(5 * time.Minute)
 
 				ctx := r.Context()
-				metrics, err := metricsStore.GetMetricsByInstance(ctx, instanceID, start, end)
+
+				// For 1-hour view, return 5-minute granularity data
+				var metrics interface{}
+				var err error
+				if rangeParam == "1h" {
+					metrics, err = metricsStore.GetMinuteMetricsByInstance(ctx, instanceID, start, end)
+				} else {
+					metrics, err = metricsStore.GetMetricsByInstance(ctx, instanceID, start, end)
+				}
 				if err != nil {
 					log.Printf("ERROR: Failed to get metrics history: %v", err)
 					w.Header().Set("Content-Type", "application/json")

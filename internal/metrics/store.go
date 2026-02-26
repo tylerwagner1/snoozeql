@@ -229,3 +229,87 @@ func (s *MetricsStore) GetMetricsAtTime(ctx context.Context, instanceID string, 
 
 	return metrics, nil
 }
+
+// UpsertMinuteMetric inserts or updates a 5-minute metric
+func (s *MetricsStore) UpsertMinuteMetric(ctx context.Context, m *models.MinuteMetric) error {
+	query := `
+        INSERT INTO metrics_5min (instance_id, metric_name, minute, avg_value, max_value, min_value, sample_count)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (instance_id, metric_name, minute) DO UPDATE SET
+            avg_value = (metrics_5min.avg_value * metrics_5min.sample_count + EXCLUDED.avg_value) 
+                        / (metrics_5min.sample_count + 1),
+            max_value = GREATEST(metrics_5min.max_value, EXCLUDED.max_value),
+            min_value = LEAST(metrics_5min.min_value, EXCLUDED.min_value),
+            sample_count = metrics_5min.sample_count + 1,
+            updated_at = NOW()
+        RETURNING id`
+
+	return s.db.QueryRow(ctx, query,
+		m.InstanceID, m.MetricName, m.Minute,
+		m.AvgValue, m.MaxValue, m.MinValue, m.SampleCount,
+	).Scan(&m.ID)
+}
+
+// GetMinuteMetricsByInstance returns 5-minute metrics for an instance within a time range
+func (s *MetricsStore) GetMinuteMetricsByInstance(ctx context.Context, instanceID string, start, end time.Time) ([]models.MinuteMetric, error) {
+	query := `
+        SELECT id, instance_id, metric_name, minute, avg_value, max_value, min_value, sample_count, created_at, updated_at
+        FROM metrics_5min
+        WHERE instance_id = $1 AND minute >= $2 AND minute <= $3
+        ORDER BY minute`
+
+	rows, err := s.db.Query(ctx, query, instanceID, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query minute metrics: %w", err)
+	}
+	defer rows.Close()
+
+	var metrics []models.MinuteMetric
+	for rows.Next() {
+		var m models.MinuteMetric
+		err := rows.Scan(
+			&m.ID, &m.InstanceID, &m.MetricName, &m.Minute,
+			&m.AvgValue, &m.MaxValue, &m.MinValue, &m.SampleCount,
+			&m.CreatedAt, &m.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan metric: %w", err)
+		}
+		metrics = append(metrics, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return metrics, nil
+}
+
+// GetInstanceIDs returns all instance UUIDs that have metrics data
+// Used by the analyzer to identify instances for recommendation generation
+func (s *MetricsStore) GetInstanceIDs(ctx context.Context) ([]string, error) {
+	query := `
+		SELECT DISTINCT instance_id FROM metrics_hourly
+		ORDER BY instance_id`
+
+	rows, err := s.db.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query instance IDs: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan instance ID: %w", err)
+		}
+		ids = append(ids, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return ids, nil
+}

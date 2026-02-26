@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"snoozeql/internal/models"
@@ -34,9 +36,123 @@ func NewPostgres(url string) (*Postgres, error) {
 	return &Postgres{db: conn, url: url}, nil
 }
 
-// Migrate runs database migrations
+// Migrate runs database migrations from a directory
 func (p *Postgres) Migrate(migrationDir string) error {
+	// Get all SQL files in the migration directory
+	entries, err := os.ReadDir(migrationDir)
+	if err != nil {
+		return fmt.Errorf("failed to read migration directory: %w", err)
+	}
+
+	var migrationFiles []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") {
+			migrationFiles = append(migrationFiles, entry.Name())
+		}
+	}
+
+	if len(migrationFiles) == 0 {
+		log.Printf("No migration files found in %s", migrationDir)
+		return nil
+	}
+
+	// Sort files alphabetically
+	sort.Strings(migrationFiles)
+
+	// Track executed migrations
+	executedMigrations, err := p.getExecutedMigrations()
+	if err != nil {
+		return fmt.Errorf("failed to get executed migrations: %w", err)
+	}
+
+	// Run each migration that hasn't been executed yet
+	for _, file := range migrationFiles {
+		// Extract migration name (remove .sql extension)
+		_ = strings.TrimSuffix(file, ".sql")
+
+		// Skip if already executed
+		if executedMigrations[file] {
+			log.Printf("Skipping already executed migration: %s", file)
+			continue
+		}
+
+		// Read migration file
+		content, err := os.ReadFile(fmt.Sprintf("%s/%s", migrationDir, file))
+		if err != nil {
+			return fmt.Errorf("failed to read migration file %s: %w", file, err)
+		}
+
+		// Execute migration
+		log.Printf("Running migration: %s", file)
+		if _, err := p.db.ExecContext(context.Background(), string(content)); err != nil {
+			return fmt.Errorf("failed to execute migration %s: %w", file, err)
+		}
+
+		// Mark migration as executed
+		if err := p.recordMigration(file); err != nil {
+			return fmt.Errorf("failed to record migration %s: %w", file, err)
+		}
+
+		log.Printf("✓ Migration completed: %s", file)
+	}
+
 	return nil
+}
+
+// getExecutedMigrations returns a map of executed migration files
+func (p *Postgres) getExecutedMigrations() (map[string]bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables 
+			WHERE table_name = 'migrations'
+		)
+	`
+
+	var exists bool
+	if err := p.db.QueryRowContext(context.Background(), query).Scan(&exists); err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		// Create migrations table if it doesn't exist
+		_, err := p.db.ExecContext(context.Background(), `
+			CREATE TABLE IF NOT EXISTS migrations (
+				file_name VARCHAR(255) PRIMARY KEY,
+				executed_at TIMESTAMPTZ DEFAULT NOW()
+			)
+		`)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create migrations table: %w", err)
+		}
+		return make(map[string]bool), nil
+	}
+
+	// Get list of executed migrations
+	rows, err := p.db.QueryContext(context.Background(), "SELECT file_name FROM migrations")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	executed := make(map[string]bool)
+	for rows.Next() {
+		var fileName string
+		if err := rows.Scan(&fileName); err != nil {
+			return nil, err
+		}
+		executed[fileName] = true
+	}
+
+	return executed, rows.Err()
+}
+
+// recordMigration records a migration as executed
+func (p *Postgres) recordMigration(fileName string) error {
+	_, err := p.db.ExecContext(context.Background(),
+		"INSERT INTO migrations (file_name) VALUES ($1) ON CONFLICT DO NOTHING",
+		fileName,
+	)
+	return err
 }
 
 // Close closes the database connection
