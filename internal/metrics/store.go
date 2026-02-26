@@ -162,3 +162,70 @@ func (s *MetricsStore) HourHasData(ctx context.Context, instanceID, metricName s
 	}
 	return exists, nil
 }
+
+// GetLatestMetricTimes returns the most recent metric timestamp for each instance
+// Returns map[instanceID]time.Time - batch query to avoid N queries for N instances
+func (s *MetricsStore) GetLatestMetricTimes(ctx context.Context) (map[string]time.Time, error) {
+	query := `
+        SELECT instance_id, MAX(hour) as latest
+        FROM metrics_hourly
+        GROUP BY instance_id`
+
+	rows, err := s.db.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query latest metric times: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]time.Time)
+	for rows.Next() {
+		var instanceID string
+		var latestTime time.Time
+		err := rows.Scan(&instanceID, &latestTime)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		result[instanceID] = latestTime
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return result, nil
+}
+
+// GetMetricsAtTime returns metrics for an instance at a specific timestamp
+// Used to get boundary values for interpolation
+func (s *MetricsStore) GetMetricsAtTime(ctx context.Context, instanceID string, timestamp time.Time) ([]models.HourlyMetric, error) {
+	query := `
+        SELECT id, instance_id, metric_name, hour, avg_value, max_value, min_value, sample_count, created_at, updated_at
+        FROM metrics_hourly
+        WHERE instance_id = $1 AND hour = date_trunc('hour', $2::timestamptz)`
+
+	rows, err := s.db.Query(ctx, query, instanceID, timestamp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query metrics at time: %w", err)
+	}
+	defer rows.Close()
+
+	var metrics []models.HourlyMetric
+	for rows.Next() {
+		var m models.HourlyMetric
+		err := rows.Scan(
+			&m.ID, &m.InstanceID, &m.MetricName, &m.Hour,
+			&m.AvgValue, &m.MaxValue, &m.MinValue, &m.SampleCount,
+			&m.CreatedAt, &m.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan metric: %w", err)
+		}
+		metrics = append(metrics, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return metrics, nil
+}
