@@ -210,14 +210,13 @@ func main() {
 	ctx := context.Background()
 	go discoveryService.RunContinuous(ctx)
 
-	// Gap detection runs synchronously at startup to populate historical data
-	if err := metricsCollector.DetectAndFillGaps(ctx); err != nil {
-		log.Printf("Warning: Gap detection returned error: %v", err)
-	}
-
-	// Start metrics collection in background
+	// Start metrics collection in background (real-time: immediate + every 15 minutes)
 	go metricsCollector.RunContinuous(ctx)
 	log.Printf("✓ Started metrics collector (15-minute interval, 5-minute granularity)")
+
+	// Historical backfill: 7-minute delay + hourly (self-healing gap fill)
+	go metricsCollector.RunHistoricalBackfill(ctx)
+	log.Printf("✓ Started historical backfill (7-min delay, hourly interval, 3-day window)")
 
 	// Start metrics retention cleanup in background
 	retentionCleaner := metrics.NewRetentionCleaner(metricsStore, db)
