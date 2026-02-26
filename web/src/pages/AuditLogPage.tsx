@@ -36,6 +36,8 @@ const AuditLogPage = () => {
 
   const filteredEvents = events.filter(e => {
     if (filter === 'all') return true
+    if (filter === 'sleep') return ['sleep', 'stop'].includes(e.event_type)
+    if (filter === 'wake') return ['wake', 'start'].includes(e.event_type)
     return e.event_type === filter
   })
 
@@ -44,33 +46,36 @@ const AuditLogPage = () => {
     return date.toLocaleString()
   }
 
+  // Helper to check if event is a stop-type event (sleep or stop)
+  const isStopEvent = (eventType: string) => ['sleep', 'stop'].includes(eventType)
+  const isStartEvent = (eventType: string) => ['wake', 'start'].includes(eventType)
+
   const getEventIcon = (eventType: string) => {
-    switch (eventType) {
-      case 'sleep':
-        return (
-          <div className="p-2 bg-yellow-500/10 rounded-lg">
-            <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-            </svg>
-          </div>
-        )
-      case 'wake':
-        return (
-          <div className="p-2 bg-green-500/10 rounded-lg">
-            <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
-        )
-      default:
-        return (
-          <div className="p-2 bg-slate-500/10 rounded-lg">
-            <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        )
+    if (isStopEvent(eventType)) {
+      return (
+        <div className="p-2 bg-yellow-500/10 rounded-lg">
+          <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </div>
+      )
     }
+    if (isStartEvent(eventType)) {
+      return (
+        <div className="p-2 bg-green-500/10 rounded-lg">
+          <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </div>
+      )
+    }
+    return (
+      <div className="p-2 bg-slate-500/10 rounded-lg">
+        <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+    )
   }
 
   if (loading) return <div className="p-8 text-center text-slate-400">Loading audit log...</div>
@@ -141,14 +146,14 @@ const AuditLogPage = () => {
                   {getEventIcon(event.event_type)}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full capitalize ${
-                        event.event_type === 'sleep' 
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                        isStopEvent(event.event_type)
                           ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
-                          : event.event_type === 'wake'
+                          : isStartEvent(event.event_type)
                           ? 'bg-green-500/10 text-green-400 border border-green-500/30'
                           : 'bg-slate-500/10 text-slate-400 border border-slate-500/30'
                       }`}>
-                        {event.event_type}
+                        {isStopEvent(event.event_type) ? 'Sleep' : isStartEvent(event.event_type) ? 'Wake' : event.event_type}
                       </span>
                       <span className="text-xs text-slate-500">
                         {formatDate(event.created_at)}

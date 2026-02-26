@@ -286,9 +286,9 @@ const Dashboard = () => {
                   </div>
                   <div className="flex flex-col items-end">
                     <span className={`text-sm font-medium ${
-                      event.event_type === 'stop' ? 'text-red-400' : 'text-green-400'
+                      ['stop', 'sleep'].includes(event.event_type) ? 'text-red-400' : 'text-green-400'
                     }`}>
-                      {event.event_type === 'stop' ? 'Stopped' : 'Started'}
+                      {['stop', 'sleep'].includes(event.event_type) ? 'Stopped' : 'Started'}
                     </span>
                     <span className="text-xs text-slate-500">
                       {event.previous_status} → {event.new_status}
