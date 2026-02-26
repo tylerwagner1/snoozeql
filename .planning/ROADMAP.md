@@ -113,6 +113,37 @@ Plans:
 Plans:
 - [x] 15-01-PLAN.md — Add navigation active states and remove orphaned code
 
+#### Phase 16: UI Changes Per Tab with Server Restart and Verification
+**Goal**: Address UI inconsistencies per tab and verify changes via server restart
+**Depends on**: Phase 15
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 16 to break down)
+
+**Details:**
+Tab-specific UI changes needed per user request. Plan will require:
+- Tab-by-tab analysis of inconsistencies
+- Fixes for visual issues in each tab
+- Server restart and frontend verification
+
+#### Phase 17: Enhanced Metrics & Data Collection Strategy
+**Goal**: CloudWatch scraped at 5-min intervals, 3 datapoints per 15-min collection, with intelligent gap detection and interpolated backfill
+**Depends on**: Phase 16
+**Plans**: 2 plans
+
+Plans:
+- [ ] 17-01-PLAN.md — High-resolution CloudWatch collection (Period=300, 3 datapoints/cycle)
+- [ ] 17-02-PLAN.md — Gap detection and interpolation on startup
+
+**Details:**
+Enhance metrics collection for higher granularity and data continuity:
+- Change CloudWatch API Period from 3600s to 300s (5-minute intervals)
+- Modify collector to fetch and store 3 datapoints per 15-min cycle
+- Add gap detection on startup to identify missing intervals
+- Create interpolated entries for gaps to maintain timeline continuity
+- Verify: 11am-4pm data + 7pm restart → interpolated entries for 4pm-7pm gap
+
 ## Progress
 
 **Execution Order:**
@@ -126,8 +157,10 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 13. Idle Detection | 1/1 | Complete | 2026-02-25 |
 | 14. Grouped Recommendations | 2/2 | Complete | 2026-02-25 |
 | 15. UI Polish & Cleanup | 1/1 | Complete | 2026-02-25 |
+| 16. UI Changes Per Tab | 0/0 | Not started | - |
+| 17. Enhanced Metrics & Data Collection | 0/2 | Not started | - |
 
 ---
 
 *Roadmap created: 2026-02-24*
-*Last updated: 2026-02-25 - v1.2 Metrics & Recommendations COMPLETE (Phases 10-15)*
+*Last updated: 2026-02-25 - v1.2 Metrics & Recommendations complete, Phase 17 added*
