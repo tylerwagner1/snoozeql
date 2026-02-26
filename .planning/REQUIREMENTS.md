@@ -30,8 +30,8 @@ Requirements for Metrics & Recommendations milestone. Each maps to roadmap phase
 
 ### Data Collection Architecture
 
-- [ ] **DATA-01**: Real-time collection runs every 15 minutes fetching current metrics
-- [ ] **DATA-02**: Historical backfill runs hourly (and on startup with delay) fetching 3-day CloudWatch window
+- [x] **DATA-01**: Real-time collection runs every 15 minutes fetching current metrics
+- [x] **DATA-02**: Historical backfill runs hourly (and on startup with delay) fetching 3-day CloudWatch window
 
 ## Future Requirements
 
@@ -80,8 +80,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REC-01 | Phase 13 | Complete |
 | REC-02 | Phase 14 | Complete |
 | REC-03 | Phase 14 | Complete |
-| DATA-01 | Phase 18 | Pending |
-| DATA-02 | Phase 18 | Pending |
+| DATA-01 | Phase 18 | Complete |
+| DATA-02 | Phase 18 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 12 total
@@ -90,4 +90,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-26 - Phase 18 requirements added (DATA-01, DATA-02 for dual-mode collection)*
+*Last updated: 2026-02-26 - Phase 18 complete (DATA-01, DATA-02 satisfied by dual-mode collection)*
