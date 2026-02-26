@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Activity, Zap, TrendingDown, Clock, Search, Filter, Plus, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api, { Instance, CloudAccount } from '../lib/api'
@@ -59,6 +59,12 @@ const Dashboard = () => {
   const runningCount = filteredInstances.filter(i => i.status === 'available' || i.status === 'running' || i.status === 'starting').length
   const sleepingCount = filteredInstances.filter(i => i.status === 'stopped' || i.status === 'stopping').length
   const pendingActions = groups.reduce((sum, g) => sum + g.instance_count, 0)
+
+  // Create instance name lookup map for events
+  const instanceNameMap = useMemo(() => 
+    new Map(instances.map(i => [i.id, i.name])),
+    [instances]
+  )
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -260,53 +266,55 @@ const Dashboard = () => {
 
       <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700">
         <h2 className="text-lg font-semibold text-white mb-4">Recent Activity</h2>
-        {events.length > 0 ? (
-          <div className="space-y-4">
-            {events.map((event, i) => (
-              <div key={i} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0 hover:bg-slate-800/50 px-2 rounded transition-colors">
-                <div className="flex items-center space-x-3">
-                  <span className="text-sm text-slate-400 w-20">
-                    {new Date(event.created_at).toLocaleString()}
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="text-sm text-slate-200 font-medium">
-                      {event.instance_id}
+        <div className="max-h-80 overflow-y-auto">
+          {events.length > 0 ? (
+            <div className="space-y-4">
+              {events.map((event, i) => (
+                <div key={i} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0 hover:bg-slate-800/50 px-2 rounded transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm text-slate-400 w-20">
+                      {new Date(event.created_at).toLocaleString()}
+                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-sm text-slate-200 font-medium">
+                        {instanceNameMap.get(event.instance_id) || event.instance_id.slice(0, 8) + '...'}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        by {event.triggered_by === 'manual' ? 'User' : event.triggered_by}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className={`text-sm font-medium ${
+                      event.event_type === 'stop' ? 'text-red-400' : 'text-green-400'
+                    }`}>
+                      {event.event_type === 'stop' ? 'Stopped' : 'Started'}
                     </span>
                     <span className="text-xs text-slate-500">
-                      by {event.triggered_by === 'manual' ? 'User' : event.triggered_by}
+                      {event.previous_status} → {event.new_status}
                     </span>
                   </div>
                 </div>
-                <div className="flex flex-col items-end">
-                  <span className={`text-sm font-medium ${
-                    event.event_type === 'stop' ? 'text-red-400' : 'text-green-400'
-                  }`}>
-                    {event.event_type === 'stop' ? 'Stopped' : 'Started'}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {event.previous_status} → {event.new_status}
-                  </span>
+              ))}
+            </div>
+          ) : instances.length > 0 ? (
+            <div className="space-y-4">
+              {instances.slice(0, 4).map((instance, i) => (
+                <div key={i} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0 hover:bg-slate-800/50 px-2 rounded transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm text-slate-400 w-20">No activity yet</span>
+                    <span className="text-sm text-slate-200 font-medium">{instance.name} ({instance.engine})</span>
+                  </div>
+                  <span className="text-sm text-slate-500">${(instance.hourly_cost_cents / 100).toFixed(2)}/hr</span>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : instances.length > 0 ? (
-          <div className="space-y-4">
-            {instances.slice(0, 4).map((instance, i) => (
-              <div key={i} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0 hover:bg-slate-800/50 px-2 rounded transition-colors">
-                <div className="flex items-center space-x-3">
-                  <span className="text-sm text-slate-400 w-20">No activity yet</span>
-                  <span className="text-sm text-slate-200 font-medium">{instance.name} ({instance.engine})</span>
-                </div>
-                <span className="text-sm text-slate-500">${(instance.hourly_cost_cents / 100).toFixed(2)}/hr</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-sm text-slate-400">No instances discovered yet</p>
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-sm text-slate-400">No instances discovered yet</p>
+            </div>
+          )}
+        </div>
       </div>
 
 

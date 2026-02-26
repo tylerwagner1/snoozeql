@@ -1,18 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import api from '../lib/api'
-import type { Event } from '../lib/api'
+import type { Event, Instance } from '../lib/api'
 
 const AuditLogPage = () => {
   const [events, setEvents] = useState<Event[]>([])
+  const [instances, setInstances] = useState<Instance[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'sleep' | 'wake'>('all')
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchData = async () => {
       try {
-        const data = await api.getEvents(100)
-        setEvents(data || [])
+        const [eventsData, instancesData] = await Promise.all([
+          api.getEvents(100),
+          api.getInstances()
+        ])
+        setEvents(eventsData || [])
+        setInstances(instancesData || [])
       } catch (err) {
         setError('Failed to load audit log')
         console.error(err)
@@ -20,8 +25,14 @@ const AuditLogPage = () => {
         setLoading(false)
       }
     }
-    fetchEvents()
+    fetchData()
   }, [])
+
+  // Create instance name lookup map
+  const instanceNameMap = useMemo(() => 
+    new Map(instances.map(i => [i.id, i.name])),
+    [instances]
+  )
 
   const filteredEvents = events.filter(e => {
     if (filter === 'all') return true
@@ -144,7 +155,7 @@ const AuditLogPage = () => {
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-slate-300">
-                      Instance <span className="font-mono text-blue-400">{event.instance_id.slice(0, 8)}...</span>
+                      Instance <span className="font-medium text-blue-400">{instanceNameMap.get(event.instance_id) || event.instance_id.slice(0, 8) + '...'}</span>
                       {' '}changed from{' '}
                       <span className="font-medium text-slate-200">{event.previous_status}</span>
                       {' '}to{' '}
