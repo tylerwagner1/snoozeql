@@ -151,60 +151,67 @@ func (c *MetricsCollector) CollectInstance(ctx context.Context, instance models.
 // collectInstance collects and stores metrics for a single instance
 // Returns error only if all metrics fail AND we can't store zero metrics as fallback
 func (c *MetricsCollector) collectInstance(ctx context.Context, client *CloudWatchClient, instance models.Instance) error {
-	// ProviderID is the DBInstanceIdentifier for RDS
-	metrics, err := client.GetRDSMetrics(ctx, instance.ProviderID)
+	// Calculate timestamps for 15-minute window (3 datapoints at 5-minute intervals)
+	now := time.Now().UTC()
+	startTime := now.Add(-15 * time.Minute)
+	endTime := now
+
+	// Fetch all 5-minute datapoints
+	metrics, err := client.GetRDSMetricsMultiple(ctx, instance.ProviderID, startTime, endTime)
 	if err != nil {
 		log.Printf("CloudWatch unavailable for %s: %v - storing zero metrics as fallback", instance.Name, err)
 		// Store zero metrics as fallback when CloudWatch is unavailable
 		return c.storeZeroMetrics(ctx, instance)
 	}
 
-	// Store each metric type
+	// Store each metric type for each datapoint (3 datapoints per 15-minute cycle)
 	storedCount := 0
-	if metrics.CPU != nil {
-		if err := c.storeMetric(ctx, instance.ID, models.MetricCPUUtilization, metrics.Timestamp, metrics.CPU); err != nil {
-			log.Printf("Failed to store CPU metric for %s: %v", instance.Name, err)
-		} else {
-			storedCount++
-		}
-	}
-
-	if metrics.Connections != nil {
-		if err := c.storeMetric(ctx, instance.ID, models.MetricDatabaseConnections, metrics.Timestamp, metrics.Connections); err != nil {
-			log.Printf("Failed to store Connections metric for %s: %v", instance.Name, err)
-		} else {
-			storedCount++
-		}
-	}
-
-	if metrics.ReadIOPS != nil {
-		if err := c.storeMetric(ctx, instance.ID, models.MetricReadIOPS, metrics.Timestamp, metrics.ReadIOPS); err != nil {
-			log.Printf("Failed to store ReadIOPS metric for %s: %v", instance.Name, err)
-		} else {
-			storedCount++
-		}
-	}
-
-	if metrics.WriteIOPS != nil {
-		if err := c.storeMetric(ctx, instance.ID, models.MetricWriteIOPS, metrics.Timestamp, metrics.WriteIOPS); err != nil {
-			log.Printf("Failed to store WriteIOPS metric for %s: %v", instance.Name, err)
-		} else {
-			storedCount++
-		}
-	}
-
-	if metrics.FreeMemory != nil {
-		// Calculate memory percentage from bytes
-		pct := CalculateMemoryPercentage(instance.InstanceType, metrics.FreeMemory.Avg)
-		if pct != nil {
-			memValue := &MetricValue{Avg: *pct, Max: *pct, Min: *pct}
-			if err := c.storeMetric(ctx, instance.ID, models.MetricFreeableMemory, metrics.Timestamp, memValue); err != nil {
-				log.Printf("Failed to store FreeableMemory metric for %s: %v", instance.Name, err)
+	for _, dp := range metrics {
+		if dp.CPU != nil {
+			if err := c.storeMetric(ctx, instance.ID, models.MetricCPUUtilization, dp.Timestamp, dp.CPU); err != nil {
+				log.Printf("Failed to store CPU metric for %s: %v", instance.Name, err)
 			} else {
 				storedCount++
 			}
-		} else {
-			log.Printf("Unknown instance class %s for %s - skipping memory percentage", instance.InstanceType, instance.Name)
+		}
+
+		if dp.Connections != nil {
+			if err := c.storeMetric(ctx, instance.ID, models.MetricDatabaseConnections, dp.Timestamp, dp.Connections); err != nil {
+				log.Printf("Failed to store Connections metric for %s: %v", instance.Name, err)
+			} else {
+				storedCount++
+			}
+		}
+
+		if dp.ReadIOPS != nil {
+			if err := c.storeMetric(ctx, instance.ID, models.MetricReadIOPS, dp.Timestamp, dp.ReadIOPS); err != nil {
+				log.Printf("Failed to store ReadIOPS metric for %s: %v", instance.Name, err)
+			} else {
+				storedCount++
+			}
+		}
+
+		if dp.WriteIOPS != nil {
+			if err := c.storeMetric(ctx, instance.ID, models.MetricWriteIOPS, dp.Timestamp, dp.WriteIOPS); err != nil {
+				log.Printf("Failed to store WriteIOPS metric for %s: %v", instance.Name, err)
+			} else {
+				storedCount++
+			}
+		}
+
+		if dp.FreeMemory != nil {
+			// Calculate memory percentage from bytes
+			pct := CalculateMemoryPercentage(instance.InstanceType, dp.FreeMemory.Avg)
+			if pct != nil {
+				memValue := &MetricValue{Avg: *pct, Max: *pct, Min: *pct}
+				if err := c.storeMetric(ctx, instance.ID, models.MetricFreeableMemory, dp.Timestamp, memValue); err != nil {
+					log.Printf("Failed to store FreeableMemory metric for %s: %v", instance.Name, err)
+				} else {
+					storedCount++
+				}
+			} else {
+				log.Printf("Unknown instance class %s for %s - skipping memory percentage", instance.InstanceType, instance.Name)
+			}
 		}
 	}
 
@@ -232,17 +239,24 @@ func (c *MetricsCollector) storeMetric(ctx context.Context, instanceID, metricNa
 
 // storeZeroMetrics stores zero metrics for all metric types
 // Used for stopped instances to show "asleep" state
+// Generates 3 zero entries for current 15-minute window (one per 5-minute interval)
 func (c *MetricsCollector) storeZeroMetrics(ctx context.Context, instance models.Instance) error {
 	zeroValue := &MetricValue{Avg: 0, Max: 0, Min: 0}
-	timestamp := time.Now().UTC().Truncate(time.Hour)
+	now := time.Now().UTC()
+	const fiveMinute = 5 * time.Minute
 
-	for _, metricName := range []string{
-		models.MetricCPUUtilization,
-		models.MetricDatabaseConnections,
-		models.MetricFreeableMemory,
-	} {
-		if err := c.storeMetric(ctx, instance.ID, metricName, timestamp, zeroValue); err != nil {
-			return fmt.Errorf("failed to store zero %s: %w", metricName, err)
+	for i := 0; i < 3; i++ {
+		// Timestamps at 5-minute intervals going backward
+		timestamp := now.Truncate(fiveMinute).Add(-time.Duration(i*5) * time.Minute)
+
+		for _, metricName := range []string{
+			models.MetricCPUUtilization,
+			models.MetricDatabaseConnections,
+			models.MetricFreeableMemory,
+		} {
+			if err := c.storeMetric(ctx, instance.ID, metricName, timestamp, zeroValue); err != nil {
+				return fmt.Errorf("failed to store zero %s: %w", metricName, err)
+			}
 		}
 	}
 	return nil
