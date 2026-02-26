@@ -10,14 +10,14 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 ## Current Position
 
-Phase: Quick Tasks (separate from Phases 1-15)
-Plan: quick-003-01 (Metrics Backfill Implementation)
+Phase: 17 of 17 (Enhanced Metrics & Data Collection Strategy)
+Plan: 01 of 2 in current phase
 Status: In Progress
-Last activity: 2026-02-26 — Completed quick-003-01 plan (BackfillMetrics method + API endpoint)
+Last activity: 2026-02-26 — Completed 17-01-PLAN.md (5-minute CloudWatch collection)
 
-Progress: [████████████████████████████████████] 100% (9/9 plans) + [████████░░] 1/3 quick tasks
+Progress: [████████████████████████████████████] 100% (35/35 total) + [█░░░░░░░░░] 1/2 Phase 17 plans
 
-**Next Action:** quick-003-01 complete, ready for v1.2 release
+**Next Action:** Ready for 17-02-PLAN.md (gap detection and interpolation)
 
 ## Quick Tasks Completed
 
@@ -175,9 +175,14 @@ Tech debt from savings removal fully cleaned up in Phase 15-01:
 
 Migration files kept for history.
 
+### Roadmap Evolution
+
+- Phase 17 added: Enhanced Metrics & Data Collection Strategy (5-min CloudWatch intervals, 3 datapoints/collection, interpolated gap backfill)
+- Phase 17-01 complete (2026-02-26): 5-minute CloudWatch collection with GetRDSMetricsMultiple, MetricPeriod constant, 3 datapoints per 15-min cycle
+
 ## Blockers/Concerns
 
-None — v1.2 complete.
+None — Phase 17-01 complete, ready for gap detection (17-02).
 
 ## Decisions
 
@@ -186,13 +191,16 @@ None — v1.2 complete.
 | 15-01 | Navigation active states use bg-blue-500/30 text-blue-400 for most links, bg-purple-500/30 text-purple-400 for Accounts | Visual distinction between navigation items |
 | 15-01 | Active path matching: exact for /, prefix for others | Simple and intuitive matching strategy |
 | 15-01 | formatters.ts and Saving struct removal | Orphaned code from Phase 9 savings feature removal |
+| 17-01 | MetricPeriod = 5 * time.Minute with TruncateToMetricPeriod helper | Consistent timestamp truncation for 5-minute granularity |
+| 17-01 | Truncate timestamps in Go, SQL as-is | Maintain backward compatibility with existing UpsertHourlyMetric |
+| 17-01 | storeZeroMetrics generates 3 entries (one per 5-min interval) | Match 15-minute collection window for stopped instances |
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: quick-003-01 COMPLETE (BackfillMetrics method, API endpoint, summary created)
+Stopped at: 17-01-PLAN.md COMPLETE (5-minute CloudWatch collection, MetricPeriod constant, 3 datapoints/cycle)
 Resume file: None
 
 ---
 
-*Last updated: 2026-02-26 - quick-003-01 COMPLETE (Metrics Backfill Implementation)*
+*Last updated: 2026-02-26 - Phase 17-01 complete*
