@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.54.0
 	github.com/aws/aws-sdk-go-v2/service/rds v1.116.0
 	github.com/go-chi/chi/v5 v5.2.0
+	github.com/gorhill/cronexpr v0.0.0-20180427100037-88b0669f7d75
 	github.com/jackc/pgx/v5 v5.8.0
 	google.golang.org/api v0.267.0
 )
