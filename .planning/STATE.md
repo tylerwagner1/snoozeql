@@ -13,11 +13,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 Phase: 18 of 18 (Dual-Mode Data Collection)
 Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-27 — Completed quick-007: Recommendations table display
+Last activity: 2026-02-27 — Completed quick-008: Exclude instances with existing schedules
 
-Progress: [████████████████████████████████████] 100% (38/38 plans through Phase 18)
+Progress: [████████████████████████████████████] 100% (39/39 plans through Phase 18)
 
-**Next Action:** Quick task 007 complete - table-based recommendations display. Ready for next quick task.
+**Next Action:** Quick task 008 complete - filtering applied. Ready for next quick task.
 
 ## Quick Tasks Completed
 
@@ -31,6 +31,7 @@ Progress: [███████████████████████
 | quick-005-01 | 2026-02-27 | Flip Sleep/Wake order to Wake/Sleep in all UI components |
 | quick-006-01 | 2026-02-27 | Scheduler daemon: CRON evaluation with cronexpr, one-time execution tracking, event logging |
 | quick-007-01 | 2026-02-27 | Table-based recommendations display: RecommendationsTable component with batch dismissal |
+| quick-008-01 | 2026-02-27 | Exclude scheduled instances: Filter out instances with matching enabled schedules from recommendations |
 
 **Debug Sessions Completed**
 
@@ -276,9 +277,9 @@ Phase 18 complete. No blockers carried forward.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed quick-007: Recommendations table display with batch dismissal
+Stopped at: Completed quick-008: Exclude instances with existing schedules from recommendations
 Resume file: None
 
 ---
 
-*Last updated: 2026-02-27 - Recommendations table: Pattern rows with batch dismissal
+*Last updated: 2026-02-27 - Exclude scheduled instances: Filter recommendations for instances with enabled schedules
