@@ -12,12 +12,12 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 
 Phase: 18 of 18 (Dual-Mode Data Collection)
 Plan: 1 of 1 in current phase
-Status: In progress
-Last activity: 2026-02-26 — Completed quick-004: Instance Details page cleanup
+Status: Phase complete
+Last activity: 2026-02-27 — Completed quick-005: Flip Sleep/Wake order to Wake/Sleep in UI
 
 Progress: [████████████████████████████████████] 100% (38/38 plans through Phase 18)
 
-**Next Action:** Phase 18 complete, all plans finished
+**Next Action:** Phase 18 complete, quick task queue continues
 
 ## Quick Tasks Completed
 
@@ -28,6 +28,7 @@ Progress: [███████████████████████
 | quick-002-02 | 2026-02-25 | Phase 14-02: Frontend grouped recommendations (RecommendationGroup component, UI updates) |
 | quick-003-01 | 2026-02-26 | Metrics backfill: BackfillMetrics method + POST /api/v1/instances/{id}/metrics/backfill endpoint |
 | quick-004-01 | 2026-02-26 | Instance Details page cleanup: fix title color, remove Quick Stats and Metrics cards, dark mode colors |
+| quick-005-01 | 2026-02-27 | Flip Sleep/Wake order to Wake/Sleep in all UI components |
 
 **Performance Metrics**
 
@@ -265,10 +266,10 @@ Phase 18 complete. No blockers carried forward.
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: Completed 18-01-PLAN.md (dual-mode data collection)
+Last session: 2026-02-27
+Stopped at: Completed quick-005: Flip Sleep/Wake order to Wake/Sleep
 Resume file: None
 
 ---
 
-*Last updated: 2026-02-26 - Phase 18 complete (18-01 planned and executed)*
+*Last updated: 2026-02-27 - quick-005 complete (Sleep/Wake order flipped in all UI)*
