@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { TrendingDown, RefreshCw } from 'lucide-react'
 import api from '../lib/api'
 import type { RecommendationEnriched, RecommendationGroup } from '../lib/api'
-import { RecommendationGroup as RecommendationGroupComponent } from '../components/RecommendationGroup'
+import { RecommendationsTable } from '../components/RecommendationsTable'
 import { RecommendationModal } from '../components/RecommendationModal'
 import toast from 'react-hot-toast'
 
@@ -49,25 +49,32 @@ const RecommendationsPage = () => {
     }
   }
 
-  const handleDismiss = async (id: string) => {
+  const handleDismiss = async (ids: string | string[]) => {
+    const idList = Array.isArray(ids) ? ids : [ids]
     try {
-      await api.dismissRecommendation(id)
+      await Promise.all(idList.map(id => api.dismissRecommendation(id)))
       // Remove from groups and update
       setGroups(prev => {
         const newGroups = prev.map(g => ({
           ...g,
-          recommendations: g.recommendations.filter(r => r.id !== id),
-          instance_count: g.recommendations.filter(r => r.id !== id).length,
+          recommendations: g.recommendations.filter(r => !idList.includes(r.id)),
+          instance_count: g.recommendations.filter(r => !idList.includes(r.id)).length,
           total_daily_savings: g.recommendations
-            .filter(r => r.id !== id)
+            .filter(r => !idList.includes(r.id))
             .reduce((sum, r) => sum + r.estimated_daily_savings, 0)
         })).filter(g => g.instance_count > 0)
         return newGroups
       })
-      setDismissedCount(prev => prev + 1)
-      toast.success('Recommendation dismissed')
+      // Only count as dismissed if not already dismissed
+      const newDismissed = idList.length
+      setDismissedCount(prev => prev + newDismissed)
+      if (idList.length === 1) {
+        toast.success('Recommendation dismissed')
+      } else {
+        toast.success(`${idList.length} recommendations dismissed`)
+      }
     } catch (err) {
-      toast.error('Failed to dismiss recommendation')
+      toast.error('Failed to dismiss recommendations')
     }
   }
 
@@ -137,16 +144,11 @@ const RecommendationsPage = () => {
       </div>
 
       {pendingCount > 0 ? (
-        <div className="space-y-4">
-          {groups.map((group) => (
-            <RecommendationGroupComponent
-              key={group.pattern_key}
-              group={group}
-              onOpenModal={handleOpenModal}
-              onDismiss={handleDismiss}
-            />
-          ))}
-        </div>
+        <RecommendationsTable
+          groups={groups}
+          onOpenModal={handleOpenModal}
+          onDismiss={handleDismiss}
+        />
       ) : (
         <div className="p-12 text-center text-slate-400">
           <div className="inline-block p-4 bg-slate-700/50 rounded-full mb-4">
