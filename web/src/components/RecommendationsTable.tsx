@@ -26,9 +26,7 @@ export function RecommendationsTable({ groups, onOpenModal, onDismiss }: Recomme
               <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 Schedule Pattern
               </th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Wake/Sleep
-              </th>
+
               <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 Instances Affected
               </th>
@@ -44,8 +42,7 @@ export function RecommendationsTable({ groups, onOpenModal, onDismiss }: Recomme
             {groups.map((group) => {
               // Get wake/sleep for display from first recommendation
               const firstRec = group.recommendations[0]
-              const wakeTime = firstRec?.suggested_schedule?.wake_cron?.split(' ')[0]?.replace('0 ', '') || 'N/A'
-              const sleepTime = firstRec?.suggested_schedule?.sleep_cron?.split(' ')[0]?.replace('0 ', '') || 'N/A'
+
 
               return (
                 <tr
@@ -65,18 +62,7 @@ export function RecommendationsTable({ groups, onOpenModal, onDismiss }: Recomme
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-400 text-xs uppercase">Wake</span>
-                        <span className="text-slate-300 text-sm font-mono">{wakeTime}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-400 text-xs uppercase">Sleep</span>
-                        <span className="text-slate-300 text-sm font-mono">{sleepTime}</span>
-                      </div>
-                    </div>
-                  </td>
+
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-700/50 text-slate-300 border border-slate-600">
                       {group.instance_count}
