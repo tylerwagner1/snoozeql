@@ -248,24 +248,10 @@ func (h *RecommendationHandler) GetAllRecommendations(w http.ResponseWriter, r *
 	describePattern := func(pattern map[string]interface{}) string {
 		startHour := int(pattern["idle_start_hour"].(float64))
 		endHour := int(pattern["idle_end_hour"].(float64))
-		daysOfWeek := pattern["days_of_week"].([]interface{})
 
 		startTime := formatHour(startHour)
 		endTime := formatHour(endHour)
 		timeRange := fmt.Sprintf("%s to %s", startTime, endTime)
-
-		dayType := daysToType(daysOfWeek)
-		var dayDesc string
-		switch dayType {
-		case "weekdays":
-			dayDesc = "weekdays"
-		case "weekends":
-			dayDesc = "weekends"
-		case "daily":
-			dayDesc = "daily"
-		default:
-			dayDesc = fmt.Sprintf("%d days/week", len(daysOfWeek))
-		}
 
 		return fmt.Sprintf("Idle %s", timeRange)
 	}
