@@ -25,7 +25,10 @@ export function ActivityGraph({ pattern }: ActivityGraphProps) {
     }
 
     // Use provided avg_cpu or estimate based on idle status
-    const cpu = isIdle ? (pattern.avg_cpu ?? 1.0) : (pattern.avg_cpu ?? 15.0)
+    // Active hours should show higher CPU than idle hours
+    const idleCpu = pattern.avg_cpu ?? 1.0
+    const activeCpu = idleCpu * 3 // Active hours typically 3x idle CPU
+    const cpu = isIdle ? idleCpu : activeCpu
 
     return {
       hour: `${hour}:00`,
