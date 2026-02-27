@@ -16,6 +16,9 @@ export function ActivityGraph({ pattern }: ActivityGraphProps) {
     if (pattern.idle_start_hour < pattern.idle_end_hour) {
       // Normal case: e.g., 22:00 to 07:00
       isIdle = hour >= pattern.idle_start_hour && hour < pattern.idle_end_hour
+    } else if (pattern.idle_start_hour === pattern.idle_end_hour) {
+      // Edge case: same start and end hour - treat as 1-hour window
+      isIdle = hour === pattern.idle_start_hour
     } else {
       // Overnight case: e.g., 22:00 to 06:00 (crosses midnight)
       isIdle = hour >= pattern.idle_start_hour || hour < pattern.idle_end_hour
