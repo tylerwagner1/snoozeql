@@ -18,7 +18,9 @@ RUN cat /tmp/hashfile && go build -mod=mod -v -o /snoozeql ./cmd/server && ls -l
 # Runtime stage
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates bash
+RUN apk --no-cache add ca-certificates bash tzdata && \
+    ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime && \
+    echo "America/New_York" > /etc/timezone
 
 WORKDIR /root/
 

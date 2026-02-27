@@ -102,7 +102,7 @@ func (h *RecommendationHandler) GetAllRecommendations(w http.ResponseWriter, r *
 		}
 
 		// Get instance to enrich with details
-		instance, err := h.instanceStore.GetInstanceByProviderID(r.Context(), "", rec.InstanceID)
+		instance, err := h.instanceStore.GetInstanceByID(r.Context(), rec.InstanceID)
 		if err != nil {
 			// If not found, continue without instance details
 			enriched = append(enriched, enrichedRec{

@@ -289,16 +289,32 @@ func (s *Scheduler) determineAction(schedule models.Schedule, now time.Time) str
 		log.Printf("Warning: Invalid timezone %s for schedule %s, using UTC", schedule.Timezone, schedule.Name)
 		loc = time.UTC
 	}
-	nowLocal := now.In(loc)
-	currentMinute := nowLocal.Truncate(time.Minute)
+
+	// Convert now to the schedule's timezone for all comparisons
+	nowInScheduleLoc := now.In(loc)
+	currentMinute := nowInScheduleLoc.Truncate(time.Minute)
+
+	// Get the minute that was the current minute when the CRON should have fired
+	// We check by going back 1 minute and seeing when the CRON fired after that
+	checkTime := nowInScheduleLoc.Add(-1 * time.Minute)
 
 	// Parse wake CRON expression
 	if schedule.WakeCron != "" {
 		wakeCron, err := cronexpr.Parse(schedule.WakeCron)
 		if err == nil {
-			// Get the next occurrence after 1 minute ago
-			wakeNext := wakeCron.Next(currentMinute.Add(-time.Minute))
-			if wakeNext.Equal(currentMinute) {
+			// Get the next fire time after checkTime
+			wakeLast := wakeCron.Next(checkTime)
+			wakeLastInScheduleLoc := wakeLast.In(loc)
+			wakeLastMinute := wakeLastInScheduleLoc.Truncate(time.Minute)
+
+			log.Printf("DEBUG: Schedule '%s' wake_cron=%s (in %s), now=%s, last fire minute=%s (schedule time)",
+				schedule.Name, schedule.WakeCron, schedule.Timezone,
+				nowInScheduleLoc.Format("15:04:05"),
+				wakeLastMinute.In(loc).Format("15:04:05"))
+
+			// Check if the last fire was in the current minute
+			if wakeLastMinute.Equal(currentMinute) {
+				log.Printf("DEBUG: Schedule '%s' triggered wake at %s", schedule.Name, schedule.WakeCron)
 				return "start"
 			}
 		} else {
@@ -310,9 +326,19 @@ func (s *Scheduler) determineAction(schedule models.Schedule, now time.Time) str
 	if schedule.SleepCron != "" {
 		sleepCron, err := cronexpr.Parse(schedule.SleepCron)
 		if err == nil {
-			// Get the next occurrence after 1 minute ago
-			sleepNext := sleepCron.Next(currentMinute.Add(-time.Minute))
-			if sleepNext.Equal(currentMinute) {
+			// Get the next fire time after checkTime
+			sleepLast := sleepCron.Next(checkTime)
+			sleepLastInScheduleLoc := sleepLast.In(loc)
+			sleepLastMinute := sleepLastInScheduleLoc.Truncate(time.Minute)
+
+			log.Printf("DEBUG: Schedule '%s' sleep_cron=%s (in %s), now=%s, last fire minute=%s (schedule time)",
+				schedule.Name, schedule.SleepCron, schedule.Timezone,
+				nowInScheduleLoc.Format("15:04:05"),
+				sleepLastMinute.In(loc).Format("15:04:05"))
+
+			// Check if the last fire was in the current minute
+			if sleepLastMinute.Equal(currentMinute) {
+				log.Printf("DEBUG: Schedule '%s' triggered sleep at %s", schedule.Name, schedule.SleepCron)
 				return "stop"
 			}
 		} else {
