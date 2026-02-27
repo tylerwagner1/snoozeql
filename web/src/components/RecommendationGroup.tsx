@@ -162,12 +162,12 @@ function RecommendationCard({
           {/* Suggested schedule */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-              <span className="text-xs text-slate-400 uppercase">Sleep at</span>
-              <p className="text-xs text-slate-300 mt-1 truncate">{recommendation.suggested_schedule.sleep_cron}</p>
-            </div>
-            <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
               <span className="text-xs text-slate-400 uppercase">Wake at</span>
               <p className="text-xs text-slate-300 mt-1 truncate">{recommendation.suggested_schedule.wake_cron}</p>
+            </div>
+            <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+              <span className="text-xs text-slate-400 uppercase">Sleep at</span>
+              <p className="text-xs text-slate-300 mt-1 truncate">{recommendation.suggested_schedule.sleep_cron}</p>
             </div>
           </div>
 

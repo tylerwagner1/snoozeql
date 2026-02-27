@@ -26,29 +26,58 @@ export function RecommendationCard({
   const confidence = getConfidence(recommendation.confidence_score)
 
   // Determine idle pattern text
+  // Determine idle pattern text
   const getIdlePatternText = () => {
-    const { idle_start_hour, idle_end_hour, days_of_week } = recommendation.detected_pattern
+    const { idle_start_hour, idle_end_hour, days_of_week, is_very_low_activity } = recommendation.detected_pattern
     
-    // Format idle hours
-    let patternText
-    if (idle_start_hour < idle_end_hour) {
-      // Normal case - no overnight
-      patternText = `Idle from ${idle_start_hour}:00 to ${idle_end_hour}:00`
+    // Calculate hours of low activity
+    let hoursSlept: number
+    if (idle_end_hour <= idle_start_hour) {
+      hoursSlept = (24 - idle_start_hour) + idle_end_hour
     } else {
-      // Overnight case
-      patternText = `Idle from ${idle_start_hour}:00 to ${idle_end_hour < 24 ? idle_end_hour : 0}:00 (overnight)`
+      hoursSlept = idle_end_hour - idle_start_hour
     }
-    
-    // Format days of week
-    if (days_of_week && days_of_week.length > 0) {
-      patternText += ` on ${days_of_week.join(', ')}`
+
+    // Build human-readable description
+    let patternText: string
+
+    if (is_very_low_activity === true && hoursSlept >= 23) {
+      // Very low activity - sleep 23+ hours
+      patternText = `Instance has Low Activity 23+ hours per day`
+    } else if (hoursSlept >= 20) {
+      // Long sleep pattern
+      patternText = `Instance has Low Activity 20+ hours per day`
+    } else if (hoursSlept >= 14) {
+      // Moderate sleep pattern
+      patternText = `Instance has Low Activity 14+ hours per day`
+    } else if (hoursSlept >= 8) {
+      // Short sleep pattern
+      patternText = `Instance has Low Activity 8+ hours per day`
     } else {
-      patternText += ` on all days`
+      // Fallback to time-based description
+      if (idle_start_hour < idle_end_hour) {
+        // Normal case - no overnight
+        patternText = `Idle from ${idle_start_hour}:00 to ${idle_end_hour}:00`
+      } else {
+        // Overnight case
+        patternText = `Idle from ${idle_start_hour}:00 to ${idle_end_hour < 24 ? idle_end_hour : 0}:00 (overnight)`
+      }
+      
+      // Format days of week - remove duplicates
+      if (days_of_week && days_of_week.length > 0) {
+        const uniqueDays = Array.from(new Set(days_of_week))
+        if (uniqueDays.length < days_of_week.length) {
+          patternText += ` on ${uniqueDays.join(', ')}`
+        } else {
+          patternText += ` on ${days_of_week.join(', ')}`
+        }
+      } else {
+        patternText += ` on all days`
+      }
     }
     
     return patternText
   }
-
   return (
     <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
       {/* Summary row (always visible) */}
@@ -92,12 +121,12 @@ export function RecommendationCard({
           {/* Suggested schedule */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-              <span className="text-xs text-slate-400 uppercase">Sleep at</span>
-              <p className="text-xs text-slate-300 mt-1 truncate">{recommendation.suggested_schedule.sleep_cron}</p>
-            </div>
-            <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
               <span className="text-xs text-slate-400 uppercase">Wake at</span>
               <p className="text-xs text-slate-300 mt-1 truncate">{recommendation.suggested_schedule.wake_cron}</p>
+            </div>
+            <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+              <span className="text-xs text-slate-400 uppercase">Sleep at</span>
+              <p className="text-xs text-slate-300 mt-1 truncate">{recommendation.suggested_schedule.sleep_cron}</p>
             </div>
           </div>
 

@@ -31,16 +31,19 @@ export function RecommendationModal({
   const confidenceLabel = getConfidenceLabel(recommendation.confidence_score)
 
   // Get idle window pattern description
+  const formatHour = (hour: number) => {
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${displayHour}:00 ${period}`;
+  }
+
   const getPatternDescription = () => {
-    const { days_of_week, avg_cpu } = recommendation.detected_pattern
+    const { idle_start_hour, idle_end_hour } = recommendation.detected_pattern;
     
-    let patternDesc = `Detected ${avg_cpu?.toFixed(1)}% average CPU usage`
+    const wakeTime = formatHour(idle_end_hour);
+    const sleepTime = formatHour(idle_start_hour);
     
-    if (days_of_week && days_of_week.length > 0) {
-      patternDesc += ` on ${days_of_week.join(', ')}`
-    }
-    
-    return patternDesc
+    return `Detected low utilization outside ${wakeTime} – ${sleepTime}`;
   }
 
   return (
@@ -90,19 +93,19 @@ export function RecommendationModal({
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
                 <div className="flex items-center gap-2 text-slate-400 mb-1">
-                  <Clock className="h-4 w-4" />
-                  <span className="text-xs uppercase">Sleep at</span>
-                </div>
-                <p className="text-white font-mono text-sm">{recommendation.suggested_schedule.sleep_cron}</p>
-                <p className="text-xs text-slate-500 mt-1">Start idle period</p>
-              </div>
-              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-                <div className="flex items-center gap-2 text-slate-400 mb-1">
-                  <Clock className="h-4 w-4" />
-                  <span className="text-xs uppercase">Wake at</span>
+              <Clock className="h-4 w-4" />
+                <span className="text-xs uppercase">Wake at</span>
                 </div>
                 <p className="text-white font-mono text-sm">{recommendation.suggested_schedule.wake_cron}</p>
                 <p className="text-xs text-slate-500 mt-1">End idle period</p>
+              </div>
+              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+                <div className="flex items-center gap-2 text-slate-400 mb-1">
+              <Clock className="h-4 w-4" />
+                <span className="text-xs uppercase">Sleep at</span>
+                </div>
+                <p className="text-white font-mono text-sm">{recommendation.suggested_schedule.sleep_cron}</p>
+                <p className="text-xs text-slate-500 mt-1">Start idle period</p>
               </div>
             </div>
           </div>
