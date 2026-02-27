@@ -28,7 +28,7 @@ const Dashboard = () => {
           api.getInstances(),
           api.getRecommendations('pending'),
           api.getCloudAccounts(),
-          api.getEvents(10, 0)
+          api.getEvents(100, 0) // Get more events for cost history
         ])
         setInstances(instancesData || [])
         setGroups(recommendationsResponse?.groups || [])
@@ -55,7 +55,11 @@ const Dashboard = () => {
     return matchesSearch && matchesFilter
   })
 
-  const totalSavings = instances.reduce((sum, inst) => sum + (inst.hourly_cost_cents / 100) * 24 * 7, 0)
+  // Calculate daily savings from currently sleeping instances
+  // Savings = hourly_cost × 24 hours for each sleeping instance
+  const dailySavings = instances
+    .filter(inst => inst.status === 'stopped' || inst.status === 'stopping')
+    .reduce((sum, inst) => sum + (inst.hourly_cost_cents / 100) * 24, 0)
   const runningCount = filteredInstances.filter(i => i.status === 'available' || i.status === 'running' || i.status === 'starting').length
   const sleepingCount = filteredInstances.filter(i => i.status === 'stopped' || i.status === 'stopping').length
   const pendingActions = groups.reduce((sum, g) => sum + g.instance_count, 0)
@@ -179,8 +183,8 @@ const Dashboard = () => {
               <TrendingDown className="h-5 w-5 text-white" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-white mb-1">${totalSavings.toFixed(2)}</p>
-          <p className="text-sm text-green-400">+12% vs last week</p>
+          <p className="text-3xl font-bold text-white mb-1">${dailySavings.toFixed(2)}</p>
+          <p className="text-sm text-green-400">per day from sleeping DBs</p>
         </div>
         <div 
           className="bg-slate-800/50 rounded-xl p-5 shadow-lg border border-slate-700 hover:border-blue-500/50 transition-all group cursor-pointer"
@@ -262,7 +266,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      <CostOverTimeChart instances={instances} />
+      <CostOverTimeChart instances={instances} events={events} />
 
       <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700">
         <h2 className="text-lg font-semibold text-white mb-4">Recent Activity</h2>

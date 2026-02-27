@@ -28,7 +28,7 @@ export function RecommendationCard({
   // Determine idle pattern text
   // Determine idle pattern text
   const getIdlePatternText = () => {
-    const { idle_start_hour, idle_end_hour, days_of_week, is_very_low_activity } = recommendation.detected_pattern
+    const { idle_start_hour, idle_end_hour, days_of_week, avg_cpu } = recommendation.detected_pattern
     
     // Calculate hours of low activity
     let hoursSlept: number
@@ -38,10 +38,13 @@ export function RecommendationCard({
       hoursSlept = idle_end_hour - idle_start_hour
     }
 
+    // Check if very low activity (avg_cpu < 1.0)
+    const is_very_low_activity = avg_cpu < 1.0
+
     // Build human-readable description
     let patternText: string
 
-    if (is_very_low_activity === true && hoursSlept >= 23) {
+    if (is_very_low_activity && hoursSlept >= 23) {
       // Very low activity - sleep 23+ hours
       patternText = `Instance has Low Activity 23+ hours per day`
     } else if (hoursSlept >= 20) {

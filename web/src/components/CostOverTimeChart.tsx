@@ -7,18 +7,20 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
-import { useState, useEffect } from 'react'
-import type { Instance } from '../lib/api'
+import { useState, useMemo } from 'react'
+import type { Instance, Event } from '../lib/api'
 
 interface CostDataPoint {
   date: string
   label: string
-  cost: number
-  costDollars: number
+  actualCost: number
+  potentialCost: number
+  savings: number
 }
 
 interface CostOverTimeChartProps {
   instances: Instance[]
+  events: Event[]
 }
 
 enum TimeRange {
@@ -26,85 +28,119 @@ enum TimeRange {
   Weekly = 'weekly'
 }
 
-export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
+export function CostOverTimeChart({ instances, events }: CostOverTimeChartProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>(TimeRange.Weekly)
-  const [costData, setCostData] = useState<CostDataPoint[]>([])
 
-  // Calculate estimated cost for a given time range
-  // Uses the formula: sum(hourly_cost * 24) for each running instance
-  const calculateEstimatedCost = (days: number): CostDataPoint[] => {
+  // Build instance cost lookup map
+  const instanceCostMap = useMemo(() => 
+    new Map(instances.map(i => [i.id, i.hourly_cost_cents])),
+    [instances]
+  )
+
+  // Calculate total potential daily cost (if all instances ran 24/7)
+  const totalPotentialDailyCost = useMemo(() => 
+    instances.reduce((sum, inst) => sum + (inst.hourly_cost_cents / 100) * 24, 0),
+    [instances]
+  )
+
+  // Build event timeline for calculating running hours per day
+  const costData = useMemo(() => {
     const data: CostDataPoint[] = []
     const today = new Date()
+    today.setHours(23, 59, 59, 999)
     
-    // Get all instances with their hourly costs
-    const instanceCosts = instances
-      .filter(inst => 
-        inst.status === 'available' || 
-        inst.status === 'running' || 
-        inst.status === 'starting'
-      )
-      .map(inst => ({
-        name: inst.name,
-        cost: inst.hourly_cost_cents
-      }))
+    const days = timeRange === TimeRange.Weekly ? 7 : 1
     
-    // Get total hourly cost
-    const totalHourlyCostCents = instanceCosts.reduce((sum, i) => sum + i.cost, 0)
+    // Build instance state timeline from events
+    // Track when each instance was running vs stopped
+    const instanceStates: Map<string, { running: boolean; since: Date }[]> = new Map()
     
-    for (let day = days - 1; day >= 0; day--) {
-      const currentDay = new Date(today)
-      currentDay.setDate(today.getDate() - day)
+    // Initialize all instances as running (assume running unless we have stop events)
+    instances.forEach(inst => {
+      const isCurrentlyRunning = inst.status === 'available' || inst.status === 'running' || inst.status === 'starting'
+      instanceStates.set(inst.id, [{ running: isCurrentlyRunning, since: new Date(0) }])
+    })
+    
+    // Sort events by timestamp ascending
+    const sortedEvents = [...events].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+    
+    // Process events to build state timeline
+    sortedEvents.forEach(event => {
+      const states = instanceStates.get(event.instance_id)
+      if (!states) return
       
-      // Estimated cost: total hourly cost * 24 hours
-      const estimatedDailyCostCents = totalHourlyCostCents * 24
+      const isStartEvent = event.event_type === 'start' || event.event_type === 'wake'
+      const isStopEvent = event.event_type === 'stop' || event.event_type === 'sleep'
+      
+      if (isStartEvent || isStopEvent) {
+        states.push({
+          running: isStartEvent,
+          since: new Date(event.created_at)
+        })
+      }
+    })
+    
+    // Calculate cost for each day
+    for (let dayOffset = days - 1; dayOffset >= 0; dayOffset--) {
+      const dayStart = new Date(today)
+      dayStart.setDate(today.getDate() - dayOffset)
+      dayStart.setHours(0, 0, 0, 0)
+      
+      const dayEnd = new Date(dayStart)
+      dayEnd.setHours(23, 59, 59, 999)
+      
+      let actualCostCents = 0
+      
+      // For each instance, calculate hours running on this day
+      instances.forEach(inst => {
+        const states = instanceStates.get(inst.id) || []
+        const hourlyCost = inst.hourly_cost_cents
+        
+        // Find running hours for this day
+        let runningHours = 0
+        
+        for (let hour = 0; hour < 24; hour++) {
+          const hourTime = new Date(dayStart)
+          hourTime.setHours(hour)
+          
+          // Find the state at this hour
+          let wasRunning = true // Default to running
+          for (const state of states) {
+            if (state.since <= hourTime) {
+              wasRunning = state.running
+            } else {
+              break
+            }
+          }
+          
+          if (wasRunning) {
+            runningHours++
+          }
+        }
+        
+        actualCostCents += hourlyCost * runningHours
+      })
+      
+      const actualCost = actualCostCents / 100
+      const potentialCost = totalPotentialDailyCost
+      const savings = potentialCost - actualCost
       
       data.push({
-        date: currentDay.toISOString().split('T')[0],
-        label: currentDay.toLocaleDateString('en-US', { 
+        date: dayStart.toISOString().split('T')[0],
+        label: dayStart.toLocaleDateString('en-US', { 
           month: 'short', 
           day: 'numeric',
-          weekday: day === days - 1 ? 'short' : undefined // Only show weekday for last day
         }),
-        cost: estimatedDailyCostCents,
-        costDollars: estimatedDailyCostCents / 100,
+        actualCost,
+        potentialCost,
+        savings: savings > 0 ? savings : 0,
       })
     }
     
     return data
-  }
-
-  useEffect(() => {
-    if (timeRange === TimeRange.Weekly) {
-      setCostData(calculateEstimatedCost(7))
-    } else {
-      // For 24h, estimate based on current hourly cost
-      const data: CostDataPoint[] = []
-      const totalHourlyCostCents = instances
-        .filter(inst => 
-          inst.status === 'available' || 
-          inst.status === 'running' || 
-          inst.status === 'starting'
-        )
-        .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0)
-      
-      const today = new Date()
-      for (let hour = 0; hour < 24; hour++) {
-        const hourDate = new Date(today)
-        hourDate.setHours(hour)
-        data.push({
-          date: today.toISOString().split('T')[0],
-          label: hourDate.toLocaleTimeString('en-US', { 
-            hour: 'numeric',
-            hour12: true,
-            minute: '2-digit'
-          }),
-          cost: totalHourlyCostCents,
-          costDollars: totalHourlyCostCents / 100,
-        })
-      }
-      setCostData(data)
-    }
-  }, [instances, timeRange])
+  }, [instances, events, timeRange, instanceCostMap, totalPotentialDailyCost])
 
   const currentHourlyCost = instances
     .filter(inst => 
@@ -115,7 +151,7 @@ export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
     .reduce((sum, inst) => sum + inst.hourly_cost_cents, 0) / 100
 
   const maxCost = costData.length > 0 
-    ? Math.max(...costData.map(d => d.costDollars), 1)
+    ? Math.max(...costData.map(d => Math.max(d.actualCost, d.potentialCost)), 1)
     : 1
 
   return (
@@ -136,7 +172,7 @@ export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              24h
+              Today
             </button>
             <button
               onClick={() => setTimeRange(TimeRange.Weekly)}
@@ -161,9 +197,13 @@ export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={costData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="costGradient" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="actualCostGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.3} />
                   <stop offset="100%" stopColor="#06b6d4" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="potentialCostGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.1} />
+                  <stop offset="100%" stopColor="#94a3b8" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="#334155" strokeOpacity={0.3} />
@@ -188,19 +228,48 @@ export function CostOverTimeChart({ instances }: CostOverTimeChartProps) {
                   borderRadius: '0.5rem',
                 }}
                 labelStyle={{ color: '#f8fafc', marginBottom: '0.5rem' }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, 'Daily Cost']}
+                formatter={(value: number, name: string) => {
+                  const labels: Record<string, string> = {
+                    actualCost: 'Actual Cost',
+                    potentialCost: 'If Always On',
+                    savings: 'Saved',
+                  }
+                  return [`$${value.toFixed(2)}`, labels[name] || name]
+                }}
               />
+              {/* Potential cost (faded background) */}
               <Area
                 type="monotone"
-                dataKey="costDollars"
+                dataKey="potentialCost"
+                stroke="#94a3b8"
+                fill="url(#potentialCostGradient)"
+                strokeWidth={1}
+                strokeDasharray="4 4"
+              />
+              {/* Actual cost (main line) */}
+              <Area
+                type="monotone"
+                dataKey="actualCost"
                 stroke="#06b6d4"
-                fill="url(#costGradient)"
+                fill="url(#actualCostGradient)"
                 strokeWidth={2}
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       )}
+      
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 mt-4 text-xs">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded bg-cyan-500"></div>
+          <span className="text-slate-400">Actual Cost</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded bg-slate-500 opacity-50"></div>
+          <span className="text-slate-400">If Always On</span>
+        </div>
+      </div>
     </div>
   )
 }

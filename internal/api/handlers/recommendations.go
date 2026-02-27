@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sort"
 
@@ -104,6 +105,7 @@ func (h *RecommendationHandler) GetAllRecommendations(w http.ResponseWriter, r *
 		// Get instance to enrich with details
 		instance, err := h.instanceStore.GetInstanceByID(r.Context(), rec.InstanceID)
 		if err != nil {
+			log.Printf("DEBUG: Failed to get instance %s for recommendation %s: %v", rec.InstanceID, rec.ID, err)
 			// If not found, continue without instance details
 			enriched = append(enriched, enrichedRec{
 				ID:                rec.ID,
