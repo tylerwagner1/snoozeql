@@ -5,19 +5,19 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Quick Tasks - Metrics Backfill (in progress)
-**Recent work:** Phase 15 (UI Polish & Cleanup) completed
+**Current focus:** Quick Tasks - Scheduler Daemon (in progress)
+**Recent work:** Completed quick-006: Scheduler daemon with CRON evaluation
 
 ## Current Position
 
 Phase: 18 of 18 (Dual-Mode Data Collection)
 Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-27 — Completed quick-005: Flip Sleep/Wake order to Wake/Sleep in UI
+Last activity: 2026-02-27 — Completed quick-006: Implement scheduler daemon
 
 Progress: [████████████████████████████████████] 100% (38/38 plans through Phase 18)
 
-**Next Action:** Phase 18 complete, quick task queue continues
+**Next Action:** Quick task queue continues with quick-007
 
 ## Quick Tasks Completed
 
@@ -29,6 +29,7 @@ Progress: [███████████████████████
 | quick-003-01 | 2026-02-26 | Metrics backfill: BackfillMetrics method + POST /api/v1/instances/{id}/metrics/backfill endpoint |
 | quick-004-01 | 2026-02-26 | Instance Details page cleanup: fix title color, remove Quick Stats and Metrics cards, dark mode colors |
 | quick-005-01 | 2026-02-27 | Flip Sleep/Wake order to Wake/Sleep in all UI components |
+| quick-006-01 | 2026-02-27 | Scheduler daemon: CRON evaluation with cronexpr, one-time execution tracking, event logging |
 
 **Performance Metrics**
 
@@ -267,9 +268,9 @@ Phase 18 complete. No blockers carried forward.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed quick-005: Flip Sleep/Wake order to Wake/Sleep
+Stopped at: Completed quick-006: Scheduler daemon with CRON evaluation
 Resume file: None
 
 ---
 
-*Last updated: 2026-02-27 - quick-005 complete (Sleep/Wake order flipped in all UI)*
+*Last updated: 2026-02-27 - quick-006 complete (Scheduler daemon implementation)*
