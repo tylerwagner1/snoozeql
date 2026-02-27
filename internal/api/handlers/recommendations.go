@@ -347,9 +347,34 @@ func (h *RecommendationHandler) GenerateRecommendations(w http.ResponseWriter, r
 		return
 	}
 
+	// Filter out instances that already have matching enabled schedules
+	var filteredRecs []models.Recommendation
+	for _, rec := range recs {
+		instance, err := h.instanceStore.GetInstanceByID(r.Context(), rec.InstanceID)
+		if err != nil {
+			log.Printf("DEBUG: Failed to get instance %s for schedule check: %v", rec.InstanceID, err)
+			// If we can't get the instance, skip this recommendation
+			continue
+		}
+
+		schedules, err := h.scheduleStore.GetMatchingSchedules(*instance)
+		if err != nil {
+			log.Printf("DEBUG: Failed to get schedules for instance %s: %v", rec.InstanceID, err)
+			// If we can't check schedules, skip this recommendation
+			continue
+		}
+
+		if len(schedules) > 0 {
+			log.Printf("DEBUG: Skipping recommendation for %s - already has %d schedule(s)", rec.InstanceID, len(schedules))
+			continue
+		}
+
+		filteredRecs = append(filteredRecs, rec)
+	}
+
 	// Store new recommendations
 	created := 0
-	for _, rec := range recs {
+	for _, rec := range filteredRecs {
 		if err := h.store.CreateRecommendation(&rec); err == nil {
 			created++
 		}
