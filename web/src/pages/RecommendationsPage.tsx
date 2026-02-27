@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingDown, RefreshCw } from 'lucide-react'
+import { TrendingDown } from 'lucide-react'
 import api from '../lib/api'
 import type { RecommendationEnriched, RecommendationGroup } from '../lib/api'
 import { RecommendationsTable } from '../components/RecommendationsTable'
@@ -11,7 +11,6 @@ const RecommendationsPage = () => {
   const [dismissedCount, setDismissedCount] = useState(0)
   const [selectedRecommendation, setSelectedRecommendation] = useState<RecommendationEnriched | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
-  const [generating, setGenerating] = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
 
   useEffect(() => {
@@ -32,22 +31,6 @@ const RecommendationsPage = () => {
     }
     fetchRecommendations()
   }, [])
-
-  const handleGenerate = async () => {
-    setGenerating(true)
-    try {
-      const result = await api.generateRecommendations()
-      toast.success(result.message)
-      const updated = await api.getRecommendations('pending')
-      setGroups(updated?.groups || [])
-    } catch (err: any) {
-      // Extract error message from API response if available
-      const errorMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to generate recommendations'
-      toast.error(errorMessage)
-    } finally {
-      setGenerating(false)
-    }
-  }
 
   const handleDismiss = async (ids: string | string[]) => {
     const idList = Array.isArray(ids) ? ids : [ids]
@@ -111,10 +94,6 @@ const RecommendationsPage = () => {
 
   const pendingCount = groups.reduce((sum, g) => sum + g.instance_count, 0)
 
-  if (generating) {
-    return <div className="p-8 text-center text-slate-400">Generating recommendations...</div>
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -124,23 +103,6 @@ const RecommendationsPage = () => {
             {pendingCount} pending · {dismissedCount} dismissed
           </p>
         </div>
-        <button
-          onClick={handleGenerate}
-          disabled={generating}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/20"
-        >
-          {generating ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>Generating...</span>
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4" />
-              <span>Generate Recommendations</span>
-            </>
-          )}
-        </button>
       </div>
 
       {pendingCount > 0 ? (
@@ -162,23 +124,7 @@ const RecommendationsPage = () => {
               <p className="text-sm mt-2">Need 24+ hours of activity data to generate recommendations.</p>
             </>
           )}
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-          >
-            {generating ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Generating...</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                <span>Generate Recommendations</span>
-              </>
-            )}
-          </button>
+
         </div>
       )}
 

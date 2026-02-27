@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Activity, Zap, TrendingDown, Clock, Search, Filter, Plus, RefreshCw } from 'lucide-react'
+import { Activity, Zap, TrendingDown, Clock, Search, Filter, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import api, { Instance, CloudAccount } from '../lib/api'
 import type { RecommendationEnriched, RecommendationGroup, Event } from '../lib/api'
@@ -18,7 +18,6 @@ const Dashboard = () => {
   const [events, setEvents] = useState<Event[]>([])
   const [selectedRecommendation, setSelectedRecommendation] = useState<RecommendationEnriched | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
-  const [generating, setGenerating] = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
 
   useEffect(() => {
@@ -63,27 +62,12 @@ const Dashboard = () => {
   const runningCount = filteredInstances.filter(i => i.status === 'available' || i.status === 'running' || i.status === 'starting').length
   const sleepingCount = filteredInstances.filter(i => i.status === 'stopped' || i.status === 'stopping').length
   const pendingActions = groups.reduce((sum, g) => sum + g.instance_count, 0)
-
+  
   // Create instance name lookup map for events
   const instanceNameMap = useMemo(() => 
     new Map(instances.map(i => [i.id, i.name])),
     [instances]
   )
-
-  const handleGenerate = async () => {
-    setGenerating(true)
-    try {
-      const result = await api.generateRecommendations()
-      toast.success(result.message)
-      const updated = await api.getRecommendations('pending')
-      setGroups(updated?.groups || [])
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to generate recommendations'
-      toast.error(errorMessage)
-    } finally {
-      setGenerating(false)
-    }
-  }
 
   const handleDismiss = async (id: string) => {
     try {
@@ -323,26 +307,7 @@ const Dashboard = () => {
 
 
       <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">AI Recommendations</h2>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/20"
-          >
-            {generating ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Generating...</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                <span>Generate</span>
-              </>
-            )}
-          </button>
-        </div>
+        <h2 className="text-lg font-semibold text-white mb-4">AI Recommendations</h2>
         
         {pendingActions > 0 ? (
           <div className="space-y-4">
@@ -367,23 +332,6 @@ const Dashboard = () => {
         ) : (
           <div className="text-center py-8">
             <p className="text-sm text-slate-400">Need 24+ hours of activity data to generate recommendations.</p>
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="mt-4 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-            >
-              {generating ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Generating...</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4" />
-                  <span>Generate Recommendations</span>
-                </>
-              )}
-            </button>
           </div>
         )}
       </div>
