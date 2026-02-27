@@ -251,7 +251,7 @@ const api = {
   getRecommendation: (id: string) => api.get<RecommendationEnriched>(`/recommendations/${id}`),
   generateRecommendations: () => api.post<{ created: number; message: string }>('/recommendations/generate'),
   dismissRecommendation: (id: string) => api.post<void>(`/recommendations/${id}/dismiss`),
-  confirmRecommendation: (id: string) => api.post<{ schedule_id: string }>(`/recommendations/${id}/confirm`),
+  confirmRecommendation: (id: string) => api.post<{ schedule_id: string }>(`/recommendations/${id}/apply`),
 
   // Stats
   getStats: () => api.get<Stats>('/stats'),
