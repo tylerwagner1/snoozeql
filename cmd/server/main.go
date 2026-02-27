@@ -25,6 +25,7 @@ import (
 	"snoozeql/internal/provider"
 	awsprovider "snoozeql/internal/provider/aws"
 	gcpprovider "snoozeql/internal/provider/gcp"
+	"snoozeql/internal/scheduler"
 	"snoozeql/internal/store"
 
 	"github.com/go-chi/chi/v5"
@@ -222,6 +223,11 @@ func main() {
 	retentionCleaner := metrics.NewRetentionCleaner(metricsStore, db)
 	go retentionCleaner.RunContinuous(ctx)
 	log.Printf("✓ Started metrics retention cleaner (7-day retention, 24h interval)")
+
+	// Start scheduler daemon in background
+	schedulerService := scheduler.NewScheduler(scheduleStore, providerRegistry, instanceStore, eventStore)
+	go schedulerService.RunContinuous(ctx)
+	log.Printf("✓ Started scheduler daemon (1-minute interval)")
 
 	// Initialize router
 	r := chi.NewRouter()
