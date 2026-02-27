@@ -7,7 +7,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import type { Instance, Event } from '../lib/api'
 
 interface CostDataPoint {
@@ -23,13 +23,7 @@ interface CostOverTimeChartProps {
   events: Event[]
 }
 
-enum TimeRange {
-  Daily = 'daily',
-  Weekly = 'weekly'
-}
-
 export function CostOverTimeChart({ instances, events }: CostOverTimeChartProps) {
-  const [timeRange, setTimeRange] = useState<TimeRange>(TimeRange.Weekly)
 
   // Build instance cost lookup map
   const instanceCostMap = useMemo(() => 
@@ -49,7 +43,7 @@ export function CostOverTimeChart({ instances, events }: CostOverTimeChartProps)
     const today = new Date()
     today.setHours(23, 59, 59, 999)
     
-    const days = timeRange === TimeRange.Weekly ? 7 : 1
+    const days = 7
     
     // Build instance state timeline from events
     // Track when each instance was running vs stopped
@@ -140,7 +134,7 @@ export function CostOverTimeChart({ instances, events }: CostOverTimeChartProps)
     }
     
     return data
-  }, [instances, events, timeRange, instanceCostMap, totalPotentialDailyCost])
+  }, [instances, events, instanceCostMap, totalPotentialDailyCost])
 
   const currentHourlyCost = instances
     .filter(inst => 
@@ -157,34 +151,9 @@ export function CostOverTimeChart({ instances, events }: CostOverTimeChartProps)
   return (
     <div className="bg-slate-800/50 rounded-xl p-6 shadow-lg border border-slate-700">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-white">Cost Over Time</h2>
-        <div className="flex items-center space-x-2">
-          <div className="text-sm text-slate-400">
-            Current: <span className="text-cyan-400 font-medium">${currentHourlyCost.toFixed(2)}/hr</span>
-          </div>
-          <div className="border-l border-slate-600 h-6 mx-2"></div>
-          <div className="flex bg-slate-900 rounded-lg p-1">
-            <button
-              onClick={() => setTimeRange(TimeRange.Daily)}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                timeRange === TimeRange.Daily
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setTimeRange(TimeRange.Weekly)}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                timeRange === TimeRange.Weekly
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              7 days
-            </button>
-          </div>
+        <h2 className="text-lg font-semibold text-white">Cost Over Time (Last 7 Days)</h2>
+        <div className="text-sm text-slate-400">
+          Current: <span className="text-cyan-400 font-medium">${currentHourlyCost.toFixed(2)}/hr</span>
         </div>
       </div>
       
