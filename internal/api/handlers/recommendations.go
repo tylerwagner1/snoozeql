@@ -267,7 +267,7 @@ func (h *RecommendationHandler) GetAllRecommendations(w http.ResponseWriter, r *
 			dayDesc = fmt.Sprintf("%d days/week", len(daysOfWeek))
 		}
 
-		return fmt.Sprintf("Idle %s, %s", timeRange, dayDesc)
+		return fmt.Sprintf("Idle %s", timeRange)
 	}
 
 	groupRecommendations := func(recs []enrichedRec) []RecommendationGroup {
