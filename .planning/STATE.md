@@ -280,4 +280,4 @@ Resume file: None
 
 ---
 
-*Last updated: 2026-02-27 - quick-006 complete (Scheduler daemon implementation)*
+*Last updated: 2026-02-27 - Dashboard fixes: Total Savings + Cost Over Time chart
