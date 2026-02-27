@@ -13,11 +13,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 Phase: 18 of 18 (Dual-Mode Data Collection)
 Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-27 — Completed quick-009: Filter recommendations for existing schedules
+Last activity: 2026-02-27 — Completed quick-010: Remove days/week from pattern description
 
-Progress: [████████████████████████████████████] 100% (40/40 plans through Phase 18)
+Progress: [████████████████████████████████████] 100% (41/41 plans through Phase 18)
 
-**Next Action:** Quick task 009 complete. All plans complete. Ready for new phase.
+**Next Action:** Quick task 010 complete. All plans complete. Ready for new phase.
 
 ## Quick Tasks Completed
 
@@ -33,6 +33,7 @@ Progress: [███████████████████████
 | quick-007-01 | 2026-02-27 | Table-based recommendations display: RecommendationsTable component with batch dismissal |
 | quick-008-01 | 2026-02-27 | Exclude scheduled instances: Filter recommendations in GenerateRecommendations |
 | quick-009-01 | 2026-02-27 | Filter existing correctly: Exclude scheduled instances in GetAllRecommendations |
+| quick-010-01 | 2026-02-27 | Pattern description simplification: Removed day/week suffix from recommendations |
 
 **Debug Sessions Completed**
 
@@ -261,6 +262,13 @@ Phase 18 complete. No blockers carried forward.
 | 18-01 | 3-day CloudWatch window (not 7) | Faster processing, lower API cost, continuous hourly healing |
 | 18-01 | Background goroutine for historical backfill | Non-blocking startup, real-time collection continues immediately |
 
+## Quick Tasks Accumulated Decisions
+
+| Phase | Decision | Rationale |
+|-------|----------|-----------|
+| quick-010-01 | Simplified `describePattern` function | Remove day-of-week suffix from recommendations display |
+| quick-010-01 | Removed unused variables `dayDesc` and `daysOfWeek` | Auto-fix when simplification made them unused |
+
 ## Decisions
 
 | Phase | Decision | Rationale |
@@ -278,9 +286,9 @@ Phase 18 complete. No blockers carried forward.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed quick-009: Filter recommendations in GetAllRecommendations for instances with enabled schedules
+Stopped at: Completed quick-010: Remove days/week from pattern description in Go and Wake/Sleep column from React table
 Resume file: None
 
 ---
 
-*Last updated: 2026-02-27 - Filter recommendations correctly: Exclude instances with existing schedules in GetAllRecommendations
+*Last updated: 2026-02-27 - Simplified recommendations display: Removed days/week suffix and Wake/Sleep column
