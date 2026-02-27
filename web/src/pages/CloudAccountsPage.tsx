@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Cloud, CloudOff, Check, X, RefreshCw, AlertCircle, Pencil } from 'lucide-react'
+import { Plus, Trash2, Cloud, CloudOff, Check, X, RefreshCw, AlertCircle, Pencil, Rocket } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api, { CloudAccount } from '../lib/api'
 
@@ -358,79 +358,105 @@ const CloudAccountsPage = () => {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  {(editingAccount?.provider || form.provider) === 'aws' ? 'AWS Access Key ID' : 'GCP Project ID'}
-                </label>
-                <input
-                  type="text"
-                  value={(editingAccount?.provider || form.provider) === 'aws' ? form.accessKeyId : form.gcpProjectId}
-                  onChange={(e) => setForm({ ...form, [(editingAccount?.provider || form.provider) === 'aws' ? 'accessKeyId' : 'gcpProjectId']: e.target.value })}
-                  placeholder={(editingAccount?.provider || form.provider) === 'aws' ? 'e.g., AKIAIOSFODNN7EXAMPLE' : 'e.g., my-gcp-project-123'}
-                  required
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
-                />
-                {editingAccount && (
-                  <p className="text-xs text-amber-400 mt-1">
-                    You must re-enter credentials to verify the connection
-                  </p>
-                )}
-              </div>
+              {/* GCP Coming Soon message */}
+              {form.provider === 'gcp' && !editingAccount ? (
+                <div className="py-8 text-center space-y-4">
+                  <div className="flex justify-center">
+                    <div className="p-4 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl border border-purple-500/30">
+                      <Rocket className="h-12 w-12 text-purple-400" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-2">GCP Support Coming Soon!</h3>
+                    <p className="text-sm text-slate-400 max-w-xs mx-auto">
+                      We're working on GCP Cloud SQL integration. AWS RDS support is fully available now.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, provider: 'aws' })}
+                    className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white font-medium rounded-lg shadow-lg shadow-yellow-500/20 transition-all"
+                  >
+                    Connect AWS Instead
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      {(editingAccount?.provider || form.provider) === 'aws' ? 'AWS Access Key ID' : 'GCP Project ID'}
+                    </label>
+                    <input
+                      type="text"
+                      value={(editingAccount?.provider || form.provider) === 'aws' ? form.accessKeyId : form.gcpProjectId}
+                      onChange={(e) => setForm({ ...form, [(editingAccount?.provider || form.provider) === 'aws' ? 'accessKeyId' : 'gcpProjectId']: e.target.value })}
+                      placeholder={(editingAccount?.provider || form.provider) === 'aws' ? 'e.g., AKIAIOSFODNN7EXAMPLE' : 'e.g., my-gcp-project-123'}
+                      required
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
+                    />
+                    {editingAccount && (
+                      <p className="text-xs text-amber-400 mt-1">
+                        You must re-enter credentials to verify the connection
+                      </p>
+                    )}
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  {(editingAccount?.provider || form.provider) === 'aws' ? 'AWS Secret Access Key' : 'Service Account JSON Key'}
-                </label>
-                <input
-                  type="password"
-                  value={(editingAccount?.provider || form.provider) === 'aws' ? form.secretAccessKey : form.gcpServiceKey}
-                  onChange={(e) => setForm({ ...form, [(editingAccount?.provider || form.provider) === 'aws' ? 'secretAccessKey' : 'gcpServiceKey']: e.target.value })}
-                  placeholder={(editingAccount?.provider || form.provider) === 'aws' ? '40-character secret' : 'Paste GCP service account JSON key'}
-                  required
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  {(editingAccount?.provider || form.provider) === 'aws'
-                    ? 'AWS Secret Access Keys are 40 characters'
-                    : 'You can paste the entire JSON key file content here'}
-                </p>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      {(editingAccount?.provider || form.provider) === 'aws' ? 'AWS Secret Access Key' : 'Service Account JSON Key'}
+                    </label>
+                    <input
+                      type="password"
+                      value={(editingAccount?.provider || form.provider) === 'aws' ? form.secretAccessKey : form.gcpServiceKey}
+                      onChange={(e) => setForm({ ...form, [(editingAccount?.provider || form.provider) === 'aws' ? 'secretAccessKey' : 'gcpServiceKey']: e.target.value })}
+                      placeholder={(editingAccount?.provider || form.provider) === 'aws' ? '40-character secret' : 'Paste GCP service account JSON key'}
+                      required
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      {(editingAccount?.provider || form.provider) === 'aws'
+                        ? 'AWS Secret Access Keys are 40 characters'
+                        : 'You can paste the entire JSON key file content here'}
+                    </p>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  {(editingAccount?.provider || form.provider) === 'aws' ? 'AWS Regions' : 'GCP Regions'} (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  value={form.regions}
-                  onChange={(e) => setForm({ ...form, regions: e.target.value })}
-                  placeholder="us-east-1,us-west-2"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      {(editingAccount?.provider || form.provider) === 'aws' ? 'AWS Regions' : 'GCP Regions'} (comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={form.regions}
+                      onChange={(e) => setForm({ ...form, regions: e.target.value })}
+                      placeholder="us-east-1,us-west-2"
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-medium rounded-lg shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {editingAccount ? 'Validating & Saving...' : 'Connecting...'}
-                  </>
-                ) : (
-                  <>
-                    <Cloud className="h-4 w-4" />
-                    {editingAccount ? 'Save Changes' : 'Connect Account'}
-                  </>
-                )}
-              </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-medium rounded-lg shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {submitting ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        {editingAccount ? 'Validating & Saving...' : 'Connecting...'}
+                      </>
+                    ) : (
+                      <>
+                        <Cloud className="h-4 w-4" />
+                        {editingAccount ? 'Save Changes' : 'Connect Account'}
+                      </>
+                    )}
+                  </button>
 
-              {editingAccount && (
-                <p className="text-xs text-center text-slate-500">
-                  Credentials will be validated before saving
-                </p>
+                  {editingAccount && (
+                    <p className="text-xs text-center text-slate-500">
+                      Credentials will be validated before saving
+                    </p>
+                  )}
+                </>
               )}
             </form>
           </div>
