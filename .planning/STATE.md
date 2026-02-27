@@ -13,11 +13,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 Phase: 18 of 18 (Dual-Mode Data Collection)
 Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-27 — Completed quick-008: Exclude instances with existing schedules
+Last activity: 2026-02-27 — Completed quick-009: Filter recommendations for existing schedules
 
-Progress: [████████████████████████████████████] 100% (39/39 plans through Phase 18)
+Progress: [████████████████████████████████████] 100% (40/40 plans through Phase 18)
 
-**Next Action:** Quick task 008 complete - filtering applied. Ready for next quick task.
+**Next Action:** Quick task 009 complete. All plans complete. Ready for new phase.
 
 ## Quick Tasks Completed
 
@@ -31,7 +31,8 @@ Progress: [███████████████████████
 | quick-005-01 | 2026-02-27 | Flip Sleep/Wake order to Wake/Sleep in all UI components |
 | quick-006-01 | 2026-02-27 | Scheduler daemon: CRON evaluation with cronexpr, one-time execution tracking, event logging |
 | quick-007-01 | 2026-02-27 | Table-based recommendations display: RecommendationsTable component with batch dismissal |
-| quick-008-01 | 2026-02-27 | Exclude scheduled instances: Filter out instances with matching enabled schedules from recommendations |
+| quick-008-01 | 2026-02-27 | Exclude scheduled instances: Filter recommendations in GenerateRecommendations |
+| quick-009-01 | 2026-02-27 | Filter existing correctly: Exclude scheduled instances in GetAllRecommendations |
 
 **Debug Sessions Completed**
 
@@ -277,9 +278,9 @@ Phase 18 complete. No blockers carried forward.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed quick-008: Exclude instances with existing schedules from recommendations
+Stopped at: Completed quick-009: Filter recommendations in GetAllRecommendations for instances with enabled schedules
 Resume file: None
 
 ---
 
-*Last updated: 2026-02-27 - Exclude scheduled instances: Filter recommendations for instances with enabled schedules
+*Last updated: 2026-02-27 - Filter recommendations correctly: Exclude instances with existing schedules in GetAllRecommendations
