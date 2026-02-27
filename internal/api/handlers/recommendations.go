@@ -487,7 +487,7 @@ func (h *RecommendationHandler) ConfirmRecommendation(w http.ResponseWriter, r *
 	json.Unmarshal(rec.SuggestedSchedule, &suggestedSchedule)
 
 	// Get instance details
-	instance, err := h.instanceStore.GetInstanceByProviderID(r.Context(), "", rec.InstanceID)
+	instance, err := h.instanceStore.GetInstanceByID(r.Context(), rec.InstanceID)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
