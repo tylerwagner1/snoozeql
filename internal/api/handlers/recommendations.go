@@ -154,6 +154,33 @@ func (h *RecommendationHandler) GetAllRecommendations(w http.ResponseWriter, r *
 		})
 	}
 
+	// Filter out recommendations for instances that already have enabled schedules
+	var filtered []enrichedRec
+	for _, rec := range enriched {
+		instance, err := h.instanceStore.GetInstanceByID(r.Context(), rec.InstanceID)
+		if err != nil {
+			log.Printf("DEBUG: Failed to get instance %s for schedule check: %v", rec.InstanceID, err)
+			// If we can't get the instance, include the recommendation anyway
+			filtered = append(filtered, rec)
+			continue
+		}
+
+		schedules, err := h.scheduleStore.GetMatchingSchedules(*instance)
+		if err != nil {
+			log.Printf("DEBUG: Failed to get schedules for instance %s: %v", rec.InstanceID, err)
+			// If we can't check schedules, include the recommendation anyway
+			filtered = append(filtered, rec)
+			continue
+		}
+
+		if len(schedules) > 0 {
+			log.Printf("DEBUG: Skipping recommendation for %s - already has %d schedule(s)", rec.InstanceID, len(schedules))
+			continue
+		}
+
+		filtered = append(filtered, rec)
+	}
+
 	// Local functions for grouping
 	hourToBucket := func(hour int) string {
 		switch {
@@ -296,7 +323,7 @@ func (h *RecommendationHandler) GetAllRecommendations(w http.ResponseWriter, r *
 	}
 
 	// Group recommendations by pattern signature
-	groups := groupRecommendations(enriched)
+	groups := groupRecommendations(filtered)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
