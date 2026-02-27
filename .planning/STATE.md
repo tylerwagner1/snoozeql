@@ -5,8 +5,8 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Minimize database costs by automatically sleeping instances during inactive periods while ensuring they wake up when needed.
-**Current focus:** Quick Tasks - Scheduler Daemon (in progress)
-**Recent work:** Completed quick-006: Scheduler daemon with CRON evaluation
+**Current focus:** Debug - Activity Pattern Graph Regression (resolved)
+**Recent work:** Completed debug-001: Activity pattern graph flat line fix
 
 ## Current Position
 
@@ -17,7 +17,7 @@ Last activity: 2026-02-27 — Completed quick-006: Implement scheduler daemon
 
 Progress: [████████████████████████████████████] 100% (38/38 plans through Phase 18)
 
-**Next Action:** Quick task queue continues with quick-007
+**Next Action:** Debug complete - activity pattern graph fixed. Ready for next quick task.
 
 ## Quick Tasks Completed
 
@@ -30,6 +30,13 @@ Progress: [███████████████████████
 | quick-004-01 | 2026-02-26 | Instance Details page cleanup: fix title color, remove Quick Stats and Metrics cards, dark mode colors |
 | quick-005-01 | 2026-02-27 | Flip Sleep/Wake order to Wake/Sleep in all UI components |
 | quick-006-01 | 2026-02-27 | Scheduler daemon: CRON evaluation with cronexpr, one-time execution tracking, event logging |
+
+**Debug Sessions Completed**
+
+| Session | Date | Description |
+|---------|------|-------------|
+| debug-001 | 2026-02-27 | Activity pattern graph flat line: Fixed edge case handling and CPU multiplier bugs |
+
 
 **Performance Metrics**
 
