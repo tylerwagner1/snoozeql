@@ -181,22 +181,6 @@ const ScheduleNewPage = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Sleep Cron (When to stop)</label>
-                  <input
-                    type="text"
-                    value={form.sleep_cron}
-                    onChange={e => setForm(prev => ({ ...prev, sleep_cron: e.target.value }))}
-                    placeholder="0 22 * * *"
-                    required
-                    className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono text-sm"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    <a href="https://crontab.guru/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                      Cron generator
-                    </a>
-                  </p>
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Wake Cron (When to start)</label>
                   <input
                     type="text"
@@ -208,6 +192,22 @@ const ScheduleNewPage = () => {
                   />
                   <p className="text-xs text-slate-500 mt-1">
                     <a href="https://crontab.guru/" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline">
+                      Cron generator
+                    </a>
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Sleep Cron (When to stop)</label>
+                  <input
+                    type="text"
+                    value={form.sleep_cron}
+                    onChange={e => setForm(prev => ({ ...prev, sleep_cron: e.target.value }))}
+                    placeholder="0 22 * * *"
+                    required
+                    className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono text-sm"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    <a href="https://crontab.guru/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
                       Cron generator
                     </a>
                   </p>

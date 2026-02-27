@@ -158,12 +158,12 @@ export function WeeklyScheduleGrid({
       
       <div className="mt-3 text-xs text-slate-500 flex gap-4 ml-1">
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded bg-indigo-600" />
-          <span>Sleep</span>
-        </div>
-        <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded bg-slate-900" />
           <span>Wake</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded bg-indigo-600" />
+          <span>Sleep</span>
         </div>
       </div>
     </div>

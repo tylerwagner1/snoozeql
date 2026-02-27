@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from '@headlessui/react';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { X } from 'lucide-react';
 import clsx from 'clsx';
-import { WeeklyScheduleGrid } from './WeeklyScheduleGrid';
-import { createEmptyGrid, gridToCron, cronToGrid, formatGridSummary, describeCron } from '../lib/cronUtils';
+import { describeCron } from '../lib/cronUtils';
 import api from '../lib/api';
 import { Schedule, Instance, Selector } from '../lib/api';
 import { FilterBuilder } from './FilterBuilder';
@@ -36,8 +35,6 @@ export function ScheduleModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
-  const [grid, setGrid] = useState<boolean[][]>(createEmptyGrid());
-  const [showCronMode, setShowCronMode] = useState(false);
   const [sleepCron, setSleepCron] = useState('');
   const [wakeCron, setWakeCron] = useState('');
   const [selectors, setSelectors] = useState<Selector[]>([]);
@@ -54,19 +51,16 @@ export function ScheduleModal({
         setName(schedule.name);
         setDescription(schedule.description || '');
         setTimezone(schedule.timezone);
-        const parsedGrid = cronToGrid(schedule.sleep_cron, schedule.wake_cron);
-        setGrid(parsedGrid);
         setSleepCron(schedule.sleep_cron);
         setWakeCron(schedule.wake_cron);
         setSelectors(schedule.selectors || []);
       } else {
-        // Create mode: reset form
+        // Create mode: reset form with sensible defaults
         setName('');
         setDescription('');
         setTimezone('America/New_York');
-        setGrid(createEmptyGrid());
-        setSleepCron('');
-        setWakeCron('');
+        setSleepCron('0 22 * * 1-5'); // Default: 10pm weekdays
+        setWakeCron('0 7 * * 1-5');   // Default: 7am weekdays
         setSelectors([]);
         setNameError('');
       }
@@ -83,55 +77,6 @@ export function ScheduleModal({
     }
   }, [isOpen]);
 
-  // Sync CRON when grid changes (in grid mode)
-  useEffect(() => {
-    if (!showCronMode && isOpen) {
-      const result = gridToCron(grid);
-      if (result) {
-        setSleepCron(result.sleepCron);
-        setWakeCron(result.wakeCron);
-      }
-    }
-  }, [grid, showCronMode, isOpen]);
-
-  // Handle mode switch - convert grid to CRON
-  const handleSwitchToCron = () => {
-    if (!showCronMode) {
-      const result = gridToCron(grid);
-      if (result) {
-        setSleepCron(result.sleepCron);
-        setWakeCron(result.wakeCron);
-      }
-      setShowCronMode(true);
-    } else {
-      setShowCronMode(false);
-    }
-  };
-
-  // Handle CRON mode to grid conversion
-  const handleSwitchToGrid = () => {
-    try {
-      const parsedGrid = cronToGrid(sleepCron, wakeCron);
-      setGrid(parsedGrid);
-      setShowCronMode(false);
-      setError(null);
-    } catch (err) {
-      setError('Invalid CRON expressions. Please check the format.');
-    }
-  };
-
-  // Get summary text for grid
-  const getSummaryText = () => {
-    if (showCronMode) {
-      const sleepSummary = sleepCron || 'Not set';
-      const wakeSummary = wakeCron || 'Not set';
-      return `Sleep: ${sleepSummary} | Wake: ${wakeSummary}`;
-    }
-
-    const summary = formatGridSummary(grid);
-    return `Sleep: ${summary.sleepHours} on ${summary.activeDays}`;
-  };
-
   // Validate form
   const validateForm = (): boolean => {
     if (!name.trim()) {
@@ -140,38 +85,37 @@ export function ScheduleModal({
     }
     setNameError('');
 
-    if (showCronMode) {
-      if (!sleepCron.trim() || !wakeCron.trim()) {
-        setError('Both sleep and wake CRON expressions are required');
-        return false;
-      }
-    } else {
-      // Check if any sleep hours are selected
-      const hasSleep = grid.some(day => day.some(isSleep => isSleep));
-      if (!hasSleep) {
-        setError('Please select at least one sleep hour');
-        return false;
-      }
+    if (!sleepCron.trim() || !wakeCron.trim()) {
+      setError('Both sleep and wake CRON expressions are required');
+      return false;
     }
 
-    setError(null);
+    // Validate CRON syntax
+    try {
+      describeCron(sleepCron);
+      describeCron(wakeCron);
+    } catch (err) {
+      setError('Both sleep and wake CRON expressions must be valid');
+      return false;
+    }
+
     return true;
   };
 
-  // Submit handler
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
     setLoading(true);
+    setError(null);
 
     try {
-      const scheduleData: Omit<Schedule, 'id' | 'created_at' | 'updated_at'> = {
+      const scheduleData = {
         name,
         description,
         timezone,
-        selectors: selectors,
-        sleep_cron: showCronMode ? sleepCron : (gridToCron(grid)?.sleepCron || '0 22 * * 1-5'),
-        wake_cron: showCronMode ? wakeCron : (gridToCron(grid)?.wakeCron || '0 7 * * 1-5'),
+        sleep_cron: sleepCron,
+        wake_cron: wakeCron,
+        selectors,
         enabled: true,
       };
 
@@ -182,197 +126,176 @@ export function ScheduleModal({
         // Create new schedule
         await api.createSchedule(scheduleData);
       }
-
       onSuccess();
-      onClose();
-    } catch (err) {
-      setError('Failed to save schedule. Please try again.');
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to save schedule';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Get title based on mode
-  const getTitle = () => {
-    return schedule ? 'Edit Schedule' : 'Create Schedule';
+  // Get summary text
+  const getSummaryText = () => {
+    if (!sleepCron && !wakeCron) {
+      return 'None set';
+    }
+    const sleepDesc = sleepCron ? describeCron(sleepCron) : 'Not set';
+    const wakeDesc = wakeCron ? describeCron(wakeCron) : 'Not set';
+    return `Wake: ${wakeDesc} | Sleep: ${sleepDesc}`;
   };
+
+  if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-      <DialogBackdrop
-        transition
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm duration-200 ease-out data-[closed]:opacity-0"
-      />
+      <div className="fixed inset-0 bg-black/70" aria-hidden="true" />
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel
-          transition
-          className="max-w-4xl w-full bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-2xl duration-200 ease-out data-[closed]:scale-95 data-[closed]:opacity-0 flex flex-col max-h-[90vh]"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <DialogTitle className="text-xl font-bold text-white">
-              {getTitle()}
+        <DialogPanel className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-slate-900 border border-slate-700 shadow-2xl">
+          <div className="flex items-center justify-between p-6 border-b border-slate-800">
+            <DialogTitle className="text-xl font-semibold text-white">
+              {schedule ? 'Edit Schedule' : 'Create New Schedule'}
             </DialogTitle>
             <button
               onClick={onClose}
               className="text-slate-400 hover:text-white transition-colors"
-              aria-label="Close modal"
             >
-              <X className="w-6 h-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
 
-          {/* Name input */}
-          <div className="mb-4">
-            <label htmlFor="scheduleName" className="block text-sm font-medium text-slate-300 mb-1">
-              Schedule Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="scheduleName"
-              type="text"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (nameError) setNameError('');
-              }}
-              placeholder="e.g., Nightly Sleep"
-              className={clsx(
-                'w-full px-4 py-2 bg-slate-900 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500',
-                nameError ? 'border-red-500' : 'border-slate-700'
-              )}
-            />
-            {nameError && <p className="mt-1 text-sm text-red-500">{nameError}</p>}
-          </div>
-
-          {/* Description input */}
-          <div className="mb-4">
-            <label htmlFor="scheduleDescription" className="block text-sm font-medium text-slate-300 mb-1">
-              Description (Optional)
-            </label>
-            <textarea
-              id="scheduleDescription"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What this schedule does..."
-              rows={2}
-              className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          {/* Timezone select */}
-          <div className="mb-6">
-            <label htmlFor="timezone" className="block text-sm font-medium text-slate-300 mb-1">
-              Timezone
-            </label>
-            <select
-              id="timezone"
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {TIMEZONES.map((tz) => (
-                <option key={tz} value={tz}>
-                  {tz.replace('_', ' ')}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Time selection section */}
-          <div className="mb-6 flex-1 overflow-y-auto pr-2">
-            <div className="mb-4">
-              <h3 className="text-sm font-medium text-slate-300 mb-1">Sleep Hours</h3>
-              <p className="text-xs text-slate-400">Paint the hours when databases should sleep (dark = sleep)</p>
+          <div className="p-6 space-y-6">
+            {/* Name field */}
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-1">
+                Schedule Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Office Hours Schedule"
+                className={`w-full px-4 py-2 bg-slate-900 border rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${nameError ? 'border-red-500' : 'border-slate-700'}`}
+              />
+              {nameError && <p className="mt-1 text-xs text-red-400">{nameError}</p>}
             </div>
 
-            {/* Mode toggle */}
-            <div className="mb-4">
-              <button
-                onClick={showCronMode ? handleSwitchToGrid : handleSwitchToCron}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+            {/* Description field */}
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-slate-300 mb-1">
+                Description
+              </label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What this schedule does..."
+                rows={2}
+                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            {/* Timezone select */}
+            <div>
+              <label htmlFor="timezone" className="block text-sm font-medium text-slate-300 mb-1">
+                Timezone
+              </label>
+              <select
+                id="timezone"
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                {showCronMode ? 'Switch to Grid' : 'Switch to CRON'}
-              </button>
+                {TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz.replace('_', ' ')}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Grid or CRON mode */}
-            {showCronMode ? (
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="sleepCron" className="block text-sm font-medium text-slate-300 mb-1">
-                    Sleep CRON <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="sleepCron"
-                    type="text"
-                    value={sleepCron}
-                    onChange={(e) => setSleepCron(e.target.value)}
-                    placeholder="0 22 * * 1-5"
-                    className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                  />
-                  {sleepCron && (
-                    <p className="mt-1 text-xs text-slate-400">
-                      {describeCron(sleepCron)}
-                    </p>
-                  )}
-                  <p className="mt-1 text-xs text-slate-500">
-                    Standard 5-field CRON format. See{' '}
-                    <a href="https://crontab.guru" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
-                      crontab.guru
-                    </a>
-                  </p>
-                </div>
+            {/* Wake CRON */}
+            <div>
+              <label htmlFor="wakeCron" className="block text-sm font-medium text-slate-300 mb-1">
+                Wake CRON <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="wakeCron"
+                type="text"
+                value={wakeCron}
+                onChange={(e) => setWakeCron(e.target.value)}
+                placeholder="0 7 * * 1-5"
+                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+              {wakeCron && (
+                <p className="mt-1 text-xs text-slate-400 bg-slate-800/50 p-2 rounded">
+                  <span className="font-medium text-slate-300">What this does:</span> {describeCron(wakeCron)}
+                  <br />
+                  <span className="text-slate-500 mt-1 block">
+                    {wakeCron} → Databases will wake at this time
+                  </span>
+                </p>
+              )}
+            </div>
 
-                <div>
-                  <label htmlFor="wakeCron" className="block text-sm font-medium text-slate-300 mb-1">
-                    Wake CRON <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="wakeCron"
-                    type="text"
-                    value={wakeCron}
-                    onChange={(e) => setWakeCron(e.target.value)}
-                    placeholder="0 7 * * 1-5"
-                    className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                  />
-                  {wakeCron && (
-                    <p className="mt-1 text-xs text-slate-400">
-                      {describeCron(wakeCron)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <WeeklyScheduleGrid grid={grid} onChange={setGrid} />
-            )}
+            {/* Sleep CRON */}
+            <div>
+              <label htmlFor="sleepCron" className="block text-sm font-medium text-slate-300 mb-1">
+                Sleep CRON <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="sleepCron"
+                type="text"
+                value={sleepCron}
+                onChange={(e) => setSleepCron(e.target.value)}
+                placeholder="0 22 * * 1-5"
+                className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+              {sleepCron && (
+                <p className="mt-1 text-xs text-slate-400 bg-slate-800/50 p-2 rounded">
+                  <span className="font-medium text-slate-300">What this does:</span> {describeCron(sleepCron)}
+                  <br />
+                  <span className="text-slate-500 mt-1 block">
+                    {sleepCron} → Databases will sleep at this time
+                  </span>
+                </p>
+              )}
+              <p className="mt-1 text-xs text-slate-500">
+                Standard 5-field CRON format. See{' '}
+                <a href="https://crontab.guru" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
+                  crontab.guru
+                </a>
+              </p>
+            </div>
 
             {/* Summary display */}
-            <div className="mt-4 p-3 bg-slate-900 rounded-lg border border-slate-700">
+            <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
               <p className="text-sm text-slate-300">
-                <span className="font-medium">Current schedule:</span>{' '}
+                <span className="font-medium">Schedule summary:</span>{' '}
                 <span className="text-indigo-400">{getSummaryText()}</span>
               </p>
             </div>
 
             {/* Filter Builder Section */}
-            <div className="mt-6 pt-6 border-t border-slate-700">
+            <div className="pt-6 border-t border-slate-700">
               <FilterBuilder
                 selectors={selectors}
                 onChange={setSelectors}
                 instances={instances}
               />
             </div>
+
+            {/* Error message */}
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg">
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            )}
           </div>
 
-          {/* Error message */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
-          )}
-
           {/* Footer */}
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-700">
+          <div className="flex justify-end gap-3 p-6 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}

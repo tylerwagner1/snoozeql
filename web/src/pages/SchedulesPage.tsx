@@ -3,7 +3,7 @@ import { Clock, Plus } from 'lucide-react'
 import api from '../lib/api'
 import type { Schedule, Instance } from '../lib/api'
 import { ScheduleModal } from '../components/ScheduleModal'
-import { cronToGrid, formatGridSummary } from '../lib/cronUtils'
+import { describeCron } from '../lib/cronUtils'
 import { matchInstance } from '../lib/filterUtils'
 
 const SchedulesPage = () => {
@@ -72,10 +72,11 @@ const SchedulesPage = () => {
   // Compute summary for display
   const getSummary = (schedule: Schedule) => {
     try {
-      const grid = cronToGrid(schedule.sleep_cron, schedule.wake_cron)
-      return formatGridSummary(grid)
+      const sleepDesc = describeCron(schedule.sleep_cron)
+      const wakeDesc = describeCron(schedule.wake_cron)
+      return { activeDays: 'Custom CRON', sleepHours: `Wake: ${wakeDesc} | Sleep: ${sleepDesc}` }
     } catch {
-      return { activeDays: schedule.sleep_cron, sleepHours: 'Custom CRON' }
+      return { activeDays: 'Custom CRON', sleepHours: 'Invalid CRON' }
     }
   }
 
