@@ -128,7 +128,7 @@ See `deployments/docker/migrations/001_base_schema.sql` for the complete schema 
 - Activity detection via CloudWatch metrics
 - Cost calculation based on instance type
 
-### GCP Cloud SQL  
+### GCP Cloud SQL --> Coming soon! 
 - Start/stop using `activationPolicy` field (ALWAYS/NEVER)
 - Activity detection (Cloud Monitoring integration pending)
 - Cost calculation based on instance configuration
