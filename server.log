@@ -1,5 +1,0 @@
-SnoozeQL - Database Sleeper for Dev/Test Environments
-========================================================
-2026/02/24 10:27:43.240887 main.go:87: failed to connect to database: failed to ping database: failed to connect to `user=tylerwagner database=snoozeql`:
-	[::1]:5432 (localhost): dial error: dial tcp [::1]:5432: connect: connection refused
-	127.0.0.1:5432 (localhost): dial error: dial tcp 127.0.0.1:5432: connect: connection refused

@@ -1,2 +1,63 @@
+# Build artifacts
 web/dist/
-web/node_modules/.vite/
+web/node_modules/
+server
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Planning and development artifacts (personal workflow)
+.planning/
+.checkpoint*
+.continue-here
+.final-output
+*.REPORT.md
+*-REPORT.md
+INTEGRATION_REPORT.md
+opencode.json
+
+# Backup files
+*.bak
+*.original
+*.backup
+*.old
+
+# Test coverage
+coverage.out
+coverage.html
+
+# Vendor cache (if not committing vendor)
+# vendor/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
