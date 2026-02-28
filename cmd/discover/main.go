@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"snoozeql/internal/provider"
 	"snoozeql/internal/provider/aws"
@@ -12,11 +13,21 @@ import (
 func main() {
 	log.Println("Starting database discovery...")
 
+	// Load credentials from environment variables
+	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = "us-east-1"
+	}
+
+	if accessKey == "" || secretKey == "" {
+		log.Fatal("AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables are required")
+	}
+
 	reg := provider.NewRegistry()
 
-	// Register AWS provider with engineering-test credentials
-	// TODO: Load from environment or config
-	awsProvider, err := aws.NewRDSProvider("us-east-1", "", []string{}, "REDACTED_AWS_ACCESS_KEY", "REDACTED_AWS_SECRET_KEY")
+	awsProvider, err := aws.NewRDSProvider(region, "", []string{}, accessKey, secretKey)
 	if err != nil {
 		log.Fatalf("Failed to create AWS provider: %v", err)
 	}
